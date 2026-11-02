@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: classbridge_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_PG_URL: postgresql+psycopg://postgres:postgres@localhost:5432/classbridge_test
+      RUN_E2E: "1"
+      E2E_SHOTS: e2e-shots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt ruff pip-audit
+      - run: python -m playwright install --with-deps chromium
+      - name: Lint
+        run: ruff check app tests migrations
+      - name: Dependency audit
+        run: pip-audit -r requirements.txt
+      - name: Tests (unit · integration · PostgreSQL · E2E)
+        run: pytest -q -rs --junitxml=test-results.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-evidence
+          path: |
+            test-results.xml
+            e2e-shots/
