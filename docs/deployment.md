@@ -38,7 +38,9 @@
 ## 3. Supabase 설정
 
 1. 프로젝트 생성(리전: Northeast Asia (Seoul)).
-2. Settings → Database → Connection string(Session pooler 또는 Direct, `sslmode=require`)을 Render `DATABASE_URL`에 넣는다.
+2. 상단 **Connect** 버튼 → **Session pooler** 연결 문자열(`...pooler.supabase.com:5432/postgres`)을 복사해 `[YOUR-PASSWORD]`를 바꾼 뒤 Render `DATABASE_URL`에 넣는다.
+   - **Direct connection은 사용 불가**: Supabase의 직접 연결은 IPv6 전용인데(유료 IPv4 애드온 제외) Render는 외부로 IPv6 연결을 지원하지 않는다.
+   - Transaction pooler(6543)는 쓰지 않는다: psycopg의 자동 prepared statement와 충돌할 수 있다.
 3. [database.md](database.md)의 GRANT/REVOKE를 적용하고, Data API를 비활성화한다.
 4. 대시보드 멤버는 관리자 1명만 둔다(익명성 한계 L1·L2 완화).
 
@@ -46,7 +48,7 @@
 
 1. Render → New → Blueprint → 이 저장소 선택(`render.yaml`), 또는 Web Service를 수동 생성
 2. 환경변수 입력 (`.env.example` 참고): `BASE_URL=https://<서비스>.onrender.com`, `ADMIN_EMAILS`, `PROFESSOR_EMAILS`
-3. 배포하면 `preDeployCommand: alembic upgrade head` → 시작 → `/healthz` 확인 순으로 진행된다. 마이그레이션이 실패하면 새 버전은 뜨지 않고 이전 버전이 유지된다.
+3. 배포하면 시작 명령에서 `alembic upgrade head`를 실행한 뒤 서버를 띄우고 `/healthz`를 확인한다. 마이그레이션이 실패하면 서버가 뜨지 않아 새 버전이 실패 처리되고, 이전 버전이 계속 서비스된다.
 4. 사용자 지정 도메인은 Render → Custom Domains에서 연결하고 HTTPS 인증서를 자동 발급받는다. `BASE_URL`과 Google 리디렉션 URI도 함께 바꾼다.
 
 ## 5. 관리자 초기 등록
