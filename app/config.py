@@ -37,6 +37,11 @@ class Settings:
     # 비어 있으면 모든 Google 계정 허용, 값이 있으면 해당 도메인만 학생 가입 허용
     allowed_email_domains: list[str] = field(default_factory=list)
 
+    # Staging mode: any Google account not explicitly approved is denied access.
+    # No change to the confirmed personal-Gmail policy for real deployment.
+    staging_mode: bool = False
+    staging_allowed_emails: list[str] = field(default_factory=list)
+
     dev_login_enabled: bool = False
 
     session_ttl_hours: int = 12
@@ -55,6 +60,12 @@ class Settings:
     def validate(self) -> None:
         if self.ai_mode not in {"disabled", "demo", "external"}:
             raise ConfigError("AI_MODE must be disabled|demo|external")
+        if self.staging_mode:
+            if not self.staging_allowed_emails:
+                raise ConfigError("STAGING_ALLOWED_EMAILS must contain test accounts when STAGING_MODE=true")
+            required = set(self.admin_emails + self.professor_emails)
+            if not required.issubset(self.staging_allowed_emails):
+                raise ConfigError("Staging allowlist must include all initial admin/professor emails")
         if not self.is_production:
             return
         problems = []
@@ -89,6 +100,8 @@ def load_settings() -> Settings:
         admin_emails=_list("ADMIN_EMAILS"),
         professor_emails=_list("PROFESSOR_EMAILS"),
         allowed_email_domains=_list("ALLOWED_EMAIL_DOMAINS"),
+        staging_mode=_bool("STAGING_MODE", False),
+        staging_allowed_emails=_list("STAGING_ALLOWED_EMAILS"),
         dev_login_enabled=_bool("DEV_LOGIN_ENABLED", env in {"development", "test"}),
         session_ttl_hours=int(os.getenv("SESSION_TTL_HOURS", "12")),
         cookie_secure=_bool("COOKIE_SECURE", prod),
