@@ -29,6 +29,8 @@ class Survey(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, default="")
+    course_name: Mapped[str] = mapped_column(String(120), default="")
+    semester: Mapped[str] = mapped_column(String(40), default="")
     status: Mapped[str] = mapped_column(String(20), default="draft")
     opens_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     closes_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
