@@ -1,0 +1,42 @@
+# Render Blueprint (검토용). 실제 생성·배포는 사용자 승인 후 Render 대시보드에서 진행.
+services:
+  - type: web
+    name: classbridge
+    runtime: python
+    plan: free            # 무료 플랜은 15분 무요청 시 휴면 → 첫 접속 지연(docs/deployment.md 참고)
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    # 무료 플랜 호환을 위해 시작 명령에서 마이그레이션 실행.
+    # 마이그레이션이 실패하면 서버가 뜨지 않아 헬스체크 실패 → 이전 버전이 계속 서비스된다
+    startCommand: alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /healthz
+    autoDeploy: false
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DATABASE_URL   # Supabase 'Session pooler' 문자열 (Direct는 IPv6 전용이라 Render에서 접속 불가)
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: PROFESSOR_EMAILS
+        sync: false
+      - key: ALLOWED_EMAIL_DOMAINS
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: FEATURE_SURVEYS
+        value: "false"
+      - key: FEATURE_SUGGESTIONS
+        value: "false"
+      - key: AI_MODE
+        value: disabled
