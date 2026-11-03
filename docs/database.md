@@ -51,9 +51,9 @@ alembic upgrade head
 
 ## DB 계정 (FastAPI 직접 접속 구조)
 
-이 서비스는 Supabase Data API(PostgREST)를 **사용하지 않는다**. FastAPI가 PostgreSQL에 직접 접속한다. 따라서 RLS보다 다음이 핵심이다.
+이 서비스는 Supabase Data API(PostgREST)를 **사용하지 않는다**. FastAPI가 PostgreSQL에 직접 접속한다. **스테이징은 Neon PostgreSQL로 전환**하며, RLS와 기본 DB 계정 권한은 실제 Neon 연결 계정의 소유권·최소 권한을 기준으로 확인해야 한다. 다음은 기존 Supabase 대비 보안 정책 설명을 유지한 것이다.
 
-1. **자동 적용됨 (마이그레이션 `0002_lock_down_public_api`)**: 배포 시 `alembic upgrade head`가 다음을 실행한다.
+1. **자동 적용됨 (마이그레이션 `0002_lock_down_public_api`)**: 배포 시 `alembic upgrade head`가 다음을 실행한다. Neon에서 Supabase 역할이 없다면 RLS 활성화만 수행하며, 해당 DB 사용자는 테이블 소유자 권한을 검증해야 한다.
    - public의 모든 테이블에 RLS(행 수준 보안)를 켠다. 정책이 없어서 anon·authenticated는 아무 행도 못 본다. 앱은 테이블 소유자로 접속하므로 영향이 없다(FORCE 미사용).
    - anon·authenticated의 테이블·시퀀스·함수 권한을 회수하고, 앞으로 만들 객체의 기본 권한도 회수한다.
    - 이 두 역할이 없는 일반 PostgreSQL(로컬·CI)에서는 RLS만 켠다.
