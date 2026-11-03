@@ -77,8 +77,12 @@ class Settings:
             problems.append("COOKIE_SECURE=true 가 필요합니다 (HTTPS)")
         if self.database_url.startswith("sqlite"):
             problems.append("운영 환경은 PostgreSQL DATABASE_URL이 필요합니다")
-        if not (self.google_client_id and self.google_client_secret):
-            problems.append("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET가 필요합니다")
+        oauth_configured = bool(self.google_client_id and self.google_client_secret)
+        # An empty OAuth configuration is permitted ONLY for the locked-down
+        # staging bootstrap. In this state Google login is unavailable.
+        if not oauth_configured:
+            if not (self.staging_mode and not self.google_client_id and not self.google_client_secret):
+                problems.append("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET가 필요합니다")
         if not self.admin_emails:
             problems.append("ADMIN_EMAILS에 최초 관리자 이메일이 필요합니다")
         if self.ai_mode == "external" and not self.ai_api_key:
