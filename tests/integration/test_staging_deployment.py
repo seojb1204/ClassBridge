@@ -24,6 +24,20 @@ def test_staging_mode_requires_explicit_allowlist():
                  staging_allowed_emails=["student@test.ac.kr"]).validate()
 
 
+def test_staging_bootstrap_allows_no_google_credentials_but_not_partial_oauth():
+    allowed = dict(env="production", database_url="postgresql+psycopg://localhost/test",
+                   secret_key="secure-not-production-testing-only-00000000",
+                   cookie_secure=True, admin_emails=[ADMIN],
+                   professor_emails=[PROF], staging_mode=True,
+                   staging_allowed_emails=[ADMIN, PROF])
+    Settings(**allowed).validate()
+    with pytest.raises(ConfigError, match="GOOGLE_CLIENT"):
+        Settings(**allowed, google_client_id="partially-configured").validate()
+    non_staging = {**allowed, "staging_mode": False}
+    with pytest.raises(ConfigError, match="GOOGLE_CLIENT"):
+        Settings(**non_staging).validate()
+
+
 def test_only_staging_approved_google_accounts_can_sign_in(tmp_path):
     app = build_app(str("sqlite:///" + str(tmp_path / "staging.db")),
                     staging_mode=True, admin_emails=[ADMIN],
