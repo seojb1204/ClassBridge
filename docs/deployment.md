@@ -33,7 +33,7 @@
 2. "사용자 인증 정보" → "OAuth 클라이언트 ID" → 웹 애플리케이션
    - 승인된 리디렉션 URI: `https://<도메인>/auth/google/callback`
 3. 발급된 ID와 시크릿을 Render 환경변수 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`에 넣는다(코드나 Git에는 넣지 않는다).
-4. `ALLOWED_EMAIL_DOMAINS`에 학교 도메인을 넣어 외부 계정의 학생 가입을 막는다.
+4. **학생의 개인 Gmail 로그인을 허용하는 확정 정책에 따라** `ALLOWED_EMAIL_DOMAINS`는 비워 둔다. Google 계정 소유 확인만 가능하며 링크 소지자가 실제 수강생인지 검증하지 못하므로, 공개 전 위협·운영 정책을 확인한다.
 
 ## 3. Supabase 설정
 
