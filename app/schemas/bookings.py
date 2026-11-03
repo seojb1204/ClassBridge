@@ -66,6 +66,12 @@ class BookingCreateIn(BaseModel):
     slot_id: int
     student_id: int | None = None  # 교수자·관리자만 사용 가능 (서버에서 검증)
     topic: str = Field(default="", max_length=500)
+    # The student enters these values; do not treat them as verified credentials.
+    applicant_name: str = Field(default="", max_length=100)
+    student_number: str = Field(default="", max_length=30)
+    grade: int | None = Field(default=None, ge=1, le=4)
+    consultation_type: Literal["career", "employment", "academics", "campus", "other"] = "other"
+    consultation_mode: Literal["in_person", "online"] = "in_person"
 
 
 class BookingCancelIn(BaseModel):
@@ -100,6 +106,11 @@ class MyBookingOut(BaseModel):
     id: int
     status: str
     topic: str
+    applicant_name: str
+    student_number: str
+    grade: int | None
+    consultation_type: str
+    consultation_mode: str
     cancel_reason: str
     created_at: datetime
     slot: SlotBrief
