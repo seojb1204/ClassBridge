@@ -33,6 +33,8 @@ jobs:
         run: ruff check app tests migrations
       - name: Dependency audit
         run: pip-audit -r requirements.txt
+      - name: Backup and restore script syntax
+        run: bash -n scripts/backup_neon_encrypted.sh scripts/verify_neon_restore.sh
       - name: Tests (unit · integration · PostgreSQL · E2E)
         run: pytest -q -rs --junitxml=test-results.xml
       - uses: actions/upload-artifact@v4
