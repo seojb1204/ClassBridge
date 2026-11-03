@@ -25,6 +25,8 @@ class QuestionOut(QuestionIn):
 class SurveyCreateIn(BaseModel):
     title: str = Field(max_length=200)
     description: str = Field(default="", max_length=5000)
+    course_name: str = Field(default="", max_length=120)
+    semester: str = Field(default="", max_length=40)
     questions: list[QuestionIn] = Field(default_factory=list, max_length=50)
     opens_at: datetime | None = None
     closes_at: datetime | None = None
@@ -34,6 +36,8 @@ class SurveyCreateIn(BaseModel):
 class SurveyUpdateIn(BaseModel):
     title: str | None = Field(default=None, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
+    course_name: str | None = Field(default=None, max_length=120)
+    semester: str | None = Field(default=None, max_length=40)
     questions: list[QuestionIn] | None = Field(default=None, max_length=50)
     opens_at: datetime | None = None
     closes_at: datetime | None = None
@@ -44,6 +48,8 @@ class SurveyOut(BaseModel):
     id: int
     title: str
     description: str
+    course_name: str
+    semester: str
     status: str
     opens_at: datetime | None
     closes_at: datetime | None
@@ -57,6 +63,8 @@ class SurveyOut(BaseModel):
 class SurveyStaffListOut(BaseModel):
     id: int
     title: str
+    course_name: str
+    semester: str
     status: str
     opens_at: datetime | None
     closes_at: datetime | None
@@ -68,6 +76,8 @@ class SurveyStudentListOut(BaseModel):
     id: int
     title: str
     description: str
+    course_name: str
+    semester: str
     status: str
     closes_at: datetime | None
     is_open: bool
