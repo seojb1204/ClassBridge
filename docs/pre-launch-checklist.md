@@ -16,7 +16,7 @@
 - [ ] Supabase 프로젝트 생성 → 첫 배포 후 [deployment.md](deployment.md) 3장의 확인 쿼리 결과가 둘 다 0인지 확인 (차단 자체는 마이그레이션 0002가 자동 적용)
 - [ ] Render 서비스 생성(무료/유료 결정), 환경변수 입력
 - [ ] 관리자·교수 Google 계정 2단계 인증 활성화
-- [ ] `ALLOWED_EMAIL_DOMAINS`에 학교 도메인 설정
+- [ ] 학생 개인 Gmail 로그인 정책 확인: `ALLOWED_EMAIL_DOMAINS`는 빈 값. 링크를 받은 사람이 실제 수강생인지 Google 로그인만으로는 검증할 수 없음을 운영 주체에게 안내
 - [ ] 백업 일정과 보관 위치 결정
 
 ## C. 검증
