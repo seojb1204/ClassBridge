@@ -30,8 +30,13 @@ function table(root, list) {
     h("thead", {}, h("tr", {}, ["일시", "학생", "유형", "상담 내용", "상태", "작업"].map((t) => h("th", {}, t)))),
     h("tbody", {}, list.map((b) => h("tr", { dataset: { bookingId: b.id } },
       h("td", { "data-label": "일시" }, fmtDateTime(b.slot.start_at)),
-      h("td", { "data-label": "학생" }, `${b.student_name} `, h("small", { class: "muted" }, b.student_email)),
-      h("td", { "data-label": "유형" }, b.slot.kind === "group" ? "단체" : "개인"),
+      h("td", { "data-label": "학생" }, `${b.applicant_name || b.student_name} `,
+        h("small", { class: "muted" }, [b.student_number, b.grade ? `${b.grade}학년` : "", b.student_email]
+          .filter(Boolean).join(" · "))),
+      h("td", { "data-label": "유형" },
+        `${b.slot.kind === "group" ? "단체" : "개인"} · ` +
+        `${({career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타"})[b.consultation_type] || "기타"}` +
+        ` · ${b.consultation_mode === "online" ? "온라인" : "대면"}`),
       h("td", { "data-label": "상담 내용" }, b.topic || "-"),
       h("td", { "data-label": "상태" }, badge(STATUS_LABEL[b.status], b.status)),
       h("td", { "data-label": "작업", class: "actions" }, actions(root, b))))));

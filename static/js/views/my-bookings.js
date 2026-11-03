@@ -23,6 +23,9 @@ function item(root, b) {
     h("div", { class: "row" }, h("strong", {}, fmtDateTime(b.slot.start_at)), badge(STATUS_LABEL[b.status], b.status)),
     h("span", { class: "muted" }, b.slot.kind === "group" ? "단체 상담" : "개인 상담",
       b.slot.location ? ` · ${b.slot.location}` : ""),
+    h("p", { class: "muted" },
+      `${({career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타"})[b.consultation_type] || "기타"}` +
+      ` · ${b.consultation_mode === "online" ? "온라인" : "대면"}`),
     b.topic ? h("p", {}, b.topic) : null,
     b.cancel_reason ? h("p", { class: "muted" }, `취소 사유: ${b.cancel_reason}`) : null,
     b.status === "booked" ? h("div", { class: "actions" }, cancelBtn,

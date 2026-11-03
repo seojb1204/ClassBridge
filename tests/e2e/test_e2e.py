@@ -143,6 +143,11 @@ def test_student_booking_flow_pc(server, browser):
     slot = _find_slot(st)
     st.shot("pc_02_student_calendar")
     slot.click()
+    st.page.fill(".modal input[placeholder='학생 이름']", "김테스트")
+    st.page.fill(".modal input[placeholder^='학번']", "20260001")
+    st.page.locator(".modal select").nth(0).select_option("2")
+    st.page.locator(".modal select").nth(1).select_option("career")
+    st.page.locator(".modal select").nth(2).select_option("online")
     st.page.fill(".modal textarea", "진로 상담 희망")
     st.page.click(".modal button:text-is('예약하기')")
     st.toast("예약이 완료")
@@ -151,6 +156,12 @@ def test_student_booking_flow_pc(server, browser):
     st.shot("pc_03_student_booked")
     st.go("/my-bookings")
     assert st.page.locator(".card.booking.booked").count() == 1
+    assert "진로 · 온라인" in st.page.locator(".card.booking.booked").inner_text()
+    # Professor sees student-entered details; do not expose the professor's private note.
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    prof.go("/bookings")
+    assert "20260001" in prof.page.locator("tr:has-text('김테스트')").inner_text()
+    prof.close()
     st.page.click("text=예약 취소")
     st.page.click(".modal button:text-is('취소하기')")
     st.toast("예약을 취소")
@@ -224,6 +235,8 @@ def test_survey_create_submit_results(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/surveys/edit/new")
     prof.page.fill(".title-input", "중간 강의 설문")
+    prof.page.locator("input[placeholder^='교과목']").fill("항공서비스 실무")
+    prof.page.locator("input[placeholder^='학기']").fill("2026-2")
     prof.page.locator("input[type=number]").fill("1")  # 결과 공개 최소 응답 수
     prof.page.click("text=+ 문항 추가")
     prof.page.locator(".q-title").nth(0).fill("수업 만족도")
@@ -250,6 +263,8 @@ def test_survey_create_submit_results(server, browser):
 
     st = Session(browser, base, "student3@test.ac.kr", PC)
     st.go("/surveys")
+    assert "항공서비스 실무" in st.page.locator("main").inner_text()
+    assert "2026-2" in st.page.locator("main").inner_text()
     st.page.click("text=응답하기")
     st.page.locator(".scale-item").nth(3).click()
     st.page.locator(".choices .check").nth(0).click()

@@ -16,7 +16,11 @@ target_metadata = Base.metadata
 
 
 def _url() -> str:
-    url = config.attributes.get("database_url") or os.getenv("DATABASE_URL")
+    # Explicit migration URL (direct Neon connection) takes precedence over
+    # pooled application connections. Explicit Alembic test overrides remain first.
+    url = (config.attributes.get("database_url")
+           or os.getenv("DATABASE_URL_DIRECT")
+           or os.getenv("DATABASE_URL"))
     if not url:
         raise RuntimeError("DATABASE_URL 환경변수가 필요합니다")
     return url

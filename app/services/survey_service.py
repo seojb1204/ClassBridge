@@ -77,13 +77,15 @@ def _build_questions(items: list[QuestionInput]) -> list[Question]:
 
 
 def create(db: Session, actor: User, title: str, description: str, questions: list[QuestionInput],
-           opens_at: datetime | None, closes_at: datetime | None, min_results: int | None) -> Survey:
+           opens_at: datetime | None, closes_at: datetime | None, min_results: int | None,
+           course_name: str = "", semester: str = "") -> Survey:
     title = title.strip()
     if not title:
         raise BadRequest("제목이 필요합니다")
     _check_window(opens_at, closes_at)
     s = Survey(title=title[:200], description=description[:5000], opens_at=opens_at, closes_at=closes_at,
-               min_results=min_results or get_settings(db)["survey_min_results"], created_by_id=actor.id)
+               min_results=min_results or get_settings(db)["survey_min_results"], created_by_id=actor.id,
+               course_name=course_name.strip()[:120], semester=semester.strip()[:40])
     s.questions = _build_questions(validate_questions(questions))
     db.add(s)
     db.flush()
@@ -100,11 +102,12 @@ def _check_window(opens_at, closes_at):
 def update(db: Session, actor: User, survey_id: int, *, title: str | None = None,
            description: str | None = None, questions: list[QuestionInput] | None = None,
            opens_at: datetime | None = None, closes_at: datetime | None = None,
-           min_results: int | None = None, fields_set: set[str] | None = None) -> Survey:
+           min_results: int | None = None, course_name: str | None = None,
+           semester: str | None = None, fields_set: set[str] | None = None) -> Survey:
     fields_set = fields_set or set()
     s = _get(db, survey_id, lock=True)
     if s.status != "draft":
-        locked = {"questions", "opens_at", "min_results"} & fields_set
+        locked = {"questions", "opens_at", "min_results", "course_name", "semester"} & fields_set
         if locked:
             raise Conflict("게시된 설문의 문항·시작일·최소 응답 수는 바꿀 수 없습니다. 복제해서 새 버전을 만드세요",
                            code="survey_locked")
@@ -116,6 +119,10 @@ def update(db: Session, actor: User, survey_id: int, *, title: str | None = None
         s.title = title.strip()[:200]
     if description is not None:
         s.description = description[:5000]
+    if course_name is not None:
+        s.course_name = course_name.strip()[:120]
+    if semester is not None:
+        s.semester = semester.strip()[:40]
     if "opens_at" in fields_set:
         s.opens_at = opens_at
     if "closes_at" in fields_set:
@@ -164,7 +171,8 @@ def close(db: Session, actor: User, survey_id: int) -> Survey:
 def duplicate(db: Session, actor: User, survey_id: int) -> Survey:
     src = _get(db, survey_id)
     s = Survey(title=f"{src.title} (복제)"[:200], description=src.description, min_results=src.min_results,
-               source_survey_id=src.id, created_by_id=actor.id)
+               source_survey_id=src.id, created_by_id=actor.id,
+               course_name=src.course_name, semester=src.semester)
     s.questions = [Question(position=q.position, qtype=q.qtype, title=q.title, required=q.required,
                             options=list(q.options or [])) for q in src.questions]
     db.add(s)

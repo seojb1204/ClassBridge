@@ -2,7 +2,7 @@
 import { get, post } from "../api.js";
 import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, mondayOf, todayKst } from "../time.js";
-import { errorToast, field, h, modal, mount, toast } from "../ui.js";
+import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 
 let weekStart = null;
 let selectedDay = null;
@@ -47,18 +47,30 @@ async function openSlot(root, s, active) {
   }
   if (!s.bookable) { toast(s.reason || "예약할 수 없는 시간입니다", "error"); return; }
   const topic = h("textarea", { rows: 3, maxlength: 500, placeholder: "상담 받고 싶은 내용 (선택)" });
+  const applicantName = h("input", { type: "text", maxlength: 100, placeholder: "학생 이름" });
+  const studentNumber = h("input", { type: "text", maxlength: 30, placeholder: "학번 (별도 확인하지 않음)" });
+  const grade = select([["", "선택 안 함"], ["1", "1학년"], ["2", "2학년"], ["3", "3학년"], ["4", "4학년"]]);
+  const consultationType = select([["career", "진로"], ["employment", "취업"], ["academics", "학업"],
+    ["campus", "학교생활"], ["other", "기타"]]);
+  const consultationMode = select([["in_person", "대면"], ["online", "온라인"]]);
   const info = h("div", {},
     h("p", {}, h("strong", {}, fmtDateTime(s.start_at)), ` (${s.kind === "group" ? `단체 · 남은 자리 ${s.remaining}` : "개인 상담"})`),
     s.location ? h("p", { class: "muted" }, `장소: ${s.location}`) : null,
     s.note ? h("p", { class: "muted" }, s.note) : null,
     active ? h("p", { class: "warn" }, `기존 예약(${fmtDateTime(active.slot.start_at)})이 이 시간으로 변경됩니다.`)
-      : field("상담 내용", topic));
+      : h("div", {}, field("이름", applicantName), field("학번", studentNumber),
+        field("학년", grade), field("상담 유형", consultationType),
+        field("상담 방식", consultationMode), field("상담 내용", topic)));
   const result = await modal(active ? "예약 변경" : "상담 예약", info, [
     { label: "닫기", value: null },
     { label: active ? "이 시간으로 변경" : "예약하기", primary: true, handler: async () => {
       try {
         if (active) await post(`/api/bookings/${active.id}/reschedule`, { new_slot_id: s.id });
-        else await post("/api/bookings", { slot_id: s.id, topic: topic.value });
+        else await post("/api/bookings", {
+          slot_id: s.id, topic: topic.value, applicant_name: applicantName.value,
+          student_number: studentNumber.value, grade: grade.value ? +grade.value : null,
+          consultation_type: consultationType.value, consultation_mode: consultationMode.value,
+        });
         return true;
       } catch (e) {
         errorToast(e);

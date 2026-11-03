@@ -18,6 +18,7 @@ async function staffList(root) {
     h("div", { class: "page-head" }, h("h1", {}, "설문"), h("a", { class: "btn primary", href: "#/surveys/edit/new" }, "+ 새 설문")),
     list.length ? h("div", { class: "cards" }, list.map((s) => h("div", { class: "card" },
       h("div", { class: "row" }, h("strong", {}, s.title), badge(STATUS_LABEL[s.status], s.status)),
+      h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
       h("span", { class: "muted" }, `응답 ${s.response_count}건`, s.closes_at ? ` · 마감 ${fmtDateTime(s.closes_at)}` : ""),
       h("div", { class: "actions" },
         h("a", { class: "btn small", href: `#/surveys/edit/${s.id}` }, s.status === "draft" ? "편집" : "설정"),
@@ -31,6 +32,7 @@ async function studentList(root) {
     list.length ? h("div", { class: "cards" }, list.map((s) => h("div", { class: "card" },
       h("div", { class: "row" }, h("strong", {}, s.title),
         s.participated ? badge("참여 완료", "completed") : s.is_open ? badge("응답 가능", "booked") : badge("마감", "cancelled")),
+      h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
       s.closes_at ? h("span", { class: "muted" }, `마감 ${fmtDateTime(s.closes_at)}`) : null,
       s.is_open && !s.participated ? h("div", { class: "actions" },
         h("a", { class: "btn small primary", href: `#/surveys/take/${s.id}` }, "응답하기")) : null)))

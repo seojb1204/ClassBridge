@@ -41,7 +41,8 @@ def _q(items) -> list[QuestionInput]:
 @router.get("", response_model=list[SurveyStaffListOut], dependencies=[Depends(feature_on)])
 def staff_list(p: Principal = Depends(require(P.SURVEY_MANAGE)), db: Session = Depends(get_db)):
     counts = repo.response_counts(db)
-    return [SurveyStaffListOut(id=s.id, title=s.title, status=s.status, opens_at=s.opens_at,
+    return [SurveyStaffListOut(id=s.id, title=s.title, course_name=s.course_name,
+                               semester=s.semester, status=s.status, opens_at=s.opens_at,
                                closes_at=s.closes_at, response_count=counts.get(s.id, 0),
                                min_results=s.min_results) for s in repo.list_all(db)]
 
@@ -49,7 +50,8 @@ def staff_list(p: Principal = Depends(require(P.SURVEY_MANAGE)), db: Session = D
 @router.post("", response_model=SurveyOut, status_code=201, dependencies=[Depends(feature_on)])
 def create(body: SurveyCreateIn, p: Principal = Depends(require(P.SURVEY_MANAGE)), db: Session = Depends(get_db)):
     return svc.create(db, p.user, body.title, body.description, _q(body.questions),
-                      body.opens_at, body.closes_at, body.min_results)
+                      body.opens_at, body.closes_at, body.min_results,
+                      course_name=body.course_name, semester=body.semester)
 
 
 @router.get("/{survey_id}", response_model=SurveyOut, dependencies=[Depends(feature_on)])
@@ -64,7 +66,7 @@ def update(survey_id: int, body: SurveyUpdateIn, p: Principal = Depends(require(
     return svc.update(db, p.user, survey_id, title=body.title, description=body.description,
                       questions=_q(body.questions) if body.questions is not None else None,
                       opens_at=body.opens_at, closes_at=body.closes_at, min_results=body.min_results,
-                      fields_set=set(fs))
+                      course_name=body.course_name, semester=body.semester, fields_set=set(fs))
 
 
 @router.post("/{survey_id}/publish", response_model=SurveyOut, dependencies=[Depends(feature_on)])
@@ -105,7 +107,8 @@ def export(survey_id: int, p: Principal = Depends(require(P.EXPORT)), db: Sessio
 # ── 학생 ──
 @router.get("/student/list", response_model=list[SurveyStudentListOut], dependencies=[Depends(feature_on)])
 def student_list(p: Principal = Depends(require(P.SURVEY_RESPOND)), db: Session = Depends(get_db)):
-    return [SurveyStudentListOut(id=s.id, title=s.title, description=s.description, status=s.status,
+    return [SurveyStudentListOut(id=s.id, title=s.title, description=s.description,
+                                 course_name=s.course_name, semester=s.semester, status=s.status,
                                  closes_at=s.closes_at, is_open=opened, participated=done)
             for s, done, opened in svc.list_for_student(db, p.user)]
 

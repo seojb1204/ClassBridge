@@ -32,6 +32,8 @@ def login_or_register(db: Session, settings: Settings, ident: VerifiedIdentity) 
     if not ident.email_verified:
         raise Forbidden("이메일 인증이 완료된 Google 계정만 사용할 수 있습니다")
     email = ident.email.strip().lower()
+    if settings.staging_mode and email not in settings.staging_allowed_emails:
+        raise Forbidden("이 계정은 테스트 환경의 사용 허가 목록에 없습니다")
     user = users_repo.get_by_sub(db, ident.sub)
 
     if user is None:

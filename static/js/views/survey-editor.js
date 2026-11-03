@@ -10,7 +10,8 @@ const TYPES = [["short", "단답형"], ["long", "장문형"], ["single", "단일
 const CHOICE = new Set(["single", "multi", "dropdown"]);
 
 export async function render(root, { id }) {
-  const s = id === "new" ? { id: null, title: "", description: "", status: "draft", questions: [], min_results: 5,
+  const s = id === "new" ? { id: null, title: "", description: "", course_name: "", semester: "",
+    status: "draft", questions: [], min_results: 5,
     opens_at: null, closes_at: null } : await get(`/api/surveys/${id}`);
   const model = structuredClone(s);
   const locked = s.status !== "draft";
@@ -19,6 +20,10 @@ export async function render(root, { id }) {
   const title = h("input", { type: "text", class: "title-input", maxlength: 200, placeholder: "설문 제목", value: model.title });
   const desc = h("textarea", { rows: 2, maxlength: 5000, placeholder: "설명 (선택)" });
   desc.value = model.description;
+  const course = h("input", { type: "text", maxlength: 120, value: model.course_name || "", disabled: locked,
+    placeholder: "교과목 (예: 항공서비스 실무)" });
+  const semester = h("input", { type: "text", maxlength: 40, value: model.semester || "", disabled: locked,
+    placeholder: "학기 (예: 2026-2)" });
   const opens = h("input", { type: "datetime-local", value: isoToKstInput(model.opens_at), disabled: locked });
   const closes = h("input", { type: "datetime-local", value: isoToKstInput(model.closes_at), disabled: s.status === "closed" });
   const minRes = h("input", { type: "number", min: 1, max: 50, value: model.min_results, disabled: locked });
@@ -81,7 +86,8 @@ export async function render(root, { id }) {
   function payload() {
     const p = { title: title.value, description: desc.value, closes_at: kstInputToIso(closes.value) };
     if (!locked) {
-      Object.assign(p, { questions: model.questions, opens_at: kstInputToIso(opens.value), min_results: +minRes.value });
+      Object.assign(p, { questions: model.questions, opens_at: kstInputToIso(opens.value),
+        min_results: +minRes.value, course_name: course.value, semester: semester.value });
     }
     return p;
   }
@@ -132,7 +138,8 @@ export async function render(root, { id }) {
     drawQuestions();
     body.replaceChildren(
       h("div", { class: "panel" }, title, desc,
-        h("div", { class: "grid-form" }, field("시작(한국 시간)", opens, "비우면 게시 즉시"), field("마감(한국 시간)", closes),
+        h("div", { class: "grid-form" }, field("교과목", course), field("학기", semester),
+          field("시작(한국 시간)", opens, "비우면 게시 즉시"), field("마감(한국 시간)", closes),
           field("결과 공개 최소 응답 수", minRes, "이보다 적으면 결과·원문을 숨겨 개인 식별을 막습니다"))),
       locked ? h("p", { class: "notice" }, "게시된 설문입니다. 문항을 바꾸려면 '복제(새 버전)'를 사용하세요. 기존 응답은 보호됩니다.") : null,
       qBox);

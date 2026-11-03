@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import time, timedelta
 
 import pytest
 from alembic import command
@@ -13,8 +14,10 @@ from alembic.config import Config
 from sqlalchemy import func, select, text
 
 from app.core.errors import AppError, Conflict
+from app.db import utcnow
 from app.models import Booking, Participation, Response, Slot, User
 from app.services import booking_service, survey_service, user_service
+from app.timeutil import kst_date
 from tests.conftest import ADMIN, PG_URL, login, make_settings, make_slots
 
 pytestmark = pytest.mark.skipif(not PG_URL, reason="TEST_PG_URL 미설정")
@@ -90,6 +93,49 @@ def test_migration_matches_models_and_downgrades(pg_app):
                                    "and table_name <> 'alembic_version'")).scalar()
     assert tables == 0
     command.upgrade(_alembic(PG_URL), "head")
+
+
+def test_concurrent_open_slot_creation_cannot_overlap(pg_app):
+    """Concurrent professor/admin requests must not create overlapping open slots."""
+    prof = login(pg_app, "prof@test.ac.kr")
+    prof_id = prof.me["id"]
+    day = kst_date(utcnow()) + timedelta(days=2)
+    spec = booking_service.SlotSpec(start_date=day, start_time=time(10, 0),
+                                    end_time=time(10, 30), duration_minutes=30)
+
+    def attempt(_):
+        db = pg_app.state.SessionLocal()
+        try:
+            booking_service.create_slots(db, _user(db, prof_id), spec)
+        finally:
+            db.close()
+
+    results = _race(2, attempt)
+    assert results.count("ok") == 1, results
+    assert results.count("slot_overlap") == 1, results
+    db = pg_app.state.SessionLocal()
+    try:
+        count = db.execute(select(func.count()).select_from(Slot).where(Slot.status == "open")).scalar()
+        assert count == 1
+    finally:
+        db.close()
+
+
+def test_database_rejects_overlapping_open_slots(pg_app):
+    """The DB rule still applies if API/application overlap checks are bypassed."""
+    prof = login(pg_app, "prof@test.ac.kr")
+    sid = make_slots(prof, start="10:00", end="10:30")[0]
+    with pytest.raises(Exception, match="ex_slots_no_overlap_open"):
+        with pg_app.state.engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO slots
+                    (start_at, end_at, kind, capacity, booked_count, status,
+                     location, note, created_by_id, created_at)
+                SELECT start_at + INTERVAL '5 minutes',
+                       end_at + INTERVAL '5 minutes', kind, capacity, 0, 'open',
+                       '', '', created_by_id, NOW()
+                FROM slots WHERE id = :sid
+            """), {"sid": sid})
 
 
 def test_concurrent_last_seat_individual(pg_app):

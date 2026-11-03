@@ -31,6 +31,14 @@ app_settings (key, JSON value)
 
 모든 시각은 UTC `timestamptz`로 저장한다(`UTCDateTime` 타입이 naive datetime 저장을 거부). 입력과 표시는 Asia/Seoul 기준이다. 상담 불가일과 건의 제출일은 한국 날짜(`DATE`)로 저장한다.
 
+## 후속 마이그레이션 및 운영 주의
+
+- `0003`: PostgreSQL GiST exclusion constraint로 **동시 상담 시간 생성의 겹침**을 데이터베이스에서 차단한다. 기존에 겹친 활성 슬롯이 있으면 삭제하지 않고 마이그레이션을 중단한다.
+- `0004`: 상담 신청 정보(이름·학번·학년·상담 유형·대면/온라인)와 설문 과목·학기 레이블을 추가한다. 기존 행은 기본값 또는 NULL로 보존한다.
+- `0004`를 다운그레이드하면 새로 추가한 데이터가 삭제된다. 운영 DB에서 사전 승인 및 백업 검증 없이 수행하면 안 된다.
+- 학번은 학생이 입력한 값이므로 **학교에서 검증한 신원 정보가 아니다.**
+- 과목명·학기명은 설문 분류용 레이블이며 실제 수강 자격 검증을 제공하지 않는다.
+
 ## 새 마이그레이션 만들기
 
 ```bash
@@ -43,9 +51,9 @@ alembic upgrade head
 
 ## DB 계정 (FastAPI 직접 접속 구조)
 
-이 서비스는 Supabase Data API(PostgREST)를 **사용하지 않는다**. FastAPI가 PostgreSQL에 직접 접속한다. 따라서 RLS보다 다음이 핵심이다.
+이 서비스는 Supabase Data API(PostgREST)를 **사용하지 않는다**. FastAPI가 PostgreSQL에 직접 접속한다. **스테이징은 Neon PostgreSQL로 전환**하며, RLS와 기본 DB 계정 권한은 실제 Neon 연결 계정의 소유권·최소 권한을 기준으로 확인해야 한다. 다음은 기존 Supabase 대비 보안 정책 설명을 유지한 것이다.
 
-1. **자동 적용됨 (마이그레이션 `0002_lock_down_public_api`)**: 배포 시 `alembic upgrade head`가 다음을 실행한다.
+1. **자동 적용됨 (마이그레이션 `0002_lock_down_public_api`)**: 배포 시 `alembic upgrade head`가 다음을 실행한다. Neon에서 Supabase 역할이 없다면 RLS 활성화만 수행하며, 해당 DB 사용자는 테이블 소유자 권한을 검증해야 한다.
    - public의 모든 테이블에 RLS(행 수준 보안)를 켠다. 정책이 없어서 anon·authenticated는 아무 행도 못 본다. 앱은 테이블 소유자로 접속하므로 영향이 없다(FORCE 미사용).
    - anon·authenticated의 테이블·시퀀스·함수 권한을 회수하고, 앞으로 만들 객체의 기본 권한도 회수한다.
    - 이 두 역할이 없는 일반 PostgreSQL(로컬·CI)에서는 RLS만 켠다.
