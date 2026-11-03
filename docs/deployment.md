@@ -41,7 +41,15 @@
 2. 상단 **Connect** 버튼 → **Session pooler** 연결 문자열(`...pooler.supabase.com:5432/postgres`)을 복사해 `[YOUR-PASSWORD]`를 바꾼 뒤 Render `DATABASE_URL`에 넣는다.
    - **Direct connection은 사용 불가**: Supabase의 직접 연결은 IPv6 전용인데(유료 IPv4 애드온 제외) Render는 외부로 IPv6 연결을 지원하지 않는다.
    - Transaction pooler(6543)는 쓰지 않는다: psycopg의 자동 prepared statement와 충돌할 수 있다.
-3. [database.md](database.md)의 GRANT/REVOKE를 적용하고, Data API를 비활성화한다.
+3. 공개 API 경로 차단은 **배포 시 마이그레이션 `0002`가 자동으로 처리한다**. 첫 배포가 성공한 뒤 SQL Editor에서 아래 확인 쿼리를 실행해, 두 결과가 모두 `0`이면 정상이다.
+   ```sql
+   -- RLS가 꺼진 public 테이블 수 (0이어야 정상)
+   SELECT count(*) FROM pg_tables WHERE schemaname='public' AND NOT rowsecurity;
+   -- anon이 SELECT할 수 있는 public 테이블 수 (0이어야 정상)
+   SELECT count(*) FROM pg_tables WHERE schemaname='public'
+     AND has_table_privilege('anon', format('public.%I', tablename), 'SELECT');
+   ```
+   Supabase 대시보드의 **Advisors → Security Advisor**에서 "RLS disabled" 경고가 없는지도 확인한다.
 4. 대시보드 멤버는 관리자 1명만 둔다(익명성 한계 L1·L2 완화).
 
 ## 4. Render 배포

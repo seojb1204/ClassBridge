@@ -13,7 +13,7 @@
 
 ## B. 계정·설정
 - [ ] Google Cloud OAuth 클라이언트 생성, 동의 화면 설정
-- [ ] Supabase 프로젝트 생성, Data API 비활성화와 GRANT/REVOKE 적용 후 `anon` 접근 차단 확인
+- [ ] Supabase 프로젝트 생성 → 첫 배포 후 [deployment.md](deployment.md) 3장의 확인 쿼리 결과가 둘 다 0인지 확인 (차단 자체는 마이그레이션 0002가 자동 적용)
 - [ ] Render 서비스 생성(무료/유료 결정), 환경변수 입력
 - [ ] 관리자·교수 Google 계정 2단계 인증 활성화
 - [ ] `ALLOWED_EMAIL_DOMAINS`에 학교 도메인 설정

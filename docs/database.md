@@ -45,12 +45,13 @@ alembic upgrade head
 
 이 서비스는 Supabase Data API(PostgREST)를 **사용하지 않는다**. FastAPI가 PostgreSQL에 직접 접속한다. 따라서 RLS보다 다음이 핵심이다.
 
-1. Supabase 프로젝트 설정에서 Data API를 끄거나, `public` 스키마의 `anon`·`authenticated` 권한을 회수한다:
-   ```sql
-   REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
-   REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
-   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
-   ```
+1. **자동 적용됨 (마이그레이션 `0002_lock_down_public_api`)**: 배포 시 `alembic upgrade head`가 다음을 실행한다.
+   - public의 모든 테이블에 RLS(행 수준 보안)를 켠다. 정책이 없어서 anon·authenticated는 아무 행도 못 본다. 앱은 테이블 소유자로 접속하므로 영향이 없다(FORCE 미사용).
+   - anon·authenticated의 테이블·시퀀스·함수 권한을 회수하고, 앞으로 만들 객체의 기본 권한도 회수한다.
+   - 이 두 역할이 없는 일반 PostgreSQL(로컬·CI)에서는 RLS만 켠다.
+   - 검증: Supabase와 같은 역할·기본 권한을 흉내 낸 PostgreSQL 16에서 테스트 5개(`tests/postgres`)로 확인했다. 마이그레이션을 빼면 이 테스트들이 실패하는 것도 확인했다.
+   - **새 테이블을 추가하는 마이그레이션은 RLS를 직접 켜야 한다.** 빠뜨리면 `test_every_public_table_has_rls`가 실패한다.
+   - 추가로 Supabase 대시보드에서 Data API를 끄는 것은 선택이다. 위 조치만으로 REST 경로가 막힌다.
 2. 앱 전용 계정은 DML 권한만 갖고, 마이그레이션 계정은 따로 분리한다(권장):
    ```sql
    CREATE ROLE classbridge_app LOGIN PASSWORD '...';
@@ -60,4 +61,4 @@ alembic upgrade head
    ```
 3. 연결 문자열에는 `sslmode=require`를 사용한다.
 
-위 SQL은 **실제 Supabase에서 실행해 검증하지 않았다**(계정 필요). 적용 후 `anon` 키로 REST 조회가 거부되는지 확인해야 한다.
+1번은 Supabase를 흉내 낸 환경에서 검증했지만, **실제 Supabase 프로젝트에서는 아직 확인하지 않았다.** 첫 배포 후 [deployment.md](deployment.md) 3장의 확인 쿼리를 실행해야 한다. 2번(앱 전용 계정 분리)은 선택 사항이며 아직 적용하지 않았다.

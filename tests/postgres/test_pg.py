@@ -26,12 +26,26 @@ def _alembic(url: str) -> Config:
     return cfg
 
 
+# Supabase의 기본 상태를 흉내 낸다: anon·authenticated 역할이 있고,
+# postgres가 public에 만드는 테이블·시퀀스에 이 역할들의 권한이 자동으로 붙는다.
+SUPABASE_LIKE_SETUP = """
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
+"""
+
+
 @pytest.fixture
 def pg_app():
     from app.main import create_app
     app = create_app(make_settings(PG_URL))
     with app.state.engine.begin() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        conn.execute(text(SUPABASE_LIKE_SETUP))
     command.upgrade(_alembic(PG_URL), "head")  # 스키마는 마이그레이션으로만 생성
     yield app
     app.state.engine.dispose()
@@ -229,3 +243,81 @@ def test_capacity_check_constraint_enforced_by_db(pg_app):
 
 def test_service_conflict_type(pg_app):
     assert issubclass(Conflict, AppError)
+
+
+# ── Supabase 공개 API 경로 차단 (마이그레이션 0002) ──
+
+def _public_tables(conn):
+    return [r[0] for r in conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'"))]
+
+
+def test_supabase_api_roles_have_no_access(pg_app):
+    with pg_app.state.engine.connect() as conn:
+        tables = _public_tables(conn)
+        assert len(tables) >= 13
+        for t in tables:
+            for role in ("anon", "authenticated"):
+                for priv in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                    assert conn.execute(text("SELECT has_table_privilege(:r, :t, :p)"),
+                                        {"r": role, "t": f"public.{t}", "p": priv}).scalar() is False, (role, t, priv)
+        seqs = [r[0] for r in conn.execute(text(
+            "SELECT sequencename FROM pg_sequences WHERE schemaname='public'"))]
+        for sq in seqs:
+            assert conn.execute(text("SELECT has_sequence_privilege('anon', :s, 'USAGE')"),
+                                {"s": f"public.{sq}"}).scalar() is False
+
+
+def test_every_public_table_has_rls(pg_app):
+    """앞으로 테이블을 추가하는 마이그레이션이 RLS를 빠뜨리면 이 테스트가 실패한다."""
+    with pg_app.state.engine.connect() as conn:
+        missing = [r[0] for r in conn.execute(text(
+            "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity"))]
+    assert missing == []
+
+
+def test_anon_role_is_denied_in_practice(pg_app):
+    """REST API가 쓰는 anon 역할로 실제 조회하면 거부된다."""
+    login(pg_app, "anon-check@test.ac.kr")
+    with pg_app.state.engine.connect() as conn:
+        conn.execute(text("SET ROLE anon"))
+        with pytest.raises(Exception) as e:
+            conn.execute(text("SELECT email FROM users"))
+        assert "permission denied" in str(e.value)
+        conn.rollback()
+
+
+def test_future_tables_get_no_api_grants(pg_app):
+    """기본 권한 회수 확인: 마이그레이션 이후 새로 만든 테이블에도 anon 권한이 붙지 않는다."""
+    with pg_app.state.engine.begin() as conn:
+        conn.execute(text("CREATE TABLE public.future_probe (id int)"))
+        granted = conn.execute(text("SELECT has_table_privilege('anon', 'public.future_probe', 'SELECT')")).scalar()
+        conn.execute(text("DROP TABLE public.future_probe"))
+    assert granted is False
+
+
+def test_app_still_works_with_rls(pg_app):
+    """앱은 테이블 소유자로 접속하므로 RLS의 영향을 받지 않는다."""
+    prof = login(pg_app, "prof@test.ac.kr")
+    sid = make_slots(prof, start="11:00", end="11:30")[0]
+    s = login(pg_app, "rls-student@test.ac.kr")
+    assert s.post("/api/bookings", json={"slot_id": sid}).status_code == 201
+    assert len(s.get("/api/bookings/mine").json()) == 1
+
+
+def test_non_superuser_owner_bypasses_rls(pg_app):
+    """Supabase의 postgres는 슈퍼유저가 아니라 테이블 소유자다. 소유자는 FORCE가 없으면 RLS를 우회하는지 확인."""
+    login(pg_app, "owner-check@test.ac.kr")
+    with pg_app.state.engine.connect() as conn:
+        forced = conn.execute(text(
+            "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "WHERE n.nspname='public' AND c.relforcerowsecurity")).scalar()
+        assert forced == 0
+        conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='cb_owner_probe') "
+                          "THEN CREATE ROLE cb_owner_probe NOSUPERUSER NOBYPASSRLS; END IF; END $$"))
+        conn.execute(text("GRANT USAGE ON SCHEMA public TO cb_owner_probe"))
+        conn.execute(text("ALTER TABLE users OWNER TO cb_owner_probe"))
+        conn.execute(text("SET ROLE cb_owner_probe"))
+        n = conn.execute(text("SELECT count(*) FROM users")).scalar()
+        conn.rollback()  # 소유자 변경 되돌림
+    assert n >= 1

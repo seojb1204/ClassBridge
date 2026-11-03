@@ -112,6 +112,12 @@ REQ = [
     ("student_has_no", "§2.1 권한표"),
     ("professor_lacks", "§2.1 권한표"),
     ("service_conflict", "내부 일관성"),
+    ("supabase_api_roles", "§7.2 Supabase 공개 API 권한 회수 (PostgreSQL)"),
+    ("every_public_table_has_rls", "§7.2 전 테이블 RLS (PostgreSQL)"),
+    ("anon_role_is_denied", "§7.2 anon 실제 조회 거부 (PostgreSQL)"),
+    ("future_tables", "§7.2 새 테이블 기본 권한 회수 (PostgreSQL)"),
+    ("app_still_works_with_rls", "§7.2 RLS 적용 후 앱 정상 동작 (PostgreSQL)"),
+    ("owner_bypasses_rls", "§7.2 비슈퍼유저 소유자 RLS 우회 (PostgreSQL)"),
 ]
 
 
