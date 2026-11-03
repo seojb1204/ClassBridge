@@ -59,6 +59,12 @@ class Booking(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     status: Mapped[str] = mapped_column(String(20), default="booked")
     topic: Mapped[str] = mapped_column(String(500), default="")
+    # User-entered metadata, not independently verified university identity.
+    applicant_name: Mapped[str] = mapped_column(String(100), default="")
+    student_number: Mapped[str] = mapped_column(String(30), default="")
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consultation_type: Mapped[str] = mapped_column(String(20), default="other")
+    consultation_mode: Mapped[str] = mapped_column(String(20), default="in_person")
     # 상담 기록: 교수자·관리자만 열람. 외부 AI로 절대 전송하지 않는다.
     professor_note: Mapped[str] = mapped_column(Text, default="")
     cancel_reason: Mapped[str] = mapped_column(String(500), default="")
