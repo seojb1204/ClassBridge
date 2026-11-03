@@ -1,4 +1,4 @@
-# 배포 · 운영 가이드 (Render + Supabase + Google OAuth)
+# 배포 · 운영 가이드 (Render + Neon PostgreSQL + Google OAuth)
 
 > 이 문서의 절차는 **실제 계정에서 실행해 검증하지 않았다**. 유료 결제, 공개 배포, 실제 학생 데이터 입력은 사용자 승인과 개인정보 검토가 끝난 뒤에 진행한다.
 
@@ -7,7 +7,7 @@
 | 구성 | 선택 | 근거 / 주의 |
 |---|---|---|
 | 웹 서버 | Render Web Service | FastAPI를 그대로 실행, `render.yaml` 제공. **무료 플랜은 15분간 요청이 없으면 휴면**해서 첫 접속이 수십 초 걸릴 수 있다. 수업 중 사용이 잦다면 유료 플랜(월 7달러 수준, 가격은 직접 확인)을 검토한다. |
-| DB | Supabase PostgreSQL | 무료 플랜은 장기간 미사용 시 프로젝트가 일시중지되고, 무료 플랜에는 자동 백업(PITR)이 없다. 아래 수동 백업이 필수다. |
+| DB | Neon PostgreSQL | 무료 플랜에서는 유휴 시 컴퓨팅이 자동 중지되므로 재연결 지연이 있을 수 있다. 백업/복구 한도와 정기 백업 책임을 확인한다. |
 | 인증 | Google Cloud OAuth (OIDC) | 무료. 외부 사용자 대상이면 OAuth 동의 화면 게시가 필요하다. |
 | CI | GitHub Actions | `.github/workflows/ci.yml` (PostgreSQL 서비스와 E2E 포함) |
 
@@ -19,43 +19,40 @@
 |---|---|---|---|
 | 개발 | development | SQLite 파일 | 개발용 이메일 로그인 |
 | 테스트/CI | test | SQLite + PostgreSQL(CI 서비스) | 개발용 로그인 / 가짜 검증기 |
-| 비공개 스테이징 | production | 별도 Supabase 프로젝트 | Google (테스트 사용자만) |
-| 운영 | production | 운영 Supabase | Google |
+| 비공개 스테이징 | production + STAGING_MODE=true | 별도 Neon 프로젝트 | Google (명시적 허용 목록 계정만) |
+| 운영 | production | 운영 전용 PostgreSQL | Google |
 
-`APP_ENV=production`에서는 다음 중 하나라도 해당하면 **서버가 시작을 거부한다**: 개발 로그인이 켜져 있음, SECRET_KEY가 짧음, `COOKIE_SECURE=false`, SQLite, Google 키 없음, `ADMIN_EMAILS` 없음(`app/config.py`).
+`APP_ENV=production`에서는 다음 중 하나라도 해당하면 **서버가 시작을 거부한다**: 개발 로그인이 켜져 있음, SECRET_KEY가 짧음, `COOKIE_SECURE=false`, SQLite, Google 키 없음, `ADMIN_EMAILS` 없음(`app/config.py`). 추가로 `STAGING_MODE=true`이면 `STAGING_ALLOWED_EMAILS`가 비어 있거나 관리자·교수 이메일이 빠진 경우에도 시작을 거부한다. 해당 목록 밖의 Google 계정은 로그인할 수 없다.
 
 ## 2. Google OAuth 설정
 
 1. Google Cloud Console → 새 프로젝트 → "API 및 서비스" → "OAuth 동의 화면"
    - 사용자 유형: 외부(학교 Workspace라면 내부)
    - 범위: `openid`, `email`, `profile`만
-   - 테스트 단계에서는 "테스트 사용자"에 관리자와 교수 계정만 추가
+   - 테스트 단계에서는 "테스트 사용자"에 허용된 관리자·교수자·학생 시험용 계정만 추가
 2. "사용자 인증 정보" → "OAuth 클라이언트 ID" → 웹 애플리케이션
    - 승인된 리디렉션 URI: `https://<도메인>/auth/google/callback`
 3. 발급된 ID와 시크릿을 Render 환경변수 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`에 넣는다(코드나 Git에는 넣지 않는다).
 4. **학생의 개인 Gmail 로그인을 허용하는 확정 정책에 따라** `ALLOWED_EMAIL_DOMAINS`는 비워 둔다. Google 계정 소유 확인만 가능하며 링크 소지자가 실제 수강생인지 검증하지 못하므로, 공개 전 위협·운영 정책을 확인한다.
 
-## 3. Supabase 설정
+## 3. Neon PostgreSQL 설정
 
-1. 프로젝트 생성(리전: Northeast Asia (Seoul)).
-2. 상단 **Connect** 버튼 → **Session pooler** 연결 문자열(`...pooler.supabase.com:5432/postgres`)을 복사해 `[YOUR-PASSWORD]`를 바꾼 뒤 Render `DATABASE_URL`에 넣는다.
-   - **Direct connection은 사용 불가**: Supabase의 직접 연결은 IPv6 전용인데(유료 IPv4 애드온 제외) Render는 외부로 IPv6 연결을 지원하지 않는다.
-   - Transaction pooler(6543)는 쓰지 않는다: psycopg의 자동 prepared statement와 충돌할 수 있다.
-3. 공개 API 경로 차단은 **배포 시 마이그레이션 `0002`가 자동으로 처리한다**. 첫 배포가 성공한 뒤 SQL Editor에서 아래 확인 쿼리를 실행해, 두 결과가 모두 `0`이면 정상이다.
-   ```sql
-   -- RLS가 꺼진 public 테이블 수 (0이어야 정상)
-   SELECT count(*) FROM pg_tables WHERE schemaname='public' AND NOT rowsecurity;
-   -- anon이 SELECT할 수 있는 public 테이블 수 (0이어야 정상)
-   SELECT count(*) FROM pg_tables WHERE schemaname='public'
-     AND has_table_privilege('anon', format('public.%I', tablename), 'SELECT');
-   ```
-   Supabase 대시보드의 **Advisors → Security Advisor**에서 "RLS disabled" 경고가 없는지도 확인한다.
-4. 대시보드 멤버는 관리자 1명만 둔다(익명성 한계 L1·L2 완화).
+1. **ClassBridge 전용 무료 Neon 프로젝트**를 생성한다. 기존 Supabase 프로젝트는 변경하지 않는다. Neon 계정 연결·생성은 사용자의 로그인과 앱 승인 후 진행한다.
+2. Neon Console의 **Connect**에서 서로 다른 두 연결 문자열을 준비한다.
+   - `DATABASE_URL`: 애플리케이션 서버에서 사용할 **Pooled** 연결 문자열 (호스트에 `-pooler` 포함)
+   - `DATABASE_URL_DIRECT`: Alembic 마이그레이션·백업에 사용할 **Direct** 연결 문자열 (호스트에 `-pooler` 없음)
+   - 둘 다 `sslmode=require` 등을 유지한다. 비밀번호가 포함된 URL은 GitHub·문서·채팅에 기입하지 않는다.
+3. Render의 비밀 환경변수로 두 URL을 지정한다. `migrations/env.py`는 `DATABASE_URL_DIRECT`를 우선 사용하고, 평상시 FastAPI는 `DATABASE_URL`을 사용한다.
+4. 마이그레이션 `0001 → 0002 → 0003 → 0004`를 **새 DB에만** 검토·적용한다. `0002`의 RLS 설정은 원래 Supabase 공개 API 차단 목적이며 일반 PostgreSQL에는 `anon/authenticated` 역할 권한 회수 없이 RLS만 켠다. 실제 연결 계정이 테이블 소유자이며 서비스가 정상 동작하는지 반드시 검증한다.
+5. 개인·단체 예약 및 시간표 동시 등록 테스트를 실제 Neon 환경에서 실행한다. 테스트 데이터 외에 실제 학생 개인정보를 넣지 않는다.
+6. 무료 요금제는 용량·컴퓨팅·복원 기간 제한이 있으므로 운영 데이터로 전환하기 전 백업을 복구한 실제 결과와 함께 평가한다.
+
+Neon 공식 연결 문서: https://neon.com/docs/get-started/connect-neon
 
 ## 4. Render 배포
 
 1. Render → New → Blueprint → 이 저장소 선택(`render.yaml`), 또는 Web Service를 수동 생성
-2. 환경변수 입력 (`.env.example` 참고): `BASE_URL=https://<서비스>.onrender.com`, `ADMIN_EMAILS`, `PROFESSOR_EMAILS`
+2. 환경변수 입력 (`.env.example` 참고): `BASE_URL=https://<서비스>.onrender.com`, `DATABASE_URL`(pooled), `DATABASE_URL_DIRECT`(direct), `ADMIN_EMAILS`, `PROFESSOR_EMAILS`, `STAGING_MODE=true`, `STAGING_ALLOWED_EMAILS`(가상 데이터로 테스트할 Google 계정 목록)
 3. 배포하면 시작 명령에서 `alembic upgrade head`를 실행한 뒤 서버를 띄우고 `/healthz`를 확인한다. 마이그레이션이 실패하면 서버가 뜨지 않아 새 버전이 실패 처리되고, 이전 버전이 계속 서비스된다.
 4. 사용자 지정 도메인은 Render → Custom Domains에서 연결하고 HTTPS 인증서를 자동 발급받는다. `BASE_URL`과 Google 리디렉션 URI도 함께 바꾼다.
 
@@ -76,7 +73,7 @@
 
 ```bash
 # 백업 (매주 + 학기 중요 시점, 암호화 저장소에 보관)
-pg_dump "$DATABASE_URL" --format=custom --no-owner --file=classbridge-$(date +%Y%m%d).dump
+pg_dump "$DATABASE_URL_DIRECT" --format=custom --no-owner --file=classbridge-$(date +%Y%m%d).dump
 
 # 복구 (새 DB에 먼저 복원해 검증한 뒤 전환)
 pg_restore --clean --if-exists --no-owner --dbname="$RESTORE_DATABASE_URL" classbridge-YYYYMMDD.dump
@@ -99,7 +96,7 @@ pg_restore --clean --if-exists --no-owner --dbname="$RESTORE_DATABASE_URL" class
 | 증상 | 확인 | 조치 |
 |---|---|---|
 | 첫 접속이 매우 느림 | 무료 플랜 휴면 | 정상. 상시 사용이면 유료 플랜 검토 |
-| 503 db_unavailable | Supabase 상태, 프로젝트 일시중지 여부 | Supabase에서 재개, 연결 문자열과 비밀번호 확인 |
+| 503 db_unavailable | Neon 컴퓨팅 상태, 사용량 한도·접속 문자열 | Neon 프로젝트 상태·보안 연결 확인 |
 | 로그인 실패 (state 불일치) | 쿠키 차단, BASE_URL 불일치 | `BASE_URL`과 리디렉션 URI 일치 확인 |
 | 서버 시작 실패 ConfigError | Render 로그 메시지 | 메시지에 나온 환경변수 수정 |
 | 관리자 계정 분실 | 활성 관리자 0명? | `ADMIN_EMAILS`에 새 관리자 이메일 추가 → 해당 계정으로 로그인하면 자동 복구 |
