@@ -47,6 +47,9 @@ def _atomic(db: Session, fn: Callable[[], T]) -> T:
     except IntegrityError as exc:
         db.rollback()
         msg = str(exc.orig).lower()
+        # PostgreSQL exclusion constraint rejects overlapping consultation slots atomically.
+        if getattr(exc.orig, "sqlstate", None) == "23P01" or "ex_slots_no_overlap_open" in msg:
+            raise Conflict("다른 상담 시간과 겹칩니다", code="slot_overlap") from exc
         if "one_active_per_student" in msg or ("unique" in msg and "bookings" in msg and "student_id" in msg):
             raise Conflict("이미 진행 중인 상담 예약이 있습니다. 기존 예약을 취소하거나 변경하세요",
                            code="active_booking_exists") from exc
