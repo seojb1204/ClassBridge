@@ -106,7 +106,10 @@ def my_bookings(p: Principal = Depends(require(P.BOOKING_SELF)), db: Session = D
 def create_booking(body: BookingCreateIn, p: Principal = Depends(require(P.SLOT_VIEW)),
                    db: Session = Depends(get_db)):
     # 본인/대리 예약 권한은 서비스에서 판정 (student_id 지정은 교수자·관리자만)
-    return _out(p, db, svc.book(db, p.user, body.slot_id, body.student_id, body.topic))
+    return _out(p, db, svc.book(db, p.user, body.slot_id, body.student_id, body.topic,
+                                applicant_name=body.applicant_name, student_number=body.student_number,
+                                grade=body.grade, consultation_type=body.consultation_type,
+                                consultation_mode=body.consultation_mode))
 
 
 @router.post("/bookings/{booking_id}/cancel")
