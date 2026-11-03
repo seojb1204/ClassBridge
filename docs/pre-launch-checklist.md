@@ -7,20 +7,21 @@
 - [ ] **보유기간** 결정 (예: 학기 종료 후 N개월 뒤 파기). 결정되면 파기 기능 구현을 요청할 것 (현재 미구현)
 - [ ] 학교·교수자의 서비스 운영 승인
 - [ ] 학생용 안내문 작성: 익명 범위와 한계([anonymity.md](anonymity.md) 3장), 상담 기록 열람 범위, 문의처
-- [ ] 외부 서비스(Render·Supabase·Google, 외부 AI 사용 시 AI 제공사) 이용 및 국외 이전 검토
+- [ ] 외부 서비스(Render·Neon·Google, 외부 AI 사용 시 AI 제공사) 이용 및 국외 이전 검토
 - [ ] 외부 AI 사용 여부 결정 (기본은 비활성. `AI_MODE=external`은 검토 후)
 - [ ] 익명 설문·건의함 운영 활성화 결정 (`FEATURE_SURVEYS`, `FEATURE_SUGGESTIONS`는 운영 기본값이 꺼져 있음)
 
 ## B. 계정·설정
 - [ ] Google Cloud OAuth 클라이언트 생성, 동의 화면 설정
-- [ ] Supabase 프로젝트 생성 → 첫 배포 후 [deployment.md](deployment.md) 3장의 확인 쿼리 결과가 둘 다 0인지 확인 (차단 자체는 마이그레이션 0002가 자동 적용)
-- [ ] Render 서비스 생성(무료/유료 결정), 환경변수 입력
+- [ ] ClassBridge 전용 Neon 무료 프로젝트 생성 → 새 DB에서 마이그레이션 0001~0004와 RLS/테이블 접근 검증. 기존 프로젝트 DB 사용 금지
+- [ ] Render 무료 서비스(사용 가능 여부·요금 확인 후) 생성, Neon pooled/direct URL을 비밀 환경변수로 설정
 - [ ] 관리자·교수 Google 계정 2단계 인증 활성화
 - [ ] 학생 개인 Gmail 로그인 정책 확인: `ALLOWED_EMAIL_DOMAINS`는 빈 값. 링크를 받은 사람이 실제 수강생인지 Google 로그인만으로는 검증할 수 없음을 운영 주체에게 안내
 - [ ] 백업 일정과 보관 위치 결정
 
 ## C. 검증
 - [ ] 비공개 스테이징에서 [deployment.md](deployment.md) 10장 스모크 테스트
+- [ ] `STAGING_MODE=true`, `STAGING_ALLOWED_EMAILS`로 시험 계정만 허용하는지 확인 (그 외 Google 계정 거부)
 - [ ] 실제 Google 로그인 3개 역할 확인 (자동 테스트는 가짜 검증기를 사용함)
 - [ ] 실제 iOS Safari / Android Chrome 기기에서 예약 흐름 확인 (자동 테스트는 Chromium 모바일 화면 크기만 확인)
 - [ ] 수업 규모로 부하 확인 (동시 접속 수십 명 수준)
