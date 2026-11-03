@@ -34,6 +34,10 @@ services:
       - key: PROFESSOR_EMAILS
         sync: false
       - key: ALLOWED_EMAIL_DOMAINS
+        value: ""
+      - key: STAGING_MODE
+        value: "true"
+      - key: STAGING_ALLOWED_EMAILS
         sync: false
       - key: COOKIE_SECURE
         value: "true"
