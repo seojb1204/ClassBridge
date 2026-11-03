@@ -314,7 +314,9 @@ def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, 
 
 
 def book(db: Session, actor: User, slot_id: int, student_id: int | None = None,
-         topic: str = "", now: datetime | None = None) -> Booking:
+         topic: str = "", now: datetime | None = None, *,
+         applicant_name: str = "", student_number: str = "", grade: int | None = None,
+         consultation_type: str = "other", consultation_mode: str = "in_person") -> Booking:
     now = now or utcnow()
     pol = _policy(db)
     student = _resolve_student(db, actor, student_id)
@@ -326,7 +328,10 @@ def book(db: Session, actor: User, slot_id: int, student_id: int | None = None,
                            code="active_booking_exists")
         if not repo.try_take_seat(db, slot.id):
             raise Conflict("정원이 마감되었습니다", code="slot_full")
-        b = Booking(slot_id=slot.id, student_id=student.id, topic=topic[:500], created_by_id=actor.id)
+        b = Booking(slot_id=slot.id, student_id=student.id, topic=topic[:500], created_by_id=actor.id,
+                    applicant_name=(applicant_name.strip() or student.name)[:100],
+                    student_number=student_number.strip()[:30], grade=grade,
+                    consultation_type=consultation_type, consultation_mode=consultation_mode)
         db.add(b)
         db.flush()  # 부분 유니크 인덱스 위반은 여기서 IntegrityError
         repo.add_event(db, b.id, actor.id, "book" if actor.id == student.id else "book_by_staff")
@@ -394,7 +399,9 @@ def reschedule(db: Session, actor: User, booking_id: int, new_slot_id: int, reas
         if not repo.try_take_seat(db, new_slot.id):
             raise Conflict("변경하려는 시간의 정원이 마감되었습니다. 기존 예약은 유지됩니다", code="slot_full")
         nb = Booking(slot_id=new_slot.id, student_id=old.student_id, topic=old.topic,
-                     created_by_id=actor.id)
+                     created_by_id=actor.id, applicant_name=old.applicant_name,
+                     student_number=old.student_number, grade=old.grade,
+                     consultation_type=old.consultation_type, consultation_mode=old.consultation_mode)
         db.add(nb)
         db.flush()
         repo.add_event(db, old.id, actor.id, "rescheduled_from", f"→ booking {nb.id}")
