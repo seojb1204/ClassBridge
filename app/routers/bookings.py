@@ -26,9 +26,12 @@ from app.schemas.bookings import (
     SlotOut,
     SlotReplaceIn,
     SlotUpdateIn,
+    ConsultationNotesPage,
     StaffBookingOut,
+    StaffOverviewOut,
 )
 from app.services import booking_service as svc
+from app.services import staff_insights as insights_svc
 from app.services.settings_service import get_settings
 
 router = APIRouter(prefix="/api", tags=["bookings"])
@@ -146,6 +149,23 @@ def cancel_booking(booking_id: int, body: BookingCancelIn, p: Principal = Depend
 def reschedule_booking(booking_id: int, body: BookingRescheduleIn,
                        p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
     return _out(p, db, svc.reschedule(db, p.user, booking_id, body.new_slot_id, body.reason))
+
+
+# ── 상담 정보 (교수자·관리자, 읽기 전용) ──
+@router.get("/staff/overview", response_model=StaffOverviewOut)
+def staff_overview(days: int = Query(90, ge=1, le=365),
+                   p: Principal = Depends(require(P.BOOKING_MANAGE)),
+                   db: Session = Depends(get_db)):
+    return insights_svc.overview(db, days)
+
+
+@router.get("/staff/notes", response_model=ConsultationNotesPage)
+def staff_notes(q: str = Query("", max_length=80),
+                limit: int = Query(20, ge=1, le=50),
+                offset: int = Query(0, ge=0, le=100000),
+                p: Principal = Depends(require(P.CONSULT_NOTE)),
+                db: Session = Depends(get_db)):
+    return insights_svc.notes(db, q, limit, offset)
 
 
 # ── 예약 관리 (교수자·관리자) ──
