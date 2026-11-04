@@ -1,17 +1,19 @@
 // 교수자·관리자: 상담 시간 등록·수정·취소, 상담 불가일
 import { del, get, patch, post } from "../api.js";
-import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
-import { addDays, fmtDate, fmtDateTime, mondayOf, todayKst } from "../time.js";
+import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
+import { addDays, fmtDate, fmtDateTime, isoToKstInput, kstInputToIso, mondayOf, todayKst } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, select, toast } from "../ui.js";
 
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let showForm = null;
 const WD = ["월", "화", "수", "목", "금", "토", "일"];
 
 export async function render(root) {
   weekStart ||= mondayOf(todayKst());
   selectedDay ||= todayKst();
+  if (showForm === null) showForm = !isMobile();
   detach?.();
   detach = onLayoutChange(() => draw(root));
   await draw(root);
@@ -20,14 +22,19 @@ export async function render(root) {
 async function draw(root) {
   const [slots, blackouts] = await Promise.all([get(`/api/slots?start=${weekStart}&days=7`), get("/api/blackouts")]);
   mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리")),
-    h("div", { class: "split" },
-      h("section", { class: "panel" }, h("h2", {}, "상담 시간 등록"), createForm(root)),
-      h("section", { class: "panel" }, h("h2", {}, "상담 불가일"), blackoutPanel(root, blackouts))),
+    h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
+      h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
+        "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
+        showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
+    h("p", { class: "muted" }, "시간표를 눌러 상담 정보를 수정할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots, selectedDay, onDay: (d) => { selectedDay = d; draw(root); },
+    renderCalendar({ weekStart, slots, selectedDay, countMode: "total",
+      onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) : null) }),
+    showForm ? h("div", { class: "split", id: "slot-create-panel" },
+      h("section", { class: "panel" }, h("h2", {}, "상담 시간 등록"), createForm(root)),
+      h("section", { class: "panel" }, h("h2", {}, "상담 불가일"), blackoutPanel(root, blackouts))) : null,
   );
 }
 
