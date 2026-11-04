@@ -3,30 +3,49 @@ import { get, post } from "../api.js";
 import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
+import { state } from "../state.js";
 
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
 
 export async function render(root) {
-  weekStart ||= mondayOf(todayKst());
-  selectedDay ||= todayKst();
+  if (!weekStart) {
+    weekStart = mondayOf(todayKst());
+    selectedDay = todayKst();
+    // On the first visit, show the earliest actually available appointment.
+    const upcoming = await get(`/api/slots?start=${todayKst()}&days=30`);
+    const first = upcoming.find((s) => s.bookable);
+    if (first) {
+      const day = new Date(first.start_at);
+      const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+      const selected = fmt.format(day);
+      // The ISO-formatted date is safe for the existing calendar helpers.
+      selectedDay = selected;
+      weekStart = mondayOf(selected);
+    }
+  }
   detach?.();
   detach = onLayoutChange(() => draw(root));
   await draw(root);
 }
 
 async function draw(root) {
-  const [slots, mine] = await Promise.all([
+  const [slots, mine, policy] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),
+    get("/api/booking-policy"),
   ]);
   const active = mine.find((b) => b.status === "booked");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약"),
-      h("p", { class: "muted" }, "강조된 시간을 눌러 예약하세요. 예약은 1인 1건, 취소·변경은 상담 시작 3시간 전까지 가능합니다.")),
-    active ? h("div", { class: "notice" }, "현재 예약: ", h("strong", {}, fmtDateTime(active.slot.start_at)),
-      " · 다른 시간을 누르면 예약을 변경할 수 있습니다.") : null,
+      h("p", { class: "muted" },
+        `진한 청록 테두리의 예약 가능 시간을 누르세요. 앞으로 ${policy.booking_window_days}일 이내의 상담을 ` +
+        `시작 ${policy.booking_deadline_hours}시간 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다.`)),
+    active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
+      h("strong", {}, fmtDateTime(active.slot.start_at)),
+      " · 내 예약을 누르면 취소할 수 있고, 다른 가능 시간을 누르면 변경할 수 있습니다.",
+      h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
     legend(),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, onDay: (d) => { selectedDay = d; draw(root); },
@@ -42,12 +61,28 @@ function legend() {
 
 async function openSlot(root, s, active) {
   if (s.mine) {
-    toast("이미 예약한 시간입니다. '내 예약'에서 취소할 수 있습니다.");
+    const result = await modal("내 상담 예약", h("div", { class: "booking-detail" },
+      h("p", {}, h("strong", {}, fmtDateTime(s.start_at))),
+      h("p", { class: "muted" }, "예약 확정 · " + (s.kind === "group" ? "단체 상담" : "개인 상담")),
+      h("p", {}, "이 상담 예약을 취소하시겠습니까? 취소 기한은 상담 시작 전까지의 운영 설정을 따릅니다.")), [
+      { label: "돌아가기", value: null },
+      { label: "예약 취소", danger: true, handler: async () => {
+        try {
+          await post(`/api/bookings/${active.id}/cancel`, {});
+          return true;
+        } catch (e) { errorToast(e); return false; }
+      } },
+    ]);
+    if (result === true) {
+      toast("예약을 취소했습니다.", "success");
+      await draw(root);
+    }
     return;
   }
   if (!s.bookable) { toast(s.reason || "예약할 수 없는 시간입니다", "error"); return; }
   const topic = h("textarea", { rows: 3, maxlength: 500, placeholder: "상담 받고 싶은 내용 (선택)" });
-  const applicantName = h("input", { type: "text", maxlength: 100, placeholder: "학생 이름" });
+  const applicantName = h("input", { type: "text", maxlength: 100, placeholder: "학생 이름",
+    value: state.me?.name || "" });
   const studentNumber = h("input", { type: "text", maxlength: 30, placeholder: "학번 (별도 확인하지 않음)" });
   const grade = select([["", "선택 안 함"], ["1", "1학년"], ["2", "2학년"], ["3", "3학년"], ["4", "4학년"]]);
   const consultationType = select([["career", "진로"], ["employment", "취업"], ["academics", "학업"],
