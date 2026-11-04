@@ -44,15 +44,21 @@ export function renderCalendar(o) {
 }
 
 function renderWeekly(o, byDay) {
-  let minH = 9, maxH = 18;
-  for (const s of o.slots) {
-    const a = kstParts(s.start_at), b = kstParts(s.end_at);
-    minH = Math.min(minH, a.hour);
-    maxH = Math.max(maxH, b.minute ? b.hour + 1 : b.hour);
+  // The pixel size of a 15-minute interval must NOT change with the
+  // consultation duration or the number of slots in the displayed week.
+  let minH = 9, maxH = 12;
+  if (o.slots.length) {
+    const starts = o.slots.map((s) => kstParts(s.start_at).hour);
+    const ends = o.slots.map((s) => {
+      const p = kstParts(s.end_at);
+      return p.hour + (p.minute ? 1 : 0);
+    });
+    minH = Math.max(0, Math.min(...starts) - 1);
+    maxH = Math.min(24, Math.max(...ends) + 1);
   }
   const rows = ((maxH - minH) * 60) / STEP;
   const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "주간 상담 시간표" });
-  grid.style.gridTemplateRows = `auto repeat(${rows}, minmax(14px, 1fr))`;
+  grid.style.gridTemplateRows = `auto repeat(${rows}, 18px)`;
   grid.append(h("div", { class: "corner" }));
   for (let d = 0; d < 7; d++) {
     const day = addDays(o.weekStart, d);
@@ -95,10 +101,13 @@ function renderDaily(o, byDay) {
   const chips = h("div", { class: "day-chips", role: "tablist" });
   for (let d = 0; d < 7; d++) {
     const day = addDays(o.weekStart, d);
-    const n = (byDay[day] || []).filter((s) => s.bookable || s.mine).length;
+    const n = (byDay[day] || []).filter((s) => o.countMode === "total"
+      ? s.status !== "cancelled" : s.bookable || s.mine).length;
+    const label = o.countMode === "total" ? "상담" : "선택 가능";
     chips.append(h("button", { class: `chip ${day === sel ? "active" : ""}`, role: "tab",
+      "aria-label": `${fmtDate(day)}, ${label} ${n}건`,
       "aria-selected": String(day === sel), onclick: () => o.onDay?.(day) },
-    h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), n ? h("em", {}, String(n)) : null));
+    h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), h("em", {}, String(n))));
   }
   const list = (byDay[sel] || []);
   return h("div", { class: "daily" }, chips,
@@ -109,7 +118,7 @@ function renderDaily(o, byDay) {
         h("span", { class: "slot-meta" }, slotLabel(s)),
         s.location ? h("span", { class: "slot-loc" }, s.location) : null,
         o.extra ? o.extra(s) : null)))
-      : h("p", { class: "empty" }, "이 날은 상담 시간이 없습니다."));
+      : h("p", { class: "empty" }, "이 날은 등록된 상담 시간이 없습니다. 다른 날짜를 선택해 주세요."));
 }
 
 export function weekNav(weekStart, onChange) {
