@@ -34,21 +34,67 @@ export function errorToast(e) { toast(e?.message || String(e), "error"); }
 export function modal(title, body, actions) {
   return new Promise((resolve) => {
     const root = document.getElementById("modal-root");
-    const close = (v) => { root.replaceChildren(); resolve(v); };
-    const box = h("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
+    const returnFocus = document.activeElement;
+    let pending = false;
+    let closed = false;
+    let box;
+    const close = (value) => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", handleKeys);
+      root.replaceChildren();
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+      resolve(value);
+    };
+    const focusables = () => [...box.querySelectorAll(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter((el) => el.getClientRects().length > 0);
+    const handleKeys = (event) => {
+      if (closed) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!pending) close(null);
+      }
+      if (event.key !== "Tab") return;
+      const els = focusables();
+      if (!els.length) { event.preventDefault(); box.focus(); return; }
+      const first = els[0], last = els[els.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !box.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !box.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    box = h("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title,
+      tabindex: -1 },
       h("h2", {}, title),
       h("div", { class: "modal-body" }, body),
       h("div", { class: "modal-actions" },
-        ...actions.map((a) => h("button", {
-          class: a.primary ? "btn primary" : a.danger ? "btn danger" : "btn",
+        ...actions.map((action) => h("button", {
+          class: action.primary ? "btn primary" : action.danger ? "btn danger" : "btn",
           onclick: async () => {
-            if (a.handler) { const r = await a.handler(); if (r === false) return; close(r ?? a.value); }
-            else close(a.value);
+            if (pending || closed) return;
+            if (!action.handler) { close(action.value); return; }
+            pending = true;
+            const buttons = box.querySelectorAll(".modal-actions button");
+            buttons.forEach((btn) => { btn.disabled = true; });
+            try {
+              const result = await action.handler();
+              if (result !== false) { close(result ?? action.value); return; }
+            } catch (e) {
+              errorToast(e);
+            } finally {
+              pending = false;
+              if (!closed) buttons.forEach((btn) => { btn.disabled = false; });
+            }
           },
-        }, a.label))));
-    const backdrop = h("div", { class: "backdrop", onclick: (e) => { if (e.target === backdrop) close(null); } }, box);
+        }, action.label))));
+    const backdrop = h("div", { class: "backdrop", onclick: (e) => {
+      if (e.target === backdrop && !pending) close(null);
+    } }, box);
     root.replaceChildren(backdrop);
-    box.querySelector("button")?.focus();
+    document.addEventListener("keydown", handleKeys);
+    (focusables()[0] || box).focus({ preventScroll: true });
   });
 }
 
