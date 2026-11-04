@@ -7,6 +7,7 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let mobileView = "list";
 let showForm = null;
 const WD = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -38,7 +39,8 @@ async function draw(root) {
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "시간표를 눌러 상담 정보를 수정할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots, selectedDay, countMode: "total",
+    renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileView,
+      onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) : null) }),

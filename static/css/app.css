@@ -125,6 +125,27 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .slot-time { font-variant-numeric: tabular-nums; }
 .week-wrap { scrollbar-gutter: stable; }
 
+/* 모바일 일간 시간표: 목록형 카드와 같은 데이터/클릭 동작 공유 */
+.mobile-view-toggle { display: flex; gap: .5rem; margin: .6rem 0 .85rem; }
+.mobile-view-toggle .btn { flex: 1; min-height: 44px; }
+.day-timeline { position: relative; margin: .5rem 0 1rem; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.day-timeline-hour { position: absolute; left: 0; right: 0; border-top: 1px solid #e5e9f1;
+  height: 1px; pointer-events: none; }
+.day-timeline-hour span { display: inline-block; position: absolute; top: -10px; left: 6px;
+  font-size: .73rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  background: #fff; padding-right: 4px; }
+.day-timeline-slot { position: absolute; left: 62px; right: 8px; width: calc(100% - 70px);
+  margin: 0; min-height: 44px; overflow: hidden; border-radius: 8px; padding: .3rem .55rem;
+  text-align: left; font: inherit; font-size: .82rem; line-height: 1.2; cursor: pointer;
+  display: flex; flex-direction: column; gap: .1rem; z-index: 1; }
+.day-timeline-slot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.day-timeline-slot.slot.open { border: 2px solid var(--available-line); }
+.day-timeline-slot.slot.reserved { border: 2px solid #b3bff5; }
+.day-timeline-slot.slot.mine { border: 2px solid var(--mine); }
+.day-timeline-slot .slot-meta { font-size: .73rem; white-space: nowrap;
+  text-overflow: ellipsis; overflow: hidden; }
+
 /* 테이블 */
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: var(--radius); overflow: hidden;
@@ -137,6 +158,45 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .action-more-panel { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .35rem; }
 .action-more-panel .btn { white-space: nowrap; }
 code { font-size: .78rem; word-break: break-all; }
+
+/* 교수자·관리자 상담 통합 정보 페이지 */
+.insight-section { margin-bottom: 1.6rem; }
+.insight-section-head { display: flex; justify-content: space-between; align-items: center;
+  gap: .8rem; flex-wrap: wrap; margin: 0 0 .8rem; }
+.insight-section-head h2 { margin: 0; }
+.insight-period { display: inline-flex; align-items: center; gap: .5rem;
+  font-weight: 600; font-size: .87rem; }
+.insight-period select { width: auto; min-width: 128px; }
+.insight-overview > .muted { font-size: .85rem; margin: .25rem 0 .8rem; }
+.insight-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: .75rem; margin-bottom: 1rem; }
+.insight-metric { display: flex; flex-direction: column; gap: .3rem;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 1rem; min-height: 108px; box-shadow: var(--shadow); }
+.insight-metric .insight-number { font-size: 1.7rem; font-weight: 800;
+  line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; }
+.insight-breakdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem; }
+.insight-breakdowns .panel { margin: 0; }
+.insight-breakdown-item { display: flex; justify-content: space-between; gap: .6rem; }
+.insight-search { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+  margin-bottom: 1rem; }
+.insight-search input { flex: 1; min-width: min(220px, 100%); }
+.insight-search button { min-height: 44px; }
+.consult-note-list { display: grid; gap: .8rem; }
+.consult-note-card { margin: 0; min-width: 0; }
+.consult-note-card .muted { font-size: .86rem; margin: .35rem 0; }
+.consult-note-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.consult-note-text { line-height: 1.65; word-break: break-word; white-space: pre-wrap;
+  padding: .75rem; margin: .65rem 0; background: var(--bg); border-radius: 8px;
+  border: 1px solid var(--line); max-height: 280px; overflow: auto; }
+.insight-pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin: 1rem 0; }
+@media (max-width: 720px) {
+  .insight-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .insight-metric { padding: .8rem; min-height: 96px; }
+  .insight-metric .insight-number { font-size: 1.45rem; }
+  .insight-search { gap: .4rem; }
+  .insight-search input { flex-basis: 100%; }
+}
 
 /* 설문 */
 .title-input { font-size: 1.3rem; font-weight: 700; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; margin-bottom: .5rem; }

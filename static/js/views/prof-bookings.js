@@ -10,11 +10,12 @@ let filter = { start: null, days: 31, status: "booked" };
 let viewMode = "calendar";
 let weekStart = null;
 let selectedDay = null;
+let mobileView = "list";
 let detach = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    ...[["calendar", "시간표 보기"], ["list", "목록 보기"]].map(([value, label]) =>
+    ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { viewMode = value; render(root); } }, label)));
 }
@@ -96,7 +97,8 @@ async function renderCalendarView(root) {
     viewSwitcher(root),
     h("p", { class: "muted" }, "상담 시간을 누르면 예약된 학생과 기록을 보고 바로 처리할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
-    renderCalendar({ weekStart, selectedDay, slots: enhanced, countMode: "total",
+    renderCalendar({ weekStart, selectedDay, slots: enhanced, countMode: "total", mobileView,
+      onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
       onSlot: (slot) => showStaffSlot(root, slot, bookings) }),
   );

@@ -8,6 +8,7 @@ import { state } from "../state.js";
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let mobileView = "list";
 
 export async function render(root) {
   if (!weekStart) {
@@ -44,7 +45,9 @@ async function draw(root) {
       h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
     legend(),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots, selectedDay, onDay: (d) => { selectedDay = d; draw(root); },
+    renderCalendar({ weekStart, slots, selectedDay, mobileView,
+      onViewChange: (mode) => { mobileView = mode; draw(root); },
+      onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
   );
 }
