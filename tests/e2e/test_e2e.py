@@ -171,6 +171,17 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.locator(".modal textarea").fill("학생 상담 테스트 기록")
     prof.page.locator(".modal button:text-is('기록 저장')").click()
     prof.toast("상담 기록을 저장")
+    prof.go("/staff/insights")
+    assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
+    note_card = prof.page.locator(".consult-note-card:has-text('학생 상담 테스트 기록')")
+    note_card.wait_for(state="visible")
+    assert "김테스트" in note_card.inner_text()
+    note_card.get_by_role("button", name="상담 기록 수정").click()
+    prof.page.locator(".modal textarea").fill("수정된 비공개 상담 기록")
+    prof.page.locator(".modal button:text-is('확인')").click()
+    prof.page.wait_for_selector(".consult-note-card:has-text('수정된 비공개 상담 기록')")
+    prof.shot("pc_11_staff_insights")
+    prof.go("/bookings")
     prof.page.get_by_role("button", name="목록 보기").click()
     assert "20260001" in prof.page.locator("tr:has-text('김테스트')").inner_text()
     prof.close()
@@ -242,7 +253,7 @@ def test_admin_uses_professor_features_and_changes_role(server, browser):
     base, _ = server
     adm = Session(browser, base, "admin@test.ac.kr", PC)
     nav = adm.page.locator("#nav").inner_text()
-    for label in ("상담 시간", "예약 관리", "설문", "건의함", "계정·권한", "운영 설정", "작업 이력"):
+    for label in ("상담 시간", "예약 관리", "상담 정보", "설문", "건의함", "계정·권한", "운영 설정", "작업 이력"):
         assert label in nav
     _create_slots_via_ui(adm, start="15:00", end="16:00", kind="group", cap=3)
     adm.go("/admin/users")
@@ -340,6 +351,13 @@ def test_mobile_student_flow(server, browser):
     assert st.page.locator(".day-chips").is_visible()
     assert st.page.locator(".week-grid").count() == 0
     slot = _find_slot(st, mobile=True)
+    st.page.get_by_role("button", name="일간 시간표 보기").click()
+    assert st.page.locator(".day-timeline").is_visible()
+    assert st.page.locator(".day-timeline-slot.slot.open").count() > 0
+    assert st.page.locator(".day-timeline-slot.slot.open").first.bounding_box()["height"] >= 44
+    st.page.get_by_role("button", name="목록 보기").click()
+    assert st.page.locator(".daily .cards").is_visible()
+    slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
     st.page.keyboard.press("Escape")
@@ -360,6 +378,24 @@ def test_mobile_student_flow(server, browser):
     st.page.click("text=익명으로 제출")
     st.toast("익명으로 접수")
     st.close()
+
+
+def test_mobile_staff_insights_and_timetable(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go("/staff/insights")
+    assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
+    assert prof.page.get_by_text("전체 상담 기록", exact=True).is_visible()
+    assert prof.page.locator(".consult-note-card").count() >= 1
+    assert prof.page.locator("#mobile-tabs").is_visible()
+    assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
+
+    prof.go("/bookings")
+    prof.page.get_by_role("button", name="일간 시간표 보기").click()
+    assert prof.page.locator(".day-timeline").is_visible()
+    prof.page.get_by_role("button", name="목록 보기").click()
+    assert prof.page.locator(".daily .cards").count() >= 1
+    prof.close()
 
 
 def test_mobile_professor_views(server, browser):
