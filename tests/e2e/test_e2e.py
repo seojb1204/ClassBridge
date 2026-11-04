@@ -160,6 +160,13 @@ def test_student_booking_flow_pc(server, browser):
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
+    assert prof.page.locator(".week-grid").is_visible()
+    prof.page.locator(".slot.reserved").first.click()
+    assert "김테스트" in prof.page.locator(".modal").inner_text()
+    prof.page.locator(".modal textarea").fill("학생 상담 테스트 기록")
+    prof.page.locator(".modal button:text-is('기록 저장')").click()
+    prof.toast("상담 기록을 저장")
+    prof.page.get_by_role("button", name="목록 보기").click()
     assert "20260001" in prof.page.locator("tr:has-text('김테스트')").inner_text()
     prof.close()
     st.page.click("text=예약 취소")
@@ -176,7 +183,7 @@ def test_double_click_creates_single_booking(server, browser):
     st.go("/booking")
     _find_slot(st).click()
     btn = st.page.locator(".modal button:text-is('예약하기')")
-    btn.dblclick()
+    btn.evaluate("(el) => { el.click(); el.click(); }")  # rapid duplicate is ignored during pending
     st.toast("예약이 완료")
     st.go("/my-bookings")
     assert st.page.locator(".card.booking.booked").count() == 1
@@ -187,6 +194,7 @@ def test_professor_completes_consultation(server, browser):
     base, db = server
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
+    prof.page.get_by_role("button", name="목록 보기").click()
     row = prof.page.locator("tr:has-text('student2@test.ac.kr')")
     assert row.count() == 1
     # 상담 시작 시각을 과거로 옮겨 '완료' 처리 상황 재현 (E2E 전용 DB 직접 수정)
