@@ -4,7 +4,7 @@ from __future__ import annotations
 import secrets
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
@@ -17,11 +17,13 @@ from app.core.auth import (
     require_login,
     set_session_cookie,
 )
-from app.core.errors import NotFound, Unauthorized
+from app.core.errors import BadRequest, NotFound, Unauthorized
 from app.core.identity import VerifiedIdentity
 from app.core.permissions import permissions_for
 from app.db import get_db
 from app.infra import google_oauth
+from app.public_notice import NOTICE_VERSION, render_notice
+from app.repositories import audit as audit_repo
 from app.schemas.users import DevLoginIn, MeOut
 from app.services import user_service
 
@@ -41,13 +43,18 @@ def _start_session(request: Request, db: Session, user, response) -> None:
 
 
 @router.get("/auth/google/login", include_in_schema=False)
-def google_login(request: Request):
+def google_login(request: Request, consent_version: str = "", notice_ack: str = "", transfer_ack: str = ""):
     s = request.app.state.settings
+    if s.public_notice_enabled and (consent_version != NOTICE_VERSION or notice_ack != "yes" or transfer_ack != "yes"):
+        raise BadRequest("로그인 화면에서 이용·개인정보 안내를 확인하고 동의해 주세요")
     if not s.google_client_id:
         raise NotFound("Google 로그인이 설정되지 않았습니다")
     state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
     resp = RedirectResponse(google_oauth.build_auth_url(s, state, nonce), status_code=302)
-    resp.set_cookie(OAUTH_COOKIE, _signer(request).dumps({"state": state, "nonce": nonce}),
+    payload = {"state": state, "nonce": nonce}
+    if s.public_notice_enabled:
+        payload["notice_version"] = NOTICE_VERSION
+    resp.set_cookie(OAUTH_COOKIE, _signer(request).dumps(payload),
                     max_age=600, httponly=True, secure=s.cookie_secure, samesite="lax", path="/auth")
     return resp
 
@@ -61,9 +68,14 @@ def google_callback(request: Request, code: str = "", state: str = "", db: Sessi
         raise Unauthorized("로그인 요청이 만료되었습니다. 다시 시도하세요") from exc
     if not code or not secrets.compare_digest(state, data.get("state", "")):
         raise Unauthorized("state 불일치")
+    if s.public_notice_enabled and data.get("notice_version") != NOTICE_VERSION:
+        raise Unauthorized("안내가 변경되었습니다. 로그인 화면에서 다시 확인해 주세요")
     verifier = request.app.state.identity_verifier
     ident = verifier(s, code, data["nonce"])
     user = user_service.login_or_register(db, s, ident)
+    if s.public_notice_enabled:
+        audit_repo.add(db, user.id, "user.notice_consent", "user", user.id,
+                       {"version": NOTICE_VERSION, "collection_use": True, "overseas_processing": True})
     resp = RedirectResponse("/", status_code=302)
     resp.delete_cookie(OAUTH_COOKIE, path="/auth")
     _start_session(request, db, user, resp)
@@ -110,7 +122,18 @@ def me(request: Request, principal: Principal = Depends(require_login)):
 def auth_config(request: Request):
     """로그인 화면용 공개 정보 (비밀 없음)."""
     s = request.app.state.settings
-    return {"google": bool(s.google_client_id), "dev_login": s.dev_login_enabled and not s.is_production}
+    result = {"google": bool(s.google_client_id), "dev_login": s.dev_login_enabled and not s.is_production}
+    if s.public_notice_enabled:
+        result["notice"] = {"version": NOTICE_VERSION, "url": "/privacy", "support_email": s.support_email}
+    return result
+
+
+@router.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
+def privacy_notice(request: Request):
+    settings = request.app.state.settings
+    if not settings.public_notice_enabled:
+        raise NotFound("Not Found")
+    return HTMLResponse(render_notice(settings))
 
 
 auth_config.public = True  # type: ignore[attr-defined]
