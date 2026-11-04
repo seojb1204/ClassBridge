@@ -158,6 +158,9 @@ def test_student_booking_flow_pc(server, browser):
     st.go("/my-bookings")
     assert st.page.locator(".card.booking.booked").count() == 1
     assert "진로 · 온라인" in st.page.locator(".card.booking.booked").inner_text()
+    with st.page.expect_download() as info:
+        st.page.get_by_role("button", name="내 달력에 추가").click()
+    assert info.value.suggested_filename.endswith(".ics")
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
@@ -322,6 +325,9 @@ def test_mobile_student_flow(server, browser):
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
+    st.page.keyboard.press("Escape")
+    assert st.page.locator(".modal").count() == 0
+    _find_slot(st, mobile=True).click()
     st.page.click(".modal button:text-is('예약하기')")
     st.toast("예약이 완료")
     st.page.wait_for_selector(".card.slot.mine")
@@ -345,6 +351,14 @@ def test_mobile_professor_views(server, browser):
     for path, name in (("/slots", "mobile_04_prof_slots"), ("/bookings", "mobile_05_prof_bookings"),
                        ("/surveys", "mobile_06_prof_surveys")):
         prof.go(path)
+        if path == "/slots":
+            assert prof.page.locator(".day-chips").is_visible()
+            assert prof.page.locator("form.grid-form").count() == 0
+            assert prof.page.locator("#mobile-tabs").is_visible()
+            assert prof.page.locator(".topbar").bounding_box()["height"] < 100
+            prof.page.get_by_role("button", name="+ 상담 시간 등록").click()
+            datebox = prof.page.locator(".inline-form input[type=date]").bounding_box()
+            assert datebox and datebox["height"] < 70
         width = prof.page.evaluate("document.documentElement.scrollWidth")
         assert width <= MOBILE["width"] + 1, f"{path} 가로 스크롤 발생: {width}"
         prof.shot(name)
