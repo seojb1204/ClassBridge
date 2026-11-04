@@ -53,7 +53,7 @@ function overviewView(data) {
 }
 
 async function editNote(item, refresh) {
-  const next = await promptText("상담 기록 수정", "교수자·관리자만 볼 수 있는 비공개 상담 기록입니다.",
+  const next = await promptText("상담 기록 수정", "학업·진로·취업 진행사항만 기록해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요. 교수자·관리자만 볼 수 있습니다.",
     { multiline: true, value: item.note });
   if (next === null || next === item.note) return;
   try {

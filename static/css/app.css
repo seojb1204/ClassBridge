@@ -283,5 +283,3 @@ code { font-size: .78rem; word-break: break-all; }
 }
 .inline-form input[type="date"] { flex: 0 0 170px; }
 .inline-form button { white-space: nowrap; flex: 0 0 auto; }
-:root .notice-consent { display: flex; align-items: flex-start; gap: .6rem; margin: 1rem 0; text-align: left; }
-:root .notice-consent input { width: auto; flex: 0 0 auto; margin-top: .25rem; }
