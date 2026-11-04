@@ -35,6 +35,10 @@ class SlotCreateIn(BaseModel):
     note: str = Field(default="", max_length=500)
 
 
+class SlotReplaceIn(SlotCreateIn):
+    expected_overlap_ids: list[int] = Field(default_factory=list, max_length=300)
+
+
 class SlotUpdateIn(BaseModel):
     capacity: int | None = Field(default=None, ge=1, le=100)
     kind: Literal["individual", "group"] | None = None
