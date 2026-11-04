@@ -1,13 +1,111 @@
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { get, post, put } from "../api.js";
-import { addDays, fmtDateTime, kstParts, todayKst } from "../time.js";
+import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
+import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
 
 let filter = { start: null, days: 31, status: "booked" };
+let viewMode = "calendar";
+let weekStart = null;
+let selectedDay = null;
+let detach = null;
+
+function viewSwitcher(root) {
+  return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
+    ...[["calendar", "시간표 보기"], ["list", "목록 보기"]].map(([value, label]) =>
+      h("button", { class: "btn", "aria-pressed": String(viewMode === value),
+        onclick: () => { viewMode = value; render(root); } }, label)));
+}
+
+async function showStaffSlot(root, slot, bookings) {
+  const related = bookings.filter((b) => b.slot.id === slot.id);
+  if (!related.length) {
+    const r = await modal("빈 상담 시간", h("div", { class: "booking-detail" },
+      h("p", {}, fmtDateTime(slot.start_at)),
+      h("p", { class: "muted" }, "등록된 상담이지만 학생 예약은 아직 없습니다.")), [
+      { label: "닫기", value: null },
+      { label: "학생 대신 예약", primary: true, value: "book" },
+    ]);
+    if (r === "book") await bookForStudent(root);
+    return;
+  }
+  let b = related[0];
+  const picker = related.length > 1 ? select(related.map((x) => [
+    x.id, `${x.applicant_name || x.student_name} · ${x.student_number || x.student_email}`,
+  ])) : null;
+  const info = h("p", { class: "muted" }, "");
+  const note = h("textarea", { rows: 5, maxlength: 10000 });
+  const reason = h("input", { type: "text", maxlength: 500, placeholder: "취소 시 학생에게 보여줄 사유" });
+  const update = () => {
+    b = related.find((x) => String(x.id) === String(picker?.value)) || related[0];
+    info.textContent = `${b.applicant_name || b.student_name} · ${b.grade ? b.grade + "학년" : "학년 미입력"} · ${b.status} · ${b.topic || "상담 주제 미입력"}`;
+    note.value = b.professor_note || "";
+  };
+  picker?.addEventListener("change", update);
+  update();
+  const actions = [
+    { label: "닫기", value: null },
+    { label: "기록 저장", primary: true, handler: async () => {
+      try { await put(`/api/bookings/${b.id}/note`, { note: note.value }); toast("상담 기록을 저장했습니다.", "success"); return true; }
+      catch (e) { errorToast(e); return false; }
+    } },
+  ];
+  if (related.some((x) => x.status === "booked")) {
+    actions.push({ label: "예약 취소", danger: true, handler: async () => {
+      if (b.status !== "booked") { toast("진행 중인 예약을 선택해 주세요.", "error"); return false; }
+      if (!reason.value.trim()) { toast("취소 사유를 입력해 주세요.", "error"); reason.focus(); return false; }
+      try { await post(`/api/bookings/${b.id}/cancel`, { reason: reason.value }); toast("예약을 취소했습니다.", "success"); return true; }
+      catch (e) { errorToast(e); return false; }
+    } });
+    if (new Date(slot.start_at) <= new Date()) actions.push({
+      label: "상담 완료", handler: async () => {
+        if (b.status !== "booked") { toast("진행 중인 예약을 선택해 주세요.", "error"); return false; }
+        try { await post(`/api/bookings/${b.id}/outcome`, { outcome: "completed" }); toast("완료 처리했습니다.", "success"); return true; }
+        catch (e) { errorToast(e); return false; }
+      },
+    });
+  }
+  const result = await modal("예약·상담 상세", h("div", { class: "booking-detail" },
+    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), ` · 예약 ${related.length}/${slot.capacity}명`),
+    picker ? field("학생 선택", picker) : null, info,
+    field("교수자 상담 기록", note),
+    reason && related.some((x) => x.status === "booked") ? field("예약 취소 사유", reason) : null,
+  ), actions);
+  if (result !== null) await render(root);
+}
+
+async function renderCalendarView(root) {
+  weekStart ||= mondayOf(todayKst());
+  selectedDay ||= todayKst();
+  detach?.();
+  detach = onLayoutChange(() => { if (viewMode === "calendar") renderCalendarView(root); });
+  const [slots, bookings] = await Promise.all([
+    get(`/api/slots?start=${weekStart}&days=7`),
+    get(`/api/bookings?start=${weekStart}&days=7`),
+  ]);
+  const enhanced = slots.map((slot) => {
+    const count = bookings.filter((b) => b.slot.id === slot.id && b.status === "booked").length;
+    return { ...slot, managerState: count ? "reserved" : "free", bookingCount: count };
+  });
+  mount(root,
+    h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
+      h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약")),
+    viewSwitcher(root),
+    h("p", { class: "muted" }, "상담 시간을 누르면 예약된 학생과 기록을 보고 바로 처리할 수 있습니다."),
+    weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
+    renderCalendar({ weekStart, selectedDay, slots: enhanced, countMode: "total",
+      onDay: (day) => { selectedDay = day; renderCalendarView(root); },
+      onSlot: (slot) => showStaffSlot(root, slot, bookings) }),
+  );
+}
+
 
 export async function render(root) {
+  if (viewMode === "calendar") return renderCalendarView(root);
+  detach?.();
+  detach = null;
   filter.start ||= addDays(todayKst(), -7);
   const q = new URLSearchParams({ start: filter.start, days: filter.days });
   if (filter.status) q.set("status", filter.status);
@@ -21,6 +119,7 @@ export async function render(root) {
   const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
+    viewSwitcher(root),
     h("div", { class: "filters" }, field("시작일", start), field("상태", status)),
     list.length ? h("div", { class: "table-wrap" }, table(root, list)) : empty("해당 조건의 예약이 없습니다."));
 }
