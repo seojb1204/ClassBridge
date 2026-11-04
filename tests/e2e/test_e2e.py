@@ -355,7 +355,7 @@ def test_mobile_student_flow(server, browser):
     st.page.locator(".day-timeline").wait_for(state="visible")
     assert st.page.locator(".day-timeline-slot.slot.open").count() > 0
     assert st.page.locator(".day-timeline-slot.slot.open").first.bounding_box()["height"] >= 44
-    st.page.get_by_role("button", name="예약 목록").click()
+    st.page.get_by_role("group", name="일정 보기 방식").get_by_role("button", name="목록 보기").click()
     st.page.locator(".daily .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
