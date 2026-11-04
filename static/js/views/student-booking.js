@@ -45,7 +45,7 @@ async function draw(root) {
     legend(),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, onDay: (d) => { selectedDay = d; draw(root); },
-      onSlot: (s) => openSlot(root, s, active) }),
+      onSlot: (s) => openSlot(root, s, active, policy) }),
   );
 }
 
@@ -55,12 +55,12 @@ function legend() {
     h("span", { class: "lg closed" }, "마감·불가"));
 }
 
-async function openSlot(root, s, active) {
+async function openSlot(root, s, active, policy) {
   if (s.mine) {
     const result = await modal("내 상담 예약", h("div", { class: "booking-detail" },
       h("p", {}, h("strong", {}, fmtDateTime(s.start_at))),
       h("p", { class: "muted" }, "예약 확정 · " + (s.kind === "group" ? "단체 상담" : "개인 상담")),
-      h("p", {}, "이 상담 예약을 취소하시겠습니까? 취소 기한은 상담 시작 전까지의 운영 설정을 따릅니다.")), [
+      h("p", {}, `예약 취소는 상담 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다. 이 예약을 취소하시겠습니까?`)), [
       { label: "돌아가기", value: null },
       { label: "예약 취소", danger: true, handler: async () => {
         try {
