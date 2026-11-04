@@ -46,6 +46,10 @@ class Settings:
 
     session_ttl_hours: int = 12
     cookie_secure: bool = False
+    public_notice_enabled: bool = False
+    operator_name: str = ""
+    operator_affiliation: str = ""
+    support_email: str = ""
 
     feature_surveys: bool = True
     feature_suggestions: bool = True
@@ -58,6 +62,9 @@ class Settings:
         return self.env == "production"
 
     def validate(self) -> None:
+        if self.public_notice_enabled and (not self.operator_name.strip()
+                or "@" not in self.support_email or any(c in self.support_email for c in "\r\n<>")):
+            raise ConfigError("Public notice requires OPERATOR_NAME and SUPPORT_EMAIL")
         if self.ai_mode not in {"disabled", "demo", "external"}:
             raise ConfigError("AI_MODE must be disabled|demo|external")
         if self.staging_mode:
@@ -109,6 +116,10 @@ def load_settings() -> Settings:
         dev_login_enabled=_bool("DEV_LOGIN_ENABLED", env in {"development", "test"}),
         session_ttl_hours=int(os.getenv("SESSION_TTL_HOURS", "12")),
         cookie_secure=_bool("COOKIE_SECURE", prod),
+        public_notice_enabled=_bool("PUBLIC_NOTICE_ENABLED", False),
+        operator_name=os.getenv("OPERATOR_NAME", "").strip(),
+        operator_affiliation=os.getenv("OPERATOR_AFFILIATION", "").strip(),
+        support_email=os.getenv("SUPPORT_EMAIL", "").strip(),
         # 익명 기능은 운영에서 보안 검토 후 명시적으로 켜야 한다
         feature_surveys=_bool("FEATURE_SURVEYS", not prod),
         feature_suggestions=_bool("FEATURE_SUGGESTIONS", not prod),
