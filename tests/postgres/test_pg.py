@@ -121,6 +121,30 @@ def test_concurrent_open_slot_creation_cannot_overlap(pg_app):
         db.close()
 
 
+def test_replacing_unbooked_slots_preserves_postgres_overlap_constraint(pg_app):
+    """Replacing unreserved time keeps the old rows and the exclusion invariant."""
+    professor = login(pg_app, "prof@test.ac.kr")
+    old = make_slots(professor, start="10:00", end="11:00", duration=30)
+    spec = {
+        "start_date": kst_date(utcnow()).__add__(timedelta(days=2)).isoformat(),
+        "start_time": "10:00", "end_time": "11:00", "duration_minutes": 60,
+    }
+    preview = professor.post("/api/slots/preview", json=spec)
+    assert preview.status_code == 200, preview.text
+    assert sorted(preview.json()["overlap_ids"]) == sorted(old)
+    result = professor.post("/api/slots/replace", json={
+        **spec, "expected_overlap_ids": preview.json()["overlap_ids"],
+    })
+    assert result.status_code == 200, result.text
+    assert result.json()["replaced"] == 2
+    with pg_app.state.engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM slots WHERE status='open'")).scalar() == 1
+        assert conn.execute(text("SELECT count(*) FROM slots WHERE status='cancelled'")).scalar() == 2
+        assert conn.execute(text(
+            "SELECT count(*) FROM pg_constraint WHERE conname='ex_slots_no_overlap_open'"
+        )).scalar() == 1
+
+
 def test_database_rejects_overlapping_open_slots(pg_app):
     """The DB rule still applies if API/application overlap checks are bypassed."""
     prof = login(pg_app, "prof@test.ac.kr")
