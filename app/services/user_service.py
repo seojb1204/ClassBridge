@@ -35,6 +35,21 @@ def login_or_register(db: Session, settings: Settings, ident: VerifiedIdentity) 
     if settings.staging_mode and email not in settings.staging_allowed_emails:
         raise Forbidden("이 계정은 테스트 환경의 사용 허가 목록에 없습니다")
     user = users_repo.get_by_sub(db, ident.sub)
+    if user is None and settings.staging_mode and not settings.dev_login_enabled:
+        # Migrate only the exact legacy development identity of a preapproved
+        # staff account; never merge distinct Google accounts by email alone.
+        existing = users_repo.get_by_email(db, email)
+        expected_role = _initial_role(settings, email)
+        if (existing is not None and existing.is_active
+                and existing.google_sub == f"dev:{email}"
+                and ident.sub and not ident.sub.startswith("dev:")
+                and expected_role in {"admin", "professor"}
+                and existing.role == expected_role):
+            existing.google_sub = ident.sub
+            invalidate_user_sessions(db, existing.id)
+            audit_repo.add(db, None, "user.staging_identity_rebind", "user", existing.id,
+                           {"email": email, "identity_from": "dev", "identity_to": "google"})
+            user = existing
 
     if user is None:
         if users_repo.get_by_email(db, email) is not None:
