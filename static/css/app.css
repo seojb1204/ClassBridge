@@ -2,7 +2,8 @@
   --bg: #f6f7fb; --panel: #fff; --text: #1d2433; --muted: #667085; --line: #e3e7ef;
   --primary: #2f5bea; --primary-weak: #e8eeff; --mine: #087254; --mine-weak: #e3f7f0;
   --danger: #c93839; --danger-weak: #fdeceb; --warn: #a65b08; --closed: #f1f3f6;
-  --available: #166b56; --available-bg: #e7f6ee; --available-line: #91c8ad;
+  --available: #166b56; --available-bg: #e7f6ee; --available-line: #388466;
+  --booking-mine: #2448b5; --booking-mine-hover: #19378e;
   --radius: 10px; --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
 }
 * { box-sizing: border-box; }
@@ -84,11 +85,11 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 
 /* 주간 시간표 */
 .week-nav { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; gap: .5rem; }
-.legend { display: flex; gap: 1rem; font-size: .85rem; color: var(--muted); margin-bottom: .5rem; }
+.legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; font-size: .85rem; color: var(--text); margin-bottom: .5rem; }
 .lg::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; }
-.lg.open::before { background: var(--available); }
-.lg.mine::before { background: var(--mine); }
-.lg.closed::before { background: #c9ced8; }
+.lg.open::before { background: var(--available-bg); border: 2px solid var(--available-line); }
+.lg.mine::before { background: var(--booking-mine); }
+.lg.closed::before { background: var(--closed); border: 1px dashed var(--muted); }
 .week-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 .week-grid { display: grid; grid-template-columns: 56px repeat(7, minmax(110px, 1fr)); min-width: 840px; position: relative; align-items: stretch; }
 .day-head { grid-row: 1; padding: .5rem; text-align: center; border-bottom: 1px solid var(--line); background: #fafbfd;
@@ -103,11 +104,13 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .slot.reserved { background: #e9edff; color: #243e9f; border: 1px solid #b3bff5; }
 .slot.reserved:hover, .slot.reserved:focus-visible { background: #dce3ff; }
 .daily .card.slot.reserved { background: #e9edff; color: #243e9f; border: 2px solid #b3bff5; }
-.slot.mine { background: var(--mine); color: #fff; }
-.slot.closed { background: var(--closed); color: var(--muted); }
-.slot.cancelled { background: repeating-linear-gradient(45deg, #f4f5f8, #f4f5f8 6px, #eceef3 6px, #eceef3 12px); color: var(--muted); text-decoration: line-through; }
+.slot.mine { background: var(--booking-mine); color: #fff; }
+.slot.mine:hover, .slot.mine:focus-visible { background: var(--booking-mine-hover); }
+.slot.closed { background: var(--closed); color: #515b6b; border: 1px dashed var(--muted); }
+.slot.cancelled { background: repeating-linear-gradient(45deg, #f4f5f8, #f4f5f8 6px, #eceef3 6px, #eceef3 12px); color: #515b6b; text-decoration: line-through; }
 .slot-time { font-weight: 700; }
-.slot-meta, .slot-count, .slot-loc { opacity: .9; }
+.slot-meta, .slot-count, .slot-loc { opacity: 1; }
+.slot:focus-visible { outline: 3px solid #1d2433; outline-offset: 2px; }
 
 /* 모바일 일별 */
 .day-chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; margin-bottom: .75rem; }
@@ -119,8 +122,8 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .daily-title { margin: .25rem 0 .5rem; }
 .daily .card.slot { margin: 0; font-size: .95rem; padding: 1rem; min-height: 72px; gap: .4rem; }
 .daily .card.slot.open { border: 2px solid var(--available-line); background: var(--available-bg); }
-.daily .card.slot.mine { border: 2px solid var(--mine); }
-.daily .card.slot.closed { border: 1px solid var(--line); }
+.daily .card.slot.mine { border: 2px solid var(--booking-mine); }
+.daily .card.slot.closed { border: 1px dashed var(--muted); }
 .chip em { top: -6px; min-width: 18px; text-align: center; }
 .slot-time { font-variant-numeric: tabular-nums; }
 .week-wrap { scrollbar-gutter: stable; }
@@ -139,10 +142,10 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
   margin: 0; min-height: 44px; overflow: hidden; border-radius: 8px; padding: .3rem .55rem;
   text-align: left; font: inherit; font-size: .82rem; line-height: 1.2; cursor: pointer;
   display: flex; flex-direction: column; gap: .1rem; z-index: 1; }
-.day-timeline-slot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.day-timeline-slot:focus-visible { outline: 3px solid #1d2433; outline-offset: 2px; }
 .day-timeline-slot.slot.open { border: 2px solid var(--available-line); }
 .day-timeline-slot.slot.reserved { border: 2px solid #b3bff5; }
-.day-timeline-slot.slot.mine { border: 2px solid var(--mine); }
+.day-timeline-slot.slot.mine { border: 2px solid var(--booking-mine); }
 .day-timeline-slot .slot-meta { font-size: .73rem; white-space: nowrap;
   text-overflow: ellipsis; overflow: hidden; }
 
