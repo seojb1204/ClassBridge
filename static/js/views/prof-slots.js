@@ -65,12 +65,30 @@ function createForm(root) {
     e.preventDefault();
     const weekdays = wdBoxes.map((l) => l.firstChild).filter((c) => c.checked).map((c) => +c.value);
     try {
-      const r = await post("/api/slots", {
+      const spec = {
         start_date: date.value, start_time: start.value, end_time: end.value, duration_minutes: +dur.value,
         break_minutes: +brk.value, kind: kind.value, capacity: +cap.value, repeat_weeks: +weeks.value,
         weekdays: weekdays.length ? weekdays : null, location: loc.value,
-      });
-      toast(`${r.created}개 등록${r.skipped_blackout_days.length ? ` (상담 불가일 ${r.skipped_blackout_days.length}일 제외)` : ""}`, "success");
+      };
+      const preview = await post("/api/slots/preview", spec);
+      const warning = preview.protected_ids.length;
+      const confirmed = await modal("상담 시간 등록 미리보기", h("div", { class: "booking-detail" },
+        h("p", {}, `생성할 새 상담 ${preview.created}건`),
+        h("p", {}, `겹치는 기존 상담 ${preview.replaced}건`),
+        warning ? h("p", { class: "warn" }, `예약된 상담 ${warning}건이 있어 자동 교체할 수 없습니다.`) : null,
+        preview.replaced && !warning
+          ? h("p", {}, "기존 미예약 상담을 취소 상태로 보존한 뒤 새 상담으로 교체합니다.") : null,
+        preview.skipped_blackout_days.length
+          ? h("p", {}, `상담 불가일 ${preview.skipped_blackout_days.length}일 제외`) : null), [
+        { label: "돌아가기", value: false },
+        ...(warning ? [] : [{ label: preview.replaced ? "미예약 상담 교체·등록" : "등록 확정",
+          primary: true, value: true }]),
+      ]);
+      if (!confirmed) return;
+      const r = preview.replaced
+        ? await post("/api/slots/replace", { ...spec, expected_overlap_ids: preview.overlap_ids })
+        : await post("/api/slots", spec);
+      toast(`${r.created}개 등록${r.replaced ? ` · 기존 미예약 상담 ${r.replaced}개 교체` : ""}`, "success");
       weekStart = mondayOf(date.value);
       selectedDay = date.value;
       await draw(root);
@@ -93,6 +111,7 @@ function blackoutPanel(root, list) {
   return h("div", {}, form, h("ul", { class: "plain" }, upcoming.map((b) => h("li", {},
     `${fmtDate(b.day)} ${b.reason ? `· ${b.reason}` : ""} `,
     h("button", { class: "link danger", onclick: async () => {
+      if (!(await confirmAction("상담 불가일 해제", `${fmtDate(b.day)}의 상담 불가일을 해제할까요?`))) return;
       try { await del(`/api/blackouts/${b.id}`); await draw(root); } catch (err) { errorToast(err); }
     } }, "삭제")))));
 }
