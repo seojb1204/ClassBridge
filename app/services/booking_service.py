@@ -189,6 +189,13 @@ def preview_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None
         "replaced": len(conflicts),
         "overlap_ids": sorted(conflicts),
         "protected_ids": protected,
+        "planned_slots": [{"start_at":start.isoformat(), "end_at":end.isoformat()}
+                          for start, end in blocks],
+        "conflicting_slots": [
+            {"id": row.id, "start_at": row.start_at.isoformat(),
+             "end_at": row.end_at.isoformat(), "booked_count": row.booked_count}
+            for row in sorted(conflicts.values(), key=lambda item: item.start_at)
+        ],
         "skipped_blackout_days": skipped,
     }
 
