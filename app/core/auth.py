@@ -97,6 +97,12 @@ def get_principal(request: Request, db: Session = Depends(get_db)) -> Principal:
         raise Unauthorized("세션이 만료되었습니다")
     if not user.is_active:
         raise Unauthorized("비활성화된 계정입니다")
+    # A valid session must not bypass a later staging allowlist change.
+    # Checking on every request revokes access immediately without waiting
+    # for the existing cookie's twelve-hour expiry.
+    settings = request.app.state.settings
+    if settings.staging_mode and user.email.lower() not in settings.staging_allowed_emails:
+        raise Unauthorized("테스트 환경에 접근할 수 없는 계정입니다")
     if request.method not in SAFE_METHODS:
         sent = request.headers.get(CSRF_HEADER, "")
         if not sent or not hmac.compare_digest(sent, sess.csrf_token):
