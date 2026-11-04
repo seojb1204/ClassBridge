@@ -352,11 +352,11 @@ def test_mobile_student_flow(server, browser):
     assert st.page.locator(".week-grid").count() == 0
     slot = _find_slot(st, mobile=True)
     st.page.get_by_role("button", name="일간 시간표 보기").click()
-    assert st.page.locator(".day-timeline").is_visible()
+    st.page.locator(".day-timeline").wait_for(state="visible")
     assert st.page.locator(".day-timeline-slot.slot.open").count() > 0
     assert st.page.locator(".day-timeline-slot.slot.open").first.bounding_box()["height"] >= 44
     st.page.get_by_role("button", name="목록 보기").click()
-    assert st.page.locator(".daily .cards").is_visible()
+    st.page.locator(".daily .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
@@ -391,10 +391,18 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
 
     prof.go("/bookings")
+    day_chip = prof.page.locator(".chip").filter(
+        has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
+    if not day_chip.count():
+        prof.page.click("button[aria-label='다음 주']")
+        day_chip = prof.page.locator(".chip").filter(
+            has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
+    day_chip.first.click()
     prof.page.get_by_role("button", name="일간 시간표 보기").click()
-    assert prof.page.locator(".day-timeline").is_visible()
+    prof.page.locator(".day-timeline").wait_for(state="visible")
+    assert prof.page.locator(".day-timeline-slot").count() >= 1
     prof.page.get_by_role("button", name="목록 보기").click()
-    assert prof.page.locator(".daily .cards").count() >= 1
+    prof.page.locator(".daily .cards").wait_for(state="visible")
     prof.close()
 
 
