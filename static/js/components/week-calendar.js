@@ -28,7 +28,7 @@ function slotLabel(s) {
   if (s.status === "cancelled") return "취소됨";
   if (s.mine) return `내 예약 · ${kind}`;
   if (s.reason) return `${s.reason} · ${kind}`;
-  return kind;
+  return `예약 가능 · ${kind}`;
 }
 
 /**
