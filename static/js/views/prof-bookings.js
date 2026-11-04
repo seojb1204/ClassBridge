@@ -87,7 +87,8 @@ async function renderCalendarView(root) {
   ]);
   const enhanced = slots.map((slot) => {
     const count = bookings.filter((b) => b.slot.id === slot.id && b.status === "booked").length;
-    return { ...slot, managerState: count ? "reserved" : "free", bookingCount: count };
+    return { ...slot, managerState: slot.status === "cancelled" ? null : count ? "reserved" : "free",
+      bookingCount: count };
   });
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
