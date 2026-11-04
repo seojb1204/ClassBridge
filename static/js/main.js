@@ -40,6 +40,28 @@ function registerRoutes() {
   route("/admin/audit", "audit:view", admin.renderAudit, "작업 이력");
 }
 
+function renderMobileTabs() {
+  const tabs = document.getElementById("mobile-tabs");
+  const items = navItems().slice(0, 3);
+  const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/surveys": "☰"};
+  mount(tabs,
+    ...items.map((r) => h("a", { href: `#${r.pattern}` },
+      h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, symbols[r.pattern] || "•"),
+      h("span", {}, r.navLabel))),
+    h("button", { type: "button", onclick: () => {
+      const menu = document.getElementById("menu-btn");
+      menu.click();
+      if (menu.getAttribute("aria-expanded") === "true") menu.focus();
+    }, "aria-label": "더보기 메뉴" },
+    h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, "☰"), h("span", {}, "더보기")));
+  const active = location.hash;
+  tabs.querySelectorAll("a").forEach((a) => {
+    const current = a.getAttribute("href") === active;
+    a.classList.toggle("active", current);
+    if (current) a.setAttribute("aria-current", "page");
+  });
+}
+
 function renderChrome() {
   const nav = document.getElementById("nav");
   mount(nav, navItems().map((r) => h("a", { href: `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, r.navLabel)));
@@ -49,6 +71,8 @@ function renderChrome() {
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
   const menu = document.getElementById("menu-btn");
   menu.onclick = () => { const o = nav.classList.toggle("open"); menu.setAttribute("aria-expanded", String(o)); };
+  renderMobileTabs();
+  window.addEventListener("hashchange", renderMobileTabs);
 }
 
 async function start() {

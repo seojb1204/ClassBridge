@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, chore/classbridge-maintenance-hardening-20261103]
+    branches: [main, chore/classbridge-maintenance-hardening-20261103, feature/classbridge-calendar-ux-20261104]
   pull_request:
 
 jobs:

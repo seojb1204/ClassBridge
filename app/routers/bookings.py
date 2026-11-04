@@ -24,10 +24,12 @@ from app.schemas.bookings import (
     SlotCancelIn,
     SlotCreateIn,
     SlotOut,
+    SlotReplaceIn,
     SlotUpdateIn,
     StaffBookingOut,
 )
 from app.services import booking_service as svc
+from app.services.settings_service import get_settings
 
 router = APIRouter(prefix="/api", tags=["bookings"])
 
@@ -48,6 +50,14 @@ def _out(p: Principal, db: Session, b):
     return MyBookingOut.model_validate(b)
 
 
+# ── 공개하는 예약 정책 (로그인 사용자만) ──
+@router.get("/booking-policy")
+def booking_policy(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    return {k: settings[k] for k in ("booking_window_days", "booking_deadline_hours",
+                                     "cancel_deadline_hours")}
+
+
 # ── 상담 시간 ──
 @router.get("/slots", response_model=list[SlotOut])
 def list_slots(start: date = Query(...), days: int = Query(7, ge=1, le=62),
@@ -64,6 +74,20 @@ def list_slots(start: date = Query(...), days: int = Query(7, ge=1, le=62),
 def create_slots(body: SlotCreateIn, p: Principal = Depends(require(P.SLOT_MANAGE)),
                  db: Session = Depends(get_db)):
     return svc.create_slots(db, p.user, svc.SlotSpec(**body.model_dump()))
+
+
+@router.post("/slots/preview")
+def preview_slots(body: SlotCreateIn, p: Principal = Depends(require(P.SLOT_MANAGE)),
+                  db: Session = Depends(get_db)):
+    return svc.preview_slots(db, p.user, svc.SlotSpec(**body.model_dump()))
+
+
+@router.post("/slots/replace")
+def replace_unbooked_slots(body: SlotReplaceIn, p: Principal = Depends(require(P.SLOT_MANAGE)),
+                           db: Session = Depends(get_db)):
+    return svc.replace_unbooked_slots(db, p.user,
+                                     svc.SlotSpec(**body.model_dump(exclude={"expected_overlap_ids"})),
+                                     body.expected_overlap_ids)
 
 
 @router.patch("/slots/{slot_id}")

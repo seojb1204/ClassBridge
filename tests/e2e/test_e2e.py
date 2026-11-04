@@ -100,17 +100,19 @@ class Session:
 SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
 
 
-def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None):
+def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
     form = s.page.locator("form.grid-form")
     form.locator("input[type=date]").fill(SLOT_DAY.isoformat())
     times = form.locator("input[type=time]")
     times.nth(0).fill(start)
     times.nth(1).fill(end)
+    form.locator("input[type=number]").nth(0).fill(str(duration))
     if kind == "group":
         form.locator("select").select_option("group")
         form.locator("input[type=number]").nth(2).fill(str(cap))
     form.locator("button[type=submit]").click()
+    s.page.locator(".modal button:text-is('등록 확정')").click()
     s.toast("등록")
 
 
@@ -157,9 +159,19 @@ def test_student_booking_flow_pc(server, browser):
     st.go("/my-bookings")
     assert st.page.locator(".card.booking.booked").count() == 1
     assert "진로 · 온라인" in st.page.locator(".card.booking.booked").inner_text()
+    with st.page.expect_download() as info:
+        st.page.get_by_role("button", name="내 달력에 추가").click()
+    assert info.value.suggested_filename.endswith(".ics")
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
+    assert prof.page.locator(".week-grid").is_visible()
+    prof.page.locator(".slot.reserved").first.click()
+    assert "김테스트" in prof.page.locator(".modal").inner_text()
+    prof.page.locator(".modal textarea").fill("학생 상담 테스트 기록")
+    prof.page.locator(".modal button:text-is('기록 저장')").click()
+    prof.toast("상담 기록을 저장")
+    prof.page.get_by_role("button", name="목록 보기").click()
     assert "20260001" in prof.page.locator("tr:has-text('김테스트')").inner_text()
     prof.close()
     st.page.click("text=예약 취소")
@@ -170,13 +182,28 @@ def test_student_booking_flow_pc(server, browser):
     st.close()
 
 
+def test_week_calendar_time_scale_is_stable_across_durations(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    _create_slots_via_ui(prof, start="12:00", end="12:30", duration=30)
+    _create_slots_via_ui(prof, start="13:00", end="14:00", duration=60)
+    half_hour = prof.page.locator(".slot").filter(has=prof.page.locator(".slot-time:has-text('12:00')")).first
+    full_hour = prof.page.locator(".slot").filter(has=prof.page.locator(".slot-time:has-text('13:00')")).first
+    h30 = half_hour.bounding_box()["height"]
+    h60 = full_hour.bounding_box()["height"]
+    # Both have 1px top/bottom margins; the underlying 15-minute tracks
+    # must make 60 minutes exactly twice the height of 30 minutes.
+    assert abs((h60 + 2) - 2 * (h30 + 2)) <= 1, (h30, h60)
+    prof.close()
+
+
 def test_double_click_creates_single_booking(server, browser):
     base, _ = server
     st = Session(browser, base, "student2@test.ac.kr", PC)
     st.go("/booking")
     _find_slot(st).click()
     btn = st.page.locator(".modal button:text-is('예약하기')")
-    btn.dblclick()
+    btn.evaluate("(el) => { el.click(); el.click(); }")  # rapid duplicate is ignored during pending
     st.toast("예약이 완료")
     st.go("/my-bookings")
     assert st.page.locator(".card.booking.booked").count() == 1
@@ -187,7 +214,9 @@ def test_professor_completes_consultation(server, browser):
     base, db = server
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
+    prof.page.get_by_role("button", name="목록 보기").click()
     row = prof.page.locator("tr:has-text('student2@test.ac.kr')")
+    row.wait_for(state="visible")
     assert row.count() == 1
     # 상담 시작 시각을 과거로 옮겨 '완료' 처리 상황 재현 (E2E 전용 DB 직접 수정)
     past = (utcnow() - timedelta(minutes=30)).replace(tzinfo=None).isoformat(" ")
@@ -199,6 +228,7 @@ def test_professor_completes_consultation(server, browser):
     prof.go("/bookings")
     prof.page.locator("select").nth(0).select_option("")  # 전체 상태
     prof.page.wait_for_timeout(400)
+    prof.page.locator(f"tr[data-booking-id='{bid}'] details.action-more summary").click()
     prof.page.locator(f"tr[data-booking-id='{bid}'] >> text=완료").click()
     prof.toast("완료 처리")
     prof.page.locator("select").nth(0).select_option("")
@@ -312,6 +342,9 @@ def test_mobile_student_flow(server, browser):
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
+    st.page.keyboard.press("Escape")
+    assert st.page.locator(".modal").count() == 0
+    _find_slot(st, mobile=True).click()
     st.page.click(".modal button:text-is('예약하기')")
     st.toast("예약이 완료")
     st.page.wait_for_selector(".card.slot.mine")
@@ -335,6 +368,14 @@ def test_mobile_professor_views(server, browser):
     for path, name in (("/slots", "mobile_04_prof_slots"), ("/bookings", "mobile_05_prof_bookings"),
                        ("/surveys", "mobile_06_prof_surveys")):
         prof.go(path)
+        if path == "/slots":
+            assert prof.page.locator(".day-chips").is_visible()
+            assert prof.page.locator("form.grid-form").count() == 0
+            assert prof.page.locator("#mobile-tabs").is_visible()
+            assert prof.page.locator(".topbar").bounding_box()["height"] < 100
+            prof.page.get_by_role("button", name="+ 상담 시간 등록").click()
+            datebox = prof.page.locator(".inline-form input[type=date]").bounding_box()
+            assert datebox and datebox["height"] < 70
         width = prof.page.evaluate("document.documentElement.scrollWidth")
         assert width <= MOBILE["width"] + 1, f"{path} 가로 스크롤 발생: {width}"
         prof.shot(name)

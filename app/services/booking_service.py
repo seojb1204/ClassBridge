@@ -152,8 +152,8 @@ def _validate_kind_capacity(kind: str, capacity: int) -> None:
         raise BadRequest("단체 상담 정원은 2~100명입니다")
 
 
-def create_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None = None) -> dict:
-    now = now or utcnow()
+def _planned_blocks(db: Session, spec: SlotSpec, now: datetime) -> tuple[list[tuple[datetime, datetime]], list[str]]:
+    """One source of truth for previews and registrations."""
     _validate_kind_capacity(spec.kind, spec.capacity)
     brk = spec.break_minutes if spec.break_minutes is not None else get_settings(db)["default_break_minutes"]
     days = policy_mod.expand_days(spec.start_date, spec.weekdays, spec.repeat_weeks)
@@ -167,6 +167,85 @@ def create_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None 
     blocks = [b for b in blocks if b[0] > now]
     if not blocks:
         raise BadRequest("미래 시간만 등록할 수 있습니다")
+    return blocks, skipped
+
+
+def _overlapping_by_id(db: Session, blocks: list[tuple[datetime, datetime]]) -> dict[int, Slot]:
+    conflicts: dict[int, Slot] = {}
+    for st, en in blocks:
+        for existing in repo.overlapping_open_slots(db, st, en):
+            conflicts[existing.id] = existing
+    return conflicts
+
+
+def preview_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None = None) -> dict:
+    if not _is_staff(actor):
+        raise Forbidden("상담 시간 관리 권한이 없습니다")
+    blocks, skipped = _planned_blocks(db, spec, now or utcnow())
+    conflicts = _overlapping_by_id(db, blocks)
+    protected = sorted(s.id for s in conflicts.values() if s.booked_count > 0)
+    return {
+        "created": len(blocks),
+        "replaced": len(conflicts),
+        "overlap_ids": sorted(conflicts),
+        "protected_ids": protected,
+        "planned_slots": [{"start_at":start.isoformat(), "end_at":end.isoformat()}
+                          for start, end in blocks],
+        "conflicting_slots": [
+            {"id": row.id, "start_at": row.start_at.isoformat(),
+             "end_at": row.end_at.isoformat(), "booked_count": row.booked_count}
+            for row in sorted(conflicts.values(), key=lambda item: item.start_at)
+        ],
+        "skipped_blackout_days": skipped,
+    }
+
+
+def replace_unbooked_slots(db: Session, actor: User, spec: SlotSpec,
+                            expected_overlap_ids: list[int], now: datetime | None = None) -> dict:
+    """Replace only unbooked open slots; keep old cancelled records and all bookings.
+
+    Explicit expected IDs make stale previews fail closed rather than unexpectedly
+    changing a different slot. The database exclusion constraint is the final race guard.
+    """
+    if not _is_staff(actor):
+        raise Forbidden("상담 시간 관리 권한이 없습니다")
+    now = now or utcnow()
+    blocks, skipped = _planned_blocks(db, spec, now)
+    expected = sorted(set(expected_overlap_ids))
+
+    def work():
+        # Lock old rows in stable order and re-check within the transaction.
+        conflicts = _overlapping_by_id(db, blocks)
+        if sorted(conflicts) != expected:
+            raise Conflict("상담 시간이 변경됐습니다. 미리보기를 다시 확인하세요",
+                           code="slot_preview_stale")
+        rows = [repo.get_slot(db, slot_id, lock=True) for slot_id in expected]
+        if any(row is None or row.status != "open" or row.booked_count > 0
+               or repo.active_bookings_for_slot(db, row.id) for row in rows):
+            raise Conflict("이미 예약된 상담은 자동 교체할 수 없습니다", code="slot_has_bookings")
+        for row in rows:
+            row.status = "cancelled"
+        db.flush()  # Release partial GiST exclusion before inserting replacements.
+        series = uuid.uuid4().hex if len(blocks) > 1 else None
+        created = []
+        for st, en in blocks:
+            obj = Slot(start_at=st, end_at=en, kind=spec.kind, capacity=spec.capacity,
+                       location=spec.location[:200], note=spec.note[:500], series_id=series,
+                       created_by_id=actor.id)
+            db.add(obj)
+            created.append(obj)
+        db.flush()
+        audit_repo.add(db, actor.id, "slot.replace_unbooked", "slot_series", series or created[0].id,
+                       {"created": len(created), "replaced_ids": expected})
+        return {"created": len(created), "replaced": len(rows),
+                "slot_ids": [s.id for s in created], "skipped_blackout_days": skipped}
+
+    return _atomic(db, work)
+
+
+def create_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None = None) -> dict:
+    now = now or utcnow()
+    blocks, skipped = _planned_blocks(db, spec, now)
     conflicts = []
     for st, en in blocks:
         for other in repo.overlapping_open_slots(db, st, en):

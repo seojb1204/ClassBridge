@@ -44,6 +44,10 @@ def install_security_headers(app: FastAPI, hsts: bool) -> None:
         h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         if request.url.path.startswith("/api/"):
             h.setdefault("Cache-Control", "no-store")
+        elif request.url.path == "/" or (request.url.path.startswith("/static/")
+                                        and request.url.path.endswith((".js", ".css", ".html"))):
+            # Require a fresh asset version after each deploy; avoid stale JS/CSS.
+            h.setdefault("Cache-Control", "no-cache, must-revalidate")
         if hsts:
             h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response
