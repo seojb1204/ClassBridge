@@ -111,6 +111,7 @@ def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individua
         form.locator("select").select_option("group")
         form.locator("input[type=number]").nth(2).fill(str(cap))
     form.locator("button[type=submit]").click()
+    s.page.locator(".modal button:text-is('등록 확정')").click()
     s.toast("등록")
 
 
