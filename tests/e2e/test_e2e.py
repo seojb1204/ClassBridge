@@ -208,6 +208,7 @@ def test_professor_completes_consultation(server, browser):
     prof.go("/bookings")
     prof.page.locator("select").nth(0).select_option("")  # 전체 상태
     prof.page.wait_for_timeout(400)
+    prof.page.locator(f"tr[data-booking-id='{bid}'] details.action-more summary").click()
     prof.page.locator(f"tr[data-booking-id='{bid}'] >> text=완료").click()
     prof.toast("완료 처리")
     prof.page.locator("select").nth(0).select_option("")
