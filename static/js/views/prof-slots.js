@@ -127,14 +127,20 @@ async function editSlot(root, s) {
   const loc = h("input", { type: "text", value: s.location, maxlength: 200 });
   const note = h("input", { type: "text", value: s.note, maxlength: 500 });
   const booked = s.capacity - s.remaining;
+  const startAt = h("input", { type: "datetime-local", value: isoToKstInput(s.start_at), disabled: booked > 0 });
+  const endAt = h("input", { type: "datetime-local", value: isoToKstInput(s.end_at), disabled: booked > 0 });
   const r = await modal("상담 시간 수정", h("div", {},
     h("p", {}, h("strong", {}, fmtDateTime(s.start_at)), ` · 예약 ${booked}명`),
+    booked ? h("p", { class: "warn" }, "예약자가 있는 상담은 시작·종료 시각을 변경할 수 없습니다.") : null,
+    field("시작 시각 (한국시간)", startAt), field("종료 시각 (한국시간)", endAt),
     field("유형", kind), field("정원", cap), field("장소", loc), field("안내", note)), [
     { label: "닫기", value: null },
     { label: "이 시간 취소", danger: true, value: "cancel" },
     { label: "저장", primary: true, handler: async () => {
       try {
-        await patch(`/api/slots/${s.id}`, { kind: kind.value, capacity: +cap.value, location: loc.value, note: note.value });
+        await patch(`/api/slots/${s.id}`, { kind: kind.value, capacity: +cap.value,
+          location: loc.value, note: note.value,
+          ...(booked ? {} : { start_at: kstInputToIso(startAt.value), end_at: kstInputToIso(endAt.value) }) });
         toast("저장했습니다", "success");
         return true;
       } catch (e) { errorToast(e); return false; }
