@@ -15,7 +15,7 @@ let detach = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    ...[["calendar", "시간표 보기"], ["list", "목록 보기"]].map(([value, label]) =>
+    ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { viewMode = value; render(root); } }, label)));
 }
