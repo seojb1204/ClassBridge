@@ -1,7 +1,7 @@
 // 교수자·관리자: 상담 시간 등록·수정·취소, 상담 불가일
 import { del, get, patch, post } from "../api.js";
 import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
-import { addDays, fmtDate, fmtDateTime, isoToKstInput, kstInputToIso, mondayOf, todayKst } from "../time.js";
+import { addDays, fmtDate, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, select, toast } from "../ui.js";
 
 let weekStart = null;
@@ -13,7 +13,17 @@ const WD = ["월", "화", "수", "목", "금", "토", "일"];
 export async function render(root) {
   weekStart ||= mondayOf(todayKst());
   selectedDay ||= todayKst();
-  if (showForm === null) showForm = !isMobile();
+  if (showForm === null) {
+    showForm = !isMobile();
+    if (isMobile()) {
+      const upcoming = await get(`/api/slots?start=${todayKst()}&days=30`);
+      const first = upcoming.find((slot) => slot.status === "open");
+      if (first) {
+        selectedDay = kstParts(first.start_at).date;
+        weekStart = mondayOf(selectedDay);
+      }
+    }
+  }
   detach?.();
   detach = onLayoutChange(() => draw(root));
   await draw(root);
