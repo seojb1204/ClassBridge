@@ -1,6 +1,6 @@
 :root {
   --bg: #f6f7fb; --panel: #fff; --text: #1d2433; --muted: #667085; --line: #e3e7ef;
-  --primary: #2f5bea; --primary-weak: #e8eeff; --mine: #0f9d76; --mine-weak: #e3f7f0;
+  --primary: #2f5bea; --primary-weak: #e8eeff; --mine: #087254; --mine-weak: #e3f7f0;
   --danger: #c93839; --danger-weak: #fdeceb; --warn: #a65b08; --closed: #f1f3f6;
   --available: #166b56; --available-bg: #e7f6ee; --available-line: #91c8ad;
   --radius: 10px; --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
