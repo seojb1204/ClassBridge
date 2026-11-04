@@ -14,6 +14,7 @@ export function onLayoutChange(cb) {
 }
 
 function slotClass(s) {
+  if (s.managerState === "reserved") return "slot reserved";
   if (s.status === "cancelled") return "slot cancelled";
   if (s.mine) return "slot mine";
   if (s.bookable === false && s.reason) return "slot closed";
@@ -21,6 +22,8 @@ function slotClass(s) {
 }
 
 function slotLabel(s) {
+  if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
+  if (s.managerState === "free") return "빈 상담";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";
   if (s.status === "cancelled") return "취소됨";
   if (s.mine) return `내 예약 · ${kind}`;
