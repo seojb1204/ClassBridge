@@ -100,13 +100,14 @@ class Session:
 SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
 
 
-def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None):
+def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
     form = s.page.locator("form.grid-form")
     form.locator("input[type=date]").fill(SLOT_DAY.isoformat())
     times = form.locator("input[type=time]")
     times.nth(0).fill(start)
     times.nth(1).fill(end)
+    form.locator("input[type=number]").nth(0).fill(str(duration))
     if kind == "group":
         form.locator("select").select_option("group")
         form.locator("input[type=number]").nth(2).fill(str(cap))
@@ -179,6 +180,21 @@ def test_student_booking_flow_pc(server, browser):
     st.page.wait_for_selector(".card.booking.cancelled")
     st.shot("pc_04_student_cancelled")
     st.close()
+
+
+def test_week_calendar_time_scale_is_stable_across_durations(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    _create_slots_via_ui(prof, start="12:00", end="12:30", duration=30)
+    _create_slots_via_ui(prof, start="13:00", end="14:00", duration=60)
+    half_hour = prof.page.locator(".slot").filter(has=prof.page.locator(".slot-time:has-text('12:00')")).first
+    full_hour = prof.page.locator(".slot").filter(has=prof.page.locator(".slot-time:has-text('13:00')")).first
+    h30 = half_hour.bounding_box()["height"]
+    h60 = full_hour.bounding_box()["height"]
+    # Both have 1px top/bottom margins; the underlying 15-minute tracks
+    # must make 60 minutes exactly twice the height of 30 minutes.
+    assert abs((h60 + 2) - 2 * (h30 + 2)) <= 1, (h30, h60)
+    prof.close()
 
 
 def test_double_click_creates_single_booking(server, browser):
