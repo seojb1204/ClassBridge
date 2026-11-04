@@ -17,6 +17,7 @@ from app.schemas.bookings import (
     BookingCancelIn,
     BookingCreateIn,
     BookingRescheduleIn,
+    ConsultationNotesPage,
     EventOut,
     MyBookingOut,
     NoteIn,
@@ -26,7 +27,6 @@ from app.schemas.bookings import (
     SlotOut,
     SlotReplaceIn,
     SlotUpdateIn,
-    ConsultationNotesPage,
     StaffBookingOut,
     StaffOverviewOut,
 )
