@@ -424,3 +424,24 @@ def test_mobile_professor_views(server, browser):
         assert width <= MOBILE["width"] + 1, f"{path} 가로 스크롤 발생: {width}"
         prof.shot(name)
     prof.close()
+
+
+def test_mobile_optional_sections_do_not_render_null(server, browser):
+    base, _ = server
+    for email, path in [("optional-student@test.ac.kr", "/booking"),
+                        ("prof@test.ac.kr", "/slots")]:
+        session = Session(browser, base, email, MOBILE)
+        try:
+            session.go(path)
+            text = session.page.locator("#view").inner_text()
+            assert "null" not in text.split()
+            assert "undefined" not in text.split()
+            if path == "/slots":
+                session.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
+                session.page.locator("#slot-create-panel").wait_for(state="visible")
+                session.page.get_by_role("button", name="등록 양식 접기", exact=True).click()
+                session.page.locator("#slot-create-panel").wait_for(state="hidden")
+                assert "null" not in session.page.locator("#view").inner_text().split()
+            session.shot("optional_student" if path == "/booking" else "optional_professor")
+        finally:
+            session.close()

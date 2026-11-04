@@ -18,7 +18,8 @@ export function h(tag, attrs = {}, ...children) {
 }
 
 export function mount(root, ...nodes) {
-  root.replaceChildren(...nodes.flat());
+  root.replaceChildren(...nodes.flat(Infinity).filter((node) =>
+    node !== null && node !== undefined && node !== false));
 }
 
 export function toast(message, kind = "info") {
