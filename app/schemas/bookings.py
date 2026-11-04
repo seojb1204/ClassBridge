@@ -129,6 +129,36 @@ class StaffBookingOut(MyBookingOut):
     professor_note: str
 
 
+class StaffOverviewOut(BaseModel):
+    period_start: date
+    period_end: date
+    days: int
+    total_bookings: int
+    status_counts: dict[str, int]
+    recorded_notes: int
+    open_slots: int
+    upcoming_14_days: int
+    completion_rate: float | None
+    type_counts: dict[str, int]
+    mode_counts: dict[str, int]
+
+
+class ConsultationNoteOut(BaseModel):
+    booking_id: int
+    start_at: datetime
+    student_name: str
+    student_number: str
+    consultation_type: str
+    consultation_mode: str
+    status: str
+    note: str
+
+
+class ConsultationNotesPage(BaseModel):
+    total: int
+    items: list[ConsultationNoteOut]
+
+
 class EventOut(BaseModel):
     id: int
     actor_id: int
