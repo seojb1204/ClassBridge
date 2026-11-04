@@ -177,7 +177,12 @@ function actions(root, b) {
     await modal("변경 이력", h("ul", { class: "plain" }, ev.map((e) => h("li", {}, `${fmtDateTime(e.at)} · ${e.action} ${e.detail}`))),
       [{ label: "닫기", value: null }]);
   });
-  return out;
+  if (out.length <= 2) return out;
+  const main = out.find((btn) => btn.textContent === "일정 조정") || out[0];
+  const more = h("details", { class: "action-more" },
+    h("summary", { class: "btn small", "aria-label": "추가 예약 관리 작업" }, "⋯ 더보기"),
+    h("div", { class: "action-more-panel" }, ...out.filter((btn) => btn !== main)));
+  return [main, more];
 }
 
 async function pickSlot(title) {
