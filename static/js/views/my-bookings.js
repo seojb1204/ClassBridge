@@ -1,5 +1,6 @@
 // 학생: 내 예약 목록 · 취소
 import { get, post } from "../api.js";
+import { downloadConsultationIcs } from "../calendar-ics.js";
 import { fmtDateTime } from "../time.js";
 import { STATUS_LABEL, badge, busy, confirmAction, empty, errorToast, h, mount, toast } from "../ui.js";
 
@@ -29,5 +30,6 @@ function item(root, b) {
     b.topic ? h("p", {}, b.topic) : null,
     b.cancel_reason ? h("p", { class: "muted" }, `취소 사유: ${b.cancel_reason}`) : null,
     b.status === "booked" ? h("div", { class: "actions" }, cancelBtn,
-      h("a", { class: "btn", href: "#/booking" }, "시간 변경")) : null);
+      h("a", { class: "btn", href: "#/booking" }, "시간 변경"),
+      h("button", { class: "btn", onclick: () => downloadConsultationIcs(b) }, "내 달력에 추가")) : null);
 }
