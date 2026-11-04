@@ -200,6 +200,7 @@ def test_professor_completes_consultation(server, browser):
     prof.go("/bookings")
     prof.page.get_by_role("button", name="목록 보기").click()
     row = prof.page.locator("tr:has-text('student2@test.ac.kr')")
+    row.wait_for(state="visible")
     assert row.count() == 1
     # 상담 시작 시각을 과거로 옮겨 '완료' 처리 상황 재현 (E2E 전용 DB 직접 수정)
     past = (utcnow() - timedelta(minutes=30)).replace(tzinfo=None).isoformat(" ")
