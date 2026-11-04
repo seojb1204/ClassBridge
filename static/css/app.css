@@ -125,6 +125,27 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .slot-time { font-variant-numeric: tabular-nums; }
 .week-wrap { scrollbar-gutter: stable; }
 
+/* 모바일 일간 시간표: 목록형 카드와 같은 데이터/클릭 동작 공유 */
+.mobile-view-toggle { display: flex; gap: .5rem; margin: .6rem 0 .85rem; }
+.mobile-view-toggle .btn { flex: 1; min-height: 44px; }
+.day-timeline { position: relative; margin: .5rem 0 1rem; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.day-timeline-hour { position: absolute; left: 0; right: 0; border-top: 1px solid #e5e9f1;
+  height: 1px; pointer-events: none; }
+.day-timeline-hour span { display: inline-block; position: absolute; top: -10px; left: 6px;
+  font-size: .73rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  background: #fff; padding-right: 4px; }
+.day-timeline-slot { position: absolute; left: 62px; right: 8px; width: calc(100% - 70px);
+  margin: 0; min-height: 44px; overflow: hidden; border-radius: 8px; padding: .3rem .55rem;
+  text-align: left; font: inherit; font-size: .82rem; line-height: 1.2; cursor: pointer;
+  display: flex; flex-direction: column; gap: .1rem; z-index: 1; }
+.day-timeline-slot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.day-timeline-slot.slot.open { border: 2px solid var(--available-line); }
+.day-timeline-slot.slot.reserved { border: 2px solid #b3bff5; }
+.day-timeline-slot.slot.mine { border: 2px solid var(--mine); }
+.day-timeline-slot .slot-meta { font-size: .73rem; white-space: nowrap;
+  text-overflow: ellipsis; overflow: hidden; }
+
 /* 테이블 */
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: var(--radius); overflow: hidden;
