@@ -8,6 +8,7 @@ import * as login from "./views/login.js";
 import * as myBookings from "./views/my-bookings.js";
 import * as profBookings from "./views/prof-bookings.js";
 import * as profSlots from "./views/prof-slots.js";
+import * as staffInsights from "./views/staff-insights.js";
 import * as studentBooking from "./views/student-booking.js";
 import * as editor from "./views/survey-editor.js";
 import * as suggestions from "./views/suggestions.js";
@@ -27,6 +28,7 @@ function registerRoutes() {
   // 교수자·관리자
   route("/slots", "slot:manage", profSlots.render, "상담 시간");
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
+  route("/staff/insights", "booking:manage", staffInsights.render, "상담 정보");
   if (feature("surveys")) {
     route("/surveys", null, surveys.renderList, "설문");
     route("/surveys/take/:id", "survey:respond", surveys.renderTake);
@@ -43,7 +45,7 @@ function registerRoutes() {
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
   const items = navItems().slice(0, 3);
-  const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/surveys": "☰"};
+  const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/staff/insights": "▤", "/surveys": "☰"};
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
       h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, symbols[r.pattern] || "•"),
