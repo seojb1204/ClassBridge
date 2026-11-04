@@ -85,6 +85,11 @@ function createForm(root) {
       const confirmed = await modal("상담 시간 등록 미리보기", h("div", { class: "booking-detail" },
         h("p", {}, `생성할 새 상담 ${preview.created}건`),
         h("p", {}, `겹치는 기존 상담 ${preview.replaced}건`),
+        h("p", { class: "muted" }, "등록 예정 시간 (최대 8개 미리보기)"),
+        h("ul", { class: "plain" }, ...preview.planned_slots.slice(0, 8).map((item) =>
+          h("li", {}, `${fmtDateTime(item.start_at)} ~ ${fmtDateTime(item.end_at)}`))),
+        preview.planned_slots.length > 8
+          ? h("p", { class: "muted" }, `그 외 ${preview.planned_slots.length - 8}개`) : null,
         warning ? h("p", { class: "warn" }, `예약된 상담 ${warning}건이 있어 자동 교체할 수 없습니다.`) : null,
         preview.replaced && !warning
           ? h("p", {}, "기존 미예약 상담을 취소 상태로 보존한 뒤 새 상담으로 교체합니다.") : null,
