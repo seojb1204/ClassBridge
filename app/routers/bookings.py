@@ -28,6 +28,7 @@ from app.schemas.bookings import (
     StaffBookingOut,
 )
 from app.services import booking_service as svc
+from app.services.settings_service import get_settings
 
 router = APIRouter(prefix="/api", tags=["bookings"])
 
@@ -46,6 +47,14 @@ def _out(p: Principal, db: Session, b):
     if p.can(P.BOOKING_MANAGE):
         return _staff_out(b, _student(db, b))
     return MyBookingOut.model_validate(b)
+
+
+# ── 공개하는 예약 정책 (로그인 사용자만) ──
+@router.get("/booking-policy")
+def booking_policy(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    return {k: settings[k] for k in ("booking_window_days", "booking_deadline_hours",
+                                     "cancel_deadline_hours")}
 
 
 # ── 상담 시간 ──
