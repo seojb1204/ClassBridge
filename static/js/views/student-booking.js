@@ -1,7 +1,7 @@
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { get, post } from "../api.js";
 import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
-import { fmtDateTime, mondayOf, todayKst } from "../time.js";
+import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 import { state } from "../state.js";
 
@@ -17,12 +17,8 @@ export async function render(root) {
     const upcoming = await get(`/api/slots?start=${todayKst()}&days=30`);
     const first = upcoming.find((s) => s.bookable);
     if (first) {
-      const day = new Date(first.start_at);
-      const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
-      const selected = fmt.format(day);
-      // The ISO-formatted date is safe for the existing calendar helpers.
-      selectedDay = selected;
-      weekStart = mondayOf(selected);
+      selectedDay = kstParts(first.start_at).date;
+      weekStart = mondayOf(selectedDay);
     }
   }
   detach?.();
