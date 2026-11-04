@@ -72,6 +72,7 @@ async function showStaffSlot(root, slot, bookings) {
     h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), ` · 예약 ${related.length}/${slot.capacity}명`),
     picker ? field("학생 선택", picker) : null, info,
     field("교수자 상담 기록", note),
+    h("p", { class: "muted" }, "학업·진로·취업 진행사항만 기록해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요."),
     reason && related.some((x) => x.status === "booked") ? field("예약 취소 사유", reason) : null,
   ), actions);
   if (result !== null) await render(root);
@@ -168,7 +169,7 @@ function actions(root, b) {
     }, "btn small danger");
   }
   act("상담 기록", async () => {
-    const note = await promptText("상담 기록", "교수자·관리자만 볼 수 있습니다. 외부 AI로 전송되지 않습니다.",
+    const note = await promptText("상담 기록", "교수자·관리자만 볼 수 있습니다. 학업·진로·취업 진행사항만 기록하고 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요. 외부 AI로 전송되지 않습니다.",
       { multiline: true, value: b.professor_note });
     if (note === null) return;
     await put(`/api/bookings/${b.id}/note`, { note });

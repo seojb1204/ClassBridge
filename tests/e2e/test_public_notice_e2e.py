@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 import time
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -13,7 +13,7 @@ from tests.e2e.test_e2e import browser as notice_browser  # noqa: F401
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E not set")
 
 
-def test_mobile_public_notice_and_required_consents(tmp_path, notice_browser):  # noqa: F811
+def test_mobile_public_notice_and_direct_login(tmp_path, notice_browser):  # noqa: F811
     port = _free_port()
     base = f"http://127.0.0.1:{port}"
     env = {**os.environ, "APP_ENV": "test", "DATABASE_URL": f"sqlite:///{tmp_path}/notice.db",
@@ -39,16 +39,15 @@ def test_mobile_public_notice_and_required_consents(tmp_path, notice_browser):  
             pytest.fail("Local notice server did not start")
         page = context.new_page()
         page.goto(base)
-        button = page.get_by_role("button", name="Google 계정으로 로그인")
+        button = page.get_by_role("link", name="Google 계정으로 로그인")
         button.wait_for()
-        button.click()
-        assert urlparse(page.url).path == "/"
-        page.locator('input[name="notice_ack"]').check()
-        button.click()
-        assert urlparse(page.url).path == "/"
+        assert page.get_by_role("checkbox").count() == 0
+        assert page.get_by_role("link", name="개인정보처리방침").is_visible()
+        assert page.get_by_text("상담 예약에 필요한 계정 정보와 예약 정보를 처리합니다.").is_visible()
+        assert "동의합니다" not in page.locator("body").inner_text()
+        assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
         SHOTS.mkdir(exist_ok=True, parents=True)
         page.screenshot(path=str(SHOTS / "public-notice-mobile.png"), full_page=True)
-        page.locator('input[name="transfer_ack"]').check()
         # Exercise local server validation/redirect, without transmitting to Google.
         def check_redirect(route):
             response = route.fetch(max_redirects=0)
@@ -59,11 +58,10 @@ def test_mobile_public_notice_and_required_consents(tmp_path, notice_browser):  
         page.route(base + "/auth/google/login*", check_redirect)
         with page.expect_request(lambda r: urlparse(r.url).path == "/auth/google/login") as req:
             button.click()
-        query = parse_qs(urlparse(req.value.url).query)
-        assert query["notice_ack"] == query["transfer_ack"] == ["yes"]
+        assert urlparse(req.value.url).query == ""
         page.get_by_text("OAuth redirect verified").wait_for()
         page.goto(base + "/privacy")
-        assert page.get_by_role("heading", name="ClassBridge 이용·개인정보 안내").is_visible()
+        assert page.get_by_role("heading", name="ClassBridge 개인정보처리방침").is_visible()
         assert page.locator("body").evaluate("el => el.scrollWidth <= window.innerWidth")
         page.screenshot(path=str(SHOTS / "privacy-mobile.png"), full_page=True)
     finally:

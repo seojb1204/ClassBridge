@@ -94,7 +94,8 @@ async function openSlot(root, s, active, policy) {
     active ? h("p", { class: "warn" }, `기존 예약(${fmtDateTime(active.slot.start_at)})이 이 시간으로 변경됩니다.`)
       : h("div", {}, field("이름", applicantName), field("학번", studentNumber),
         field("학년", grade), field("상담 유형", consultationType),
-        field("상담 방식", consultationMode), field("상담 내용", topic)));
+        field("상담 방식", consultationMode), field("상담 내용", topic),
+        h("p", { class: "muted" }, "학업·진로·취업 상담에 필요한 내용만 입력해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.")));
   const result = await modal(active ? "예약 변경" : "상담 예약", info, [
     { label: "닫기", value: null },
     { label: active ? "이 시간으로 변경" : "예약하기", primary: true, handler: async () => {
