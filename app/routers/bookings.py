@@ -23,8 +23,8 @@ from app.schemas.bookings import (
     OutcomeIn,
     SlotCancelIn,
     SlotCreateIn,
-    SlotReplaceIn,
     SlotOut,
+    SlotReplaceIn,
     SlotUpdateIn,
     StaffBookingOut,
 )
