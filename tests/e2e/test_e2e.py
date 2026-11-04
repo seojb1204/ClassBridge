@@ -182,7 +182,7 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.wait_for_selector(".consult-note-card:has-text('수정된 비공개 상담 기록')")
     prof.shot("pc_11_staff_insights")
     prof.go("/bookings")
-    prof.page.get_by_role("button", name="목록 보기").click()
+    prof.page.get_by_role("button", name="예약 목록").click()
     assert "20260001" in prof.page.locator("tr:has-text('김테스트')").inner_text()
     prof.close()
     st.page.click("text=예약 취소")
@@ -225,7 +225,7 @@ def test_professor_completes_consultation(server, browser):
     base, db = server
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
-    prof.page.get_by_role("button", name="목록 보기").click()
+    prof.page.get_by_role("button", name="예약 목록").click()
     row = prof.page.locator("tr:has-text('student2@test.ac.kr')")
     row.wait_for(state="visible")
     assert row.count() == 1
@@ -355,7 +355,7 @@ def test_mobile_student_flow(server, browser):
     st.page.locator(".day-timeline").wait_for(state="visible")
     assert st.page.locator(".day-timeline-slot.slot.open").count() > 0
     assert st.page.locator(".day-timeline-slot.slot.open").first.bounding_box()["height"] >= 44
-    st.page.get_by_role("button", name="목록 보기").click()
+    st.page.get_by_role("button", name="예약 목록").click()
     st.page.locator(".daily .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
@@ -401,7 +401,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     prof.page.get_by_role("button", name="일간 시간표 보기").click()
     prof.page.locator(".day-timeline").wait_for(state="visible")
     assert prof.page.locator(".day-timeline-slot").count() >= 1
-    prof.page.get_by_role("button", name="목록 보기").click()
+    prof.page.get_by_role("group", name="일정 보기 방식").get_by_role("button", name="목록 보기").click()
     prof.page.locator(".daily .cards").wait_for(state="visible")
     prof.close()
 
