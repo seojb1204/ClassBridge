@@ -18,6 +18,10 @@ def upgrade():
                     sa.Column("content", sa.Text(), nullable=False),
                     sa.Column("created_on", sa.Date(), nullable=False))
     op.create_index("ix_suggestion_replies_suggestion_id", "suggestion_replies", ["suggestion_id"])
+    # Keep the database-wide protection established by 0002 for every new table.
+    # App connections use the owner role; API roles receive no policies or grants.
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("ALTER TABLE public.suggestion_replies ENABLE ROW LEVEL SECURITY")
 
 
 def downgrade():
