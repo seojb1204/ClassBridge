@@ -297,7 +297,13 @@ def test_survey_create_submit_results(server, browser):
     prof.page.wait_for_selector(".q-title")
     prof.page.click("text=미리보기")
     assert prof.page.locator(".preview-banner").is_visible()
+    # A previous calendar's layout listener must not overwrite this screen.
+    prof.page.set_viewport_size(MOBILE)
+    prof.page.locator(".preview-banner").wait_for(state="visible")
+    prof.shot("mobile_survey_preview")
+    prof.page.set_viewport_size(PC)
     prof.shot("pc_07_survey_preview")
+    assert prof.page.locator(".preview-banner").is_visible()
     prof.page.click("text=편집으로")
     prof.page.click(".toolbar >> text=게시")
     prof.page.click(".modal button:text-is('게시')")
@@ -310,6 +316,9 @@ def test_survey_create_submit_results(server, browser):
     assert "항공서비스 실무" in st.page.locator("main").inner_text()
     assert "2026-2" in st.page.locator("main").inner_text()
     st.page.click("text=응답하기")
+    st.page.locator(".survey-form").wait_for(state="visible")
+    assert st.page.get_by_text("참여는 선택입니다.", exact=False).is_visible()
+    assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
     st.page.locator(".scale-item").nth(3).click()
     st.page.locator(".choices .check").nth(0).click()
     st.page.fill("textarea", "실습이 좋았어요")
@@ -331,6 +340,9 @@ def test_suggestion_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "student4@test.ac.kr", PC)
     st.go("/suggestions")
+    assert st.page.get_by_text("제출은 선택입니다.", exact=False).is_visible()
+    assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
+    st.shot("pc_student_suggestion_notice")
     st.page.locator("select").select_option("assignment")
     st.page.fill("textarea", "<b>과제 마감</b>을 조금 늦춰 주세요")
     st.page.click("text=익명으로 제출")
@@ -344,6 +356,17 @@ def test_suggestion_flow(server, browser):
     prof.page.click("text=반복 의견 분석")
     prof.page.wait_for_selector(".analysis")
     prof.shot("pc_10_prof_suggestions")
+    # The same restored inbox must hide analysis when deployment disables AI.
+    def disabled_ai(route):
+        response = route.fetch()
+        data = response.json()
+        data["features"]["ai"] = "disabled"
+        route.fulfill(response=response, json=data)
+
+    prof.page.route("**/api/me", disabled_ai)
+    prof.page.reload()
+    prof.page.wait_for_selector('body[data-ready="/suggestions"]', state="attached")
+    assert prof.page.get_by_role("button", name="반복 의견 분석").count() == 0
     prof.close()
 
 

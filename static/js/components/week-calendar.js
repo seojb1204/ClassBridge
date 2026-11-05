@@ -9,8 +9,15 @@ const STEP = 15; // 분 단위 행 높이
 export function isMobile() { return MOBILE.matches; }
 
 export function onLayoutChange(cb) {
-  MOBILE.addEventListener("change", cb);
-  return () => MOBILE.removeEventListener("change", cb);
+  const route = location.hash;
+  const update = () => { if (location.hash === route) cb(); };
+  const detach = () => {
+    MOBILE.removeEventListener("change", update);
+    window.removeEventListener("hashchange", detach);
+  };
+  MOBILE.addEventListener("change", update);
+  window.addEventListener("hashchange", detach, { once: true });
+  return detach;
 }
 
 function slotClass(s) {

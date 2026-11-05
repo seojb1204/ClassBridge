@@ -67,6 +67,10 @@ def test_public_notice_escapes_operator_and_hides_when_disabled(tmp_path):
     assert "제15조 제1항 제4호" in response.text
     assert "동의로 간주하지 않습니다" in response.text
     assert "동의하지 않으면" not in response.text
+    assert "참여와 제출은 선택" in response.text
+    assert "완전한 익명성을 보장하지 않습니다" in response.text
+    assert "설문 종료 후 최대 365일" in response.text
+    assert "설문·건의 기능은" not in response.text
     assert client.get("/api/auth/config").json()["notice"]["version"] == NOTICE_VERSION
     app.state.settings.public_notice_enabled = False
     assert client.get("/privacy").status_code == 404

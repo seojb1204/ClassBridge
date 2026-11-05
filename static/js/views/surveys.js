@@ -1,7 +1,7 @@
 // 설문 목록(교수자/학생), 응답 화면, 결과 화면
 import { get, post } from "../api.js";
 import { go } from "../router.js";
-import { can } from "../state.js";
+import { can, feature } from "../state.js";
 import { fmtDateTime } from "../time.js";
 import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
@@ -69,7 +69,7 @@ export async function renderResults(root, { id }) {
   mount(root, head,
     h("div", { class: "toolbar" },
       can("data:export") ? h("a", { class: "btn", href: `/api/surveys/${id}/export.xlsx` }, "엑셀 다운로드") : null,
-      can("ai:analyze") ? h("button", { class: "btn", onclick: async () => {
+      can("ai:analyze") && ["demo", "external"].includes(feature("ai")) ? h("button", { class: "btn", onclick: async () => {
         try { analysisBox.replaceChildren(renderAnalysis(await post("/api/analysis", { source: "survey", survey_id: +id }))); }
         catch (e) { errorToast(e); }
       } }, "자유응답 분석") : null),
