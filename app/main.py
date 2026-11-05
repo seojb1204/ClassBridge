@@ -18,7 +18,7 @@ from app.core.rate_limit import RateLimiter
 from app.db import make_engine, make_sessionmaker
 from app.infra.ai_client import build_ai_client
 from app.infra.google_oauth import verify_with_google
-from app.routers import admin, analysis, auth, bookings, exports, suggestions, surveys
+from app.routers import admin, analysis, auth, bookings, exports, suggestions, support, surveys
 
 log = logging.getLogger("classbridge")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -36,6 +36,7 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
     app.state.identity_verifier = identity_verifier or verify_with_google
     # 건의함: 제출 '횟수'는 무제한이지만 자동화된 폭주는 차단 (분당 5회, 시간당 30회)
     app.state.suggestion_limiter = RateLimiter([(5, 60), (30, 3600)])
+    app.state.support_limiter = RateLimiter([(10, 60), (60, 3600)])
     app.state.ai_limiter = RateLimiter([(10, 3600)])
     app.state.ai_client = build_ai_client(settings)
 
@@ -61,7 +62,7 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
                             status_code=503)
 
     for r in (auth.router, admin.router, bookings.router, exports.router, surveys.router,
-              suggestions.router, analysis.router):
+              suggestions.router, support.router, analysis.router):
         app.include_router(r)
 
     @app.get("/healthz", include_in_schema=False)

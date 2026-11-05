@@ -557,3 +557,54 @@ def test_consultation_download_and_print_view(server, browser):
     print_page.screenshot(path=str(SHOTS / "consultation_print.png"), full_page=True)
     print_page.close()
     prof.close()
+
+
+def test_developer_support_private_conversation_and_menu(server, browser):
+    base, _ = server
+    student = Session(browser, base, "support-student@test.ac.kr", MOBILE)
+    student.go("/booking")
+    student.page.get_by_role("button", name="더보기 메뉴").click()
+    student.page.locator("#nav").get_by_role("link", name="도움말 · 문의").click()
+    student.page.get_by_role("link", name="문의 작성", exact=True).click()
+    student.page.get_by_text("#/booking", exact=True).wait_for()
+    student.page.get_by_label("제목", exact=True).fill("모바일 화면 문의")
+    student.page.get_by_label("내용", exact=True).fill("<img src=x onerror=alert(1)> 화면 문제 설명")
+    student.shot("support_mobile_compose")
+    student.page.get_by_role("button", name="문의 보내기", exact=True).click()
+    student.page.wait_for_url(re.compile(r".*/help/tickets/\d+$"))
+    ticket_id = student.page.url.rsplit("/", 1)[-1]
+    student.page.get_by_text("<img src=x onerror=alert(1)> 화면 문제 설명", exact=True).wait_for()
+    assert student.page.locator(".support-thread img").count() == 0
+    dev = Session(browser, base, "admin@test.ac.kr", PC)
+    assert dev.page.locator("#nav").get_by_role("link", name="도움말 · 문의").is_visible() is False
+    dev.page.locator("#userbox").get_by_role("link", name="도움말 · 문의").click()
+    dev.page.get_by_text("미확인 1건", exact=True).wait_for()
+    dev.page.get_by_role("link", name="개발자 문의함", exact=True).click()
+    dev.page.get_by_role("link", name="모바일 화면 문의", exact=True).click()
+    dev.page.get_by_text("작성자: support-student (support-student@test.ac.kr)", exact=True).wait_for()
+    dev.page.get_by_label("개발자 답변", exact=True).fill("화면 문제를 확인했습니다.")
+    dev.page.get_by_role("button", name="답변 보내기", exact=True).click()
+    dev.page.get_by_text("화면 문제를 확인했습니다.", exact=True).wait_for()
+    dev.page.get_by_label("처리 상태", exact=True).select_option("completed")
+    dev.page.get_by_role("button", name="상태 저장", exact=True).click()
+    dev.page.locator(".badge.completed").wait_for()
+    dev.shot("support_developer_reply")
+    student.go("/help/mine")
+    student.page.get_by_text("새 답변·변경", exact=True).wait_for()
+    student.page.get_by_role("link", name="모바일 화면 문의", exact=True).click()
+    student.page.get_by_text("화면 문제를 확인했습니다.", exact=True).wait_for()
+    student.shot("support_mobile_reply")
+    student.page.get_by_label("추가 내용", exact=True).fill("추가 질문이 있습니다.")
+    student.page.get_by_role("button", name="추가 내용 보내기", exact=True).click()
+    student.page.get_by_text("추가 질문이 있습니다.", exact=True).wait_for()
+    student.page.locator(".badge.received").wait_for()
+    professor = Session(browser, base, "prof@test.ac.kr", PC)
+    professor.go("/help")
+    assert professor.page.get_by_role("link", name="개발자 문의함", exact=True).count() == 0
+    professor.go(f"/help/tickets/{ticket_id}")
+    professor.page.get_by_text("문의를 찾을 수 없습니다", exact=True).wait_for()
+    # Expected 404 deliberately tested above; don't count that console response as a runtime regression.
+    professor.errors = [err for err in professor.errors if "404" not in err]
+    professor.close()
+    dev.close()
+    student.close()

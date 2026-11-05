@@ -29,6 +29,7 @@ class P(str, Enum):
     ROLE_MANAGE = "role:manage"
     SETTINGS_MANAGE = "settings:manage"
     AUDIT_VIEW = "audit:view"
+    SUPPORT_MANAGE = "support:manage"
 
 
 STUDENT = frozenset({P.SLOT_VIEW, P.BOOKING_SELF, P.SURVEY_RESPOND, P.SUGGESTION_SUBMIT})
@@ -38,7 +39,7 @@ PROFESSOR = frozenset({
     P.SURVEY_MANAGE, P.SURVEY_RESULTS, P.SUGGESTION_READ, P.AI_ANALYZE, P.EXPORT,
 })
 
-ADMIN = PROFESSOR | frozenset({P.USER_MANAGE, P.ROLE_MANAGE, P.SETTINGS_MANAGE, P.AUDIT_VIEW})
+ADMIN = PROFESSOR | frozenset({P.USER_MANAGE, P.ROLE_MANAGE, P.SETTINGS_MANAGE, P.AUDIT_VIEW, P.SUPPORT_MANAGE})
 
 ROLE_PERMISSIONS: dict[str, frozenset[P]] = {
     "student": STUDENT,
