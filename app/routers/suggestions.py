@@ -5,12 +5,16 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, require
 from app.core.errors import FeatureDisabled
 from app.core.permissions import P
 from app.db import get_db
+from app.models.suggestion import SuggestionReply
+from app.repositories import suggestions as repo
+from app.services import feedback_management as management
 from app.services import suggestion_service as svc
 
 router = APIRouter(prefix="/api/suggestions", tags=["suggestions"])
@@ -25,6 +29,15 @@ def feature_on(request: Request) -> None:
 class SuggestionIn(BaseModel):
     category: Category
     content: str = Field(max_length=4000)
+    is_public: bool = False
+
+
+class ReplyOut(BaseModel):
+    id: str
+    content: str
+    created_on: date
+
+    model_config = {"from_attributes": True}
 
 
 class SuggestionOut(BaseModel):
@@ -33,6 +46,9 @@ class SuggestionOut(BaseModel):
     content: str
     submitted_on: date
     status: str
+    is_public: bool
+    deleted_on: date | None
+    replies: list[ReplyOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -45,18 +61,22 @@ class StatusIn(BaseModel):
 def submit(body: SuggestionIn, request: Request, p: Principal = Depends(require(P.SUGGESTION_SUBMIT)),
            db: Session = Depends(get_db)):
     st = request.app.state
-    svc.submit(db, st.suggestion_limiter, st.settings.secret_key, p.user, body.category, body.content)
+    svc.submit(db, st.suggestion_limiter, st.settings.secret_key, p.user, body.category, body.content,
+               is_public=body.is_public)
     return {"ok": True, "message": "건의가 익명으로 접수되었습니다"}
 
 
 @router.get("", response_model=list[SuggestionOut], dependencies=[Depends(feature_on)])
 def search(status: str | None = None, category: str | None = None, limit: int = 100, offset: int = 0,
-           p: Principal = Depends(require(P.SUGGESTION_READ)), db: Session = Depends(get_db)):
-    return svc.search(db, status, category, limit, offset)
+           trash: bool = False,
+           p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
+    return with_replies(db, repo.search(db, status, category, min(max(limit, 1), 100), max(offset, 0), trash=trash))
 
 
 @router.get("/stats", dependencies=[Depends(feature_on)])
-def stats(p: Principal = Depends(require(P.SUGGESTION_READ)), db: Session = Depends(get_db)):
+def stats(p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
     return svc.stats(db)
 
 
@@ -64,3 +84,52 @@ def stats(p: Principal = Depends(require(P.SUGGESTION_READ)), db: Session = Depe
 def set_status(suggestion_id: str, body: StatusIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
                db: Session = Depends(get_db)):
     return svc.set_status(db, suggestion_id, body.status)
+
+
+def with_replies(db, items):
+    grouped = {}
+    if items:
+        rows = db.execute(select(SuggestionReply).where(SuggestionReply.suggestion_id.in_([s.id for s in items]))
+                          .order_by(SuggestionReply.created_on, SuggestionReply.id)).scalars()
+        for row in rows:
+            grouped.setdefault(row.suggestion_id, []).append(ReplyOut.model_validate(row))
+    return [SuggestionOut.model_validate(s).model_copy(update={"replies": grouped.get(s.id, [])}) for s in items]
+
+
+@router.get("/public", response_model=list[SuggestionOut], dependencies=[Depends(feature_on)])
+def public_board(limit: int = 50, offset: int = 0,
+                 p: Principal = Depends(require(P.SLOT_VIEW)),
+                     db: Session = Depends(get_db)):
+    return with_replies(db, repo.search(db, None, None, min(max(limit, 1), 100), max(offset, 0), public_only=True))
+
+
+class ReplyIn(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class PurgeIn(BaseModel):
+    confirmation: str
+
+
+@router.post("/{sid}/replies", response_model=ReplyOut, status_code=201, dependencies=[Depends(feature_on)])
+def add_reply(sid: str, body: ReplyIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
+    return management.reply(db, p.user, sid, body.content)
+
+
+@router.post("/{sid}/trash", status_code=204, dependencies=[Depends(feature_on)])
+def trash_suggestion(sid: str, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
+    management.manage_suggestion(db, p.user, sid, "trash")
+
+
+@router.post("/{sid}/restore", status_code=204, dependencies=[Depends(feature_on)])
+def restore_suggestion(sid: str, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
+    management.manage_suggestion(db, p.user, sid, "restore")
+
+
+@router.post("/{sid}/purge", status_code=204, dependencies=[Depends(feature_on)])
+def purge_suggestion(sid: str, body: PurgeIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                     db: Session = Depends(get_db)):
+    management.manage_suggestion(db, p.user, sid, "purge", body.confirmation)

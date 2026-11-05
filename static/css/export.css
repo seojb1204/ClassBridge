@@ -1,0 +1,7 @@
+body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #1d2433; margin: 24px auto; max-width: 900px; padding: 0 16px; }
+.export-record { border: 1px solid #c5ccd8; padding: 12px; margin: 16px 0; break-inside: avoid; }
+dl { display: grid; grid-template-columns: 145px 1fr; gap: 6px 16px; }
+dt { font-weight: bold; } dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+button { padding: 12px 20px; cursor: pointer; }
+@media print { .print-controls { display: none; } body { margin: 0; padding: 0; max-width: none; } }
+@page { size: A4; margin: 15mm; }

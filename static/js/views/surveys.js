@@ -3,7 +3,7 @@ import { get, post } from "../api.js";
 import { go } from "../router.js";
 import { can, feature } from "../state.js";
 import { fmtDateTime } from "../time.js";
-import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast } from "../ui.js";
+import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast, confirmAction, promptText } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
 import { renderForm } from "./survey-form.js";
 
@@ -12,18 +12,40 @@ export async function renderList(root) {
   return studentList(root);
 }
 
+let showTrash = false;
 async function staffList(root) {
-  const list = await get("/api/surveys");
+  const list = await get(`/api/surveys?trash=${showTrash}`);
+  const manage = async (s, action) => {
+    try {
+      let body = {};
+      if (action === "purge") {
+        const word = await promptText("설문 영구 삭제", `‘${s.title}’의 문항, 답변 ${s.response_count}건, 참여 기록을 모두 삭제합니다. 복원할 수 없습니다. ‘영구 삭제’를 입력하세요.`);
+        if (word !== "영구 삭제") return;
+        body = { confirmation: word, response_count: s.response_count };
+      } else if (!(await confirmAction(action === "trash" ? "설문 휴지통 이동" : "설문 복원",
+        action === "trash" ? `‘${s.title}’과 답변 ${s.response_count}건을 휴지통으로 옮깁니다. 학생에게 숨겨지며 복원할 수 있습니다. 필요한 결과 파일은 먼저 내려받으세요.` : "이전 상태로 복원합니다. 종료된 설문은 다시 게시되지 않습니다.", "확인", action === "trash"))) return;
+      await post(`/api/surveys/${s.id}/${action}`, body);
+      await staffList(root);
+    } catch (e) { errorToast(e); }
+  };
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "설문"), h("a", { class: "btn primary", href: "#/surveys/edit/new" }, "+ 새 설문")),
+    h("div", { class: "toolbar" },
+      h("button", { class: showTrash ? "btn" : "btn primary", onclick: () => { showTrash = false; staffList(root); } }, "설문 목록"),
+      h("button", { class: showTrash ? "btn primary" : "btn", onclick: () => { showTrash = true; staffList(root); } }, "휴지통")),
     list.length ? h("div", { class: "cards" }, list.map((s) => h("div", { class: "card" },
       h("div", { class: "row" }, h("strong", {}, s.title), badge(STATUS_LABEL[s.status], s.status)),
       h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
       h("span", { class: "muted" }, `응답 ${s.response_count}건`, s.closes_at ? ` · 마감 ${fmtDateTime(s.closes_at)}` : ""),
-      h("div", { class: "actions" },
+      h("div", { class: "actions" }, showTrash ? [
+        h("button", { class: "btn", onclick: () => manage(s, "restore") }, "복원"),
+        h("button", { class: "btn danger", onclick: () => manage(s, "purge") }, "영구 삭제"),
+      ] : [
         h("a", { class: "btn small", href: `#/surveys/edit/${s.id}` }, s.status === "draft" ? "편집" : "설정"),
-        s.status !== "draft" ? h("a", { class: "btn small", href: `#/surveys/results/${s.id}` }, "결과") : null))))
-      : empty("아직 설문이 없습니다."));
+        s.status !== "draft" ? h("a", { class: "btn small", href: `#/surveys/results/${s.id}` }, "결과") : null,
+        s.status !== "published" ? h("button", { class: "btn small danger", onclick: () => manage(s, "trash") }, "휴지통으로")
+          : h("span", { class: "hint" }, "삭제하려면 설정에서 먼저 설문을 종료하세요."),
+      ])))) : empty(showTrash ? "휴지통이 비어 있습니다." : "아직 설문이 없습니다."));
 }
 
 async function studentList(root) {

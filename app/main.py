@@ -18,7 +18,7 @@ from app.core.rate_limit import RateLimiter
 from app.db import make_engine, make_sessionmaker
 from app.infra.ai_client import build_ai_client
 from app.infra.google_oauth import verify_with_google
-from app.routers import admin, analysis, auth, bookings, suggestions, surveys
+from app.routers import admin, analysis, auth, bookings, exports, suggestions, surveys
 
 log = logging.getLogger("classbridge")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -60,7 +60,7 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
                              "message": "일시적으로 데이터베이스에 연결할 수 없습니다. 잠시 후 다시 시도하세요"},
                             status_code=503)
 
-    for r in (auth.router, admin.router, bookings.router, surveys.router,
+    for r in (auth.router, admin.router, bookings.router, exports.router, surveys.router,
               suggestions.router, analysis.router):
         app.include_router(r)
 

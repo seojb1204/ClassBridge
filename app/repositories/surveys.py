@@ -6,20 +6,23 @@ from sqlalchemy.orm import Session
 from app.models import Answer, Participation, Question, Response, Survey
 
 
-def get(db: Session, survey_id: int, lock: bool = False) -> Survey | None:
+def get(db: Session, survey_id: int, lock: bool = False, include_deleted: bool = False) -> Survey | None:
     stmt = select(Survey).where(Survey.id == survey_id)
+    if not include_deleted:
+        stmt = stmt.where(Survey.deleted_at.is_(None))
     if lock:
         stmt = stmt.with_for_update()
     return db.execute(stmt).scalar_one_or_none()
 
 
-def list_all(db: Session) -> list[Survey]:
-    return list(db.execute(select(Survey).order_by(Survey.created_at.desc(), Survey.id.desc())).scalars())
+def list_all(db: Session, trash: bool = False) -> list[Survey]:
+    stmt = select(Survey).where(Survey.deleted_at.is_not(None) if trash else Survey.deleted_at.is_(None))
+    return list(db.execute(stmt.order_by(Survey.created_at.desc(), Survey.id.desc())).scalars())
 
 
 def list_by_status(db: Session, statuses: tuple[str, ...]) -> list[Survey]:
     return list(db.execute(
-        select(Survey).where(Survey.status.in_(statuses)).order_by(Survey.created_at.desc())
+        select(Survey).where(Survey.status.in_(statuses), Survey.deleted_at.is_(None)).order_by(Survey.created_at.desc())
     ).scalars())
 
 

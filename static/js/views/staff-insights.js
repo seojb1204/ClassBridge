@@ -1,3 +1,4 @@
+import { exportPanel } from "../components/export-panel.js";
 // 교수자·관리자 전용: 상담 현황 통계와 기존 상담 기록을 한곳에서 열람·수정.
 import { get, put } from "../api.js";
 import { fmtDateTime } from "../time.js";
@@ -127,7 +128,7 @@ export async function render(root) {
     period = Number(periodPicker.value);
     loadOverview();
   });
-  mount(root,
+  mount(root, exportPanel(true),
     h("div", { class: "page-head" }, h("h1", {}, "상담 정보"),
       h("p", { class: "muted" }, "교수자·관리자만 볼 수 있는 상담 통계와 비공개 상담 기록입니다.")),
     h("section", { class: "insight-section" },

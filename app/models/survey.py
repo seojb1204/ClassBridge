@@ -40,6 +40,7 @@ class Survey(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     questions: Mapped[list["Question"]] = relationship(
         order_by="Question.position", cascade="all, delete-orphan", lazy="selectin"
