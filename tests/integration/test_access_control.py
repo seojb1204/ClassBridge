@@ -78,7 +78,7 @@ def test_admin_can_use_all_professor_features(clients):
     assert r.status_code == 201
     assert a.get(f"/api/surveys/{r.json()['id']}/results").status_code == 200
     assert a.post("/api/analysis", json={"source": "suggestions"}).status_code == 200
-    assert a.post("/api/blackouts", json={"day": "2031-01-01"}).status_code == 201
+    assert a.get("/api/booking-policy").status_code == 200
 
 
 def test_cannot_access_other_students_booking(clients):

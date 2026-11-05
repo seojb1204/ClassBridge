@@ -136,6 +136,8 @@ def test_student_booking_flow_pc(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     _create_slots_via_ui(prof)
+    assert prof.page.get_by_role("heading", name="상담 불가일", exact=True).count() == 0
+    prof.page.get_by_text("등록된 상담 시간만 예약할 수 있습니다.", exact=False).wait_for()
     prof.shot("pc_01_prof_slots")
     prof.close()
 
@@ -444,7 +446,7 @@ def test_mobile_professor_views(server, browser):
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
             prof.page.get_by_role("button", name="+ 상담 시간 등록").click()
-            datebox = prof.page.locator(".inline-form input[type=date]").bounding_box()
+            datebox = prof.page.locator("#slot-create-panel input[type=date]").bounding_box()
             assert datebox and datebox["height"] < 70
         width = prof.page.evaluate("document.documentElement.scrollWidth")
         assert width <= MOBILE["width"] + 1, f"{path} 가로 스크롤 발생: {width}"

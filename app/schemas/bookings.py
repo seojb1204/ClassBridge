@@ -53,19 +53,6 @@ class SlotCancelIn(BaseModel):
     reason: str = Field(default="", max_length=500)
 
 
-class BlackoutIn(BaseModel):
-    day: date
-    reason: str = Field(default="", max_length=200)
-
-
-class BlackoutOut(BaseModel):
-    id: int
-    day: date
-    reason: str
-
-    model_config = {"from_attributes": True}
-
-
 class BookingCreateIn(BaseModel):
     slot_id: int
     student_id: int | None = None  # 교수자·관리자만 사용 가능 (서버에서 검증)
