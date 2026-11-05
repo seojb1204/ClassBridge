@@ -18,14 +18,14 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError, BadRequest, Conflict, Forbidden, NotFound
 from app.core.permissions import P, has_permission
 from app.db import utcnow
-from app.models import Blackout, Booking, Slot, User
+from app.models import Booking, Slot, User
 from app.repositories import audit as audit_repo
 from app.repositories import bookings as repo
 from app.repositories import users as users_repo
 from app.services import booking_policy as policy_mod
 from app.services.booking_policy import Policy
 from app.services.settings_service import get_settings
-from app.timeutil import KST, kst_date, kst_to_utc
+from app.timeutil import KST
 
 T = TypeVar("T")
 
@@ -84,7 +84,6 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
     slots = repo.list_slots(db, start, end, include_cancelled=staff)
     pol = _policy(db)
     mine_active = None if staff else repo.active_booking_of(db, viewer.id)
-    blackouts = {b.day for b in repo.blackout_days(db)}
     views = []
     for s in slots:
         remaining = max(s.capacity - s.booked_count, 0)
@@ -94,8 +93,6 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
             reason = "취소된 시간"
         elif remaining == 0:
             reason = "마감"
-        elif kst_date(s.start_at) in blackouts:
-            reason = "상담 불가일"
         else:
             try:
                 policy_mod.check_student_booking_time(s.start_at, now, pol)
@@ -152,22 +149,17 @@ def _validate_kind_capacity(kind: str, capacity: int) -> None:
         raise BadRequest("단체 상담 정원은 2~100명입니다")
 
 
-def _planned_blocks(db: Session, spec: SlotSpec, now: datetime) -> tuple[list[tuple[datetime, datetime]], list[str]]:
+def _planned_blocks(db: Session, spec: SlotSpec, now: datetime) -> list[tuple[datetime, datetime]]:
     """One source of truth for previews and registrations."""
     _validate_kind_capacity(spec.kind, spec.capacity)
     brk = spec.break_minutes if spec.break_minutes is not None else get_settings(db)["default_break_minutes"]
     days = policy_mod.expand_days(spec.start_date, spec.weekdays, spec.repeat_weeks)
-    blackouts = {b.day for b in repo.blackout_days(db, min(days), max(days))} if days else set()
-    usable = [d for d in days if d not in blackouts]
-    skipped = sorted(d.isoformat() for d in set(days) & blackouts)
-    if not usable:
-        raise Conflict("선택한 날짜가 모두 상담 불가일입니다")
-    blocks = policy_mod.generate_blocks(usable, spec.start_time, spec.end_time,
+    blocks = policy_mod.generate_blocks(days, spec.start_time, spec.end_time,
                                         spec.duration_minutes, brk)
     blocks = [b for b in blocks if b[0] > now]
     if not blocks:
         raise BadRequest("미래 시간만 등록할 수 있습니다")
-    return blocks, skipped
+    return blocks
 
 
 def _overlapping_by_id(db: Session, blocks: list[tuple[datetime, datetime]]) -> dict[int, Slot]:
@@ -181,7 +173,7 @@ def _overlapping_by_id(db: Session, blocks: list[tuple[datetime, datetime]]) -> 
 def preview_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None = None) -> dict:
     if not _is_staff(actor):
         raise Forbidden("상담 시간 관리 권한이 없습니다")
-    blocks, skipped = _planned_blocks(db, spec, now or utcnow())
+    blocks = _planned_blocks(db, spec, now or utcnow())
     conflicts = _overlapping_by_id(db, blocks)
     protected = sorted(s.id for s in conflicts.values() if s.booked_count > 0)
     return {
@@ -196,7 +188,7 @@ def preview_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None
              "end_at": row.end_at.isoformat(), "booked_count": row.booked_count}
             for row in sorted(conflicts.values(), key=lambda item: item.start_at)
         ],
-        "skipped_blackout_days": skipped,
+        "skipped_blackout_days": [],  # Legacy response key; availability now depends only on slots.
     }
 
 
@@ -210,7 +202,7 @@ def replace_unbooked_slots(db: Session, actor: User, spec: SlotSpec,
     if not _is_staff(actor):
         raise Forbidden("상담 시간 관리 권한이 없습니다")
     now = now or utcnow()
-    blocks, skipped = _planned_blocks(db, spec, now)
+    blocks = _planned_blocks(db, spec, now)
     expected = sorted(set(expected_overlap_ids))
 
     def work():
@@ -238,14 +230,14 @@ def replace_unbooked_slots(db: Session, actor: User, spec: SlotSpec,
         audit_repo.add(db, actor.id, "slot.replace_unbooked", "slot_series", series or created[0].id,
                        {"created": len(created), "replaced_ids": expected})
         return {"created": len(created), "replaced": len(rows),
-                "slot_ids": [s.id for s in created], "skipped_blackout_days": skipped}
+                "slot_ids": [s.id for s in created], "skipped_blackout_days": []}
 
     return _atomic(db, work)
 
 
 def create_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None = None) -> dict:
     now = now or utcnow()
-    blocks, skipped = _planned_blocks(db, spec, now)
+    blocks = _planned_blocks(db, spec, now)
     conflicts = []
     for st, en in blocks:
         for other in repo.overlapping_open_slots(db, st, en):
@@ -265,7 +257,7 @@ def create_slots(db: Session, actor: User, spec: SlotSpec, now: datetime | None 
         db.flush()
         audit_repo.add(db, actor.id, "slot.create", "slot_series", series or created[0].id,
                        {"count": len(created), "kind": spec.kind, "capacity": spec.capacity})
-        return {"created": len(created), "skipped_blackout_days": skipped,
+        return {"created": len(created), "skipped_blackout_days": [],
                 "slot_ids": [s.id for s in created]}
 
     return _atomic(db, work)
@@ -294,8 +286,6 @@ def update_slot(db: Session, actor: User, slot_id: int, *, capacity: int | None 
                 raise BadRequest("종료 시각은 시작 시각보다 늦어야 합니다")
             if repo.overlapping_open_slots(db, ns, ne, exclude_id=s.id):
                 raise Conflict("다른 상담 시간과 겹칩니다", code="slot_overlap")
-            if repo.is_blackout(db, kst_date(ns)):
-                raise Conflict("상담 불가일입니다")
             s.start_at, s.end_at = ns, ne
         s.kind, s.capacity = new_kind, new_cap
         if location is not None:
@@ -335,35 +325,6 @@ def cancel_slot(db: Session, actor: User, slot_id: int, force: bool, reason: str
     return _atomic(db, work)
 
 
-def add_blackout(db: Session, actor: User, day: date, reason: str) -> Blackout:
-    def work():
-        start = kst_to_utc(day, time(0, 0))
-        clash = repo.list_slots(db, start, start + timedelta(days=1), include_cancelled=False)
-        if clash:
-            raise Conflict(f"해당 날짜에 열린 상담 시간이 {len(clash)}개 있습니다. 먼저 취소하세요",
-                           code="blackout_has_slots")
-        if repo.is_blackout(db, day):
-            raise Conflict("이미 등록된 상담 불가일입니다")
-        b = Blackout(day=day, reason=reason[:200], created_by_id=actor.id)
-        db.add(b)
-        db.flush()
-        audit_repo.add(db, actor.id, "blackout.add", "blackout", b.id, {"day": day.isoformat()})
-        return b
-
-    return _atomic(db, work)
-
-
-def remove_blackout(db: Session, actor: User, blackout_id: int) -> None:
-    def work():
-        b = db.get(Blackout, blackout_id)
-        if b is None:
-            raise NotFound("상담 불가일을 찾을 수 없습니다")
-        audit_repo.add(db, actor.id, "blackout.remove", "blackout", b.id, {"day": b.day.isoformat()})
-        db.delete(b)
-
-    _atomic(db, work)
-
-
 # ───────────── 예약 ─────────────
 
 def _resolve_student(db: Session, actor: User, student_id: int | None) -> User:
@@ -382,8 +343,6 @@ def _resolve_student(db: Session, actor: User, student_id: int | None) -> User:
 def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, pol: Policy) -> Slot:
     if slot is None or slot.status != "open":
         raise NotFound("예약 가능한 상담 시간이 아닙니다")
-    if repo.is_blackout(db, kst_date(slot.start_at)):
-        raise Conflict("상담 불가일입니다", code="blackout")
     if _is_staff(actor):
         if slot.start_at <= now:
             raise Conflict("이미 지난 상담 시간입니다", code="slot_past")

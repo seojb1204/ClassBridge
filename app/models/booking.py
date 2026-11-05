@@ -89,6 +89,7 @@ class BookingEvent(Base):
 
 
 class Blackout(Base):
+    # Retired feature: retain the schema for non-destructive upgrades/rollback only.
     """상담 불가 날짜 (한국 날짜 기준)."""
 
     __tablename__ = "blackouts"

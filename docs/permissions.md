@@ -8,7 +8,7 @@
 | `booking:self` | 본인 예약 생성·조회·변경·취소 | ✅ | – | – |
 | `survey:respond` | 설문 응답 | ✅ | – | – |
 | `suggestion:submit` | 익명 건의 제출 | ✅ | – | – |
-| `slot:manage` | 상담 시간 등록·수정·취소, 상담 불가일 | – | ✅ | ✅ |
+| `slot:manage` | 상담 시간 등록·수정·취소 | – | ✅ | ✅ |
 | `booking:manage` | 예약 현황, 대리 예약, 일정 조정, 완료·미참석, 이력 | – | ✅ | ✅ |
 | `booking:note` | 상담 기록 작성·열람 | – | ✅ | ✅ |
 | `survey:manage` | 설문 작성·수정·게시·종료·복제 | – | ✅ | ✅ |

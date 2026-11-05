@@ -1,7 +1,7 @@
-// 교수자·관리자: 상담 시간 등록·수정·취소, 상담 불가일
-import { del, get, patch, post } from "../api.js";
+// 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
+import { get, patch, post } from "../api.js";
 import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
-import { addDays, fmtDate, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
+import { addDays, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, select, toast } from "../ui.js";
 
 let weekStart = null;
@@ -31,22 +31,21 @@ export async function render(root) {
 }
 
 async function draw(root) {
-  const [slots, blackouts] = await Promise.all([get(`/api/slots?start=${weekStart}&days=7`), get("/api/blackouts")]);
+  const slots = await get(`/api/slots?start=${weekStart}&days=7`);
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
       h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("p", { class: "muted" }, "시간표를 눌러 상담 정보를 수정할 수 있습니다."),
+    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileView,
       onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) : null) }),
-    showForm ? h("div", { class: "split", id: "slot-create-panel" },
-      h("section", { class: "panel" }, h("h2", {}, "상담 시간 등록"), createForm(root)),
-      h("section", { class: "panel" }, h("h2", {}, "상담 불가일"), blackoutPanel(root, blackouts))) : null,
+    showForm ? h("section", { class: "panel", id: "slot-create-panel" },
+      h("h2", {}, "상담 시간 등록"), createForm(root)) : null,
   );
 }
 
@@ -94,9 +93,7 @@ function createForm(root) {
           ? h("p", { class: "muted" }, `그 외 ${preview.planned_slots.length - 8}개`) : null,
         warning ? h("p", { class: "warn" }, `예약된 상담 ${warning}건이 있어 자동 교체할 수 없습니다.`) : null,
         preview.replaced && !warning
-          ? h("p", {}, "기존 미예약 상담을 취소 상태로 보존한 뒤 새 상담으로 교체합니다.") : null,
-        preview.skipped_blackout_days.length
-          ? h("p", {}, `상담 불가일 ${preview.skipped_blackout_days.length}일 제외`) : null), [
+          ? h("p", {}, "기존 미예약 상담을 취소 상태로 보존한 뒤 새 상담으로 교체합니다.") : null), [
         { label: "돌아가기", value: false },
         ...(warning ? [] : [{ label: preview.replaced ? "미예약 상담 교체·등록" : "등록 확정",
           primary: true, value: true }]),
@@ -112,25 +109,6 @@ function createForm(root) {
     } catch (err) { errorToast(err); }
   }));
   return form;
-}
-
-function blackoutPanel(root, list) {
-  const day = h("input", { type: "date", required: true });
-  const reason = h("input", { type: "text", maxlength: 200, placeholder: "사유 (선택)" });
-  const btn = h("button", { class: "btn", type: "submit" }, "추가");
-  const form = h("form", { class: "inline-form" }, day, reason, btn);
-  form.addEventListener("submit", busy(btn, async (e) => {
-    e.preventDefault();
-    try { await post("/api/blackouts", { day: day.value, reason: reason.value }); toast("등록했습니다", "success"); await draw(root); }
-    catch (err) { errorToast(err); }
-  }));
-  const upcoming = list.filter((b) => b.day >= todayKst());
-  return h("div", {}, form, h("ul", { class: "plain" }, upcoming.map((b) => h("li", {},
-    `${fmtDate(b.day)} ${b.reason ? `· ${b.reason}` : ""} `,
-    h("button", { class: "link danger", onclick: async () => {
-      if (!(await confirmAction("상담 불가일 해제", `${fmtDate(b.day)}의 상담 불가일을 해제할까요?`))) return;
-      try { await del(`/api/blackouts/${b.id}`); await draw(root); } catch (err) { errorToast(err); }
-    } }, "삭제")))));
 }
 
 async function editSlot(root, s) {

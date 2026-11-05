@@ -1,12 +1,12 @@
 """상담 시간·예약 저장소. 정원 증감은 조건부 UPDATE로 원자적으로 처리한다."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Blackout, Booking, BookingEvent, Slot, User
+from app.models import Booking, BookingEvent, Slot, User
 
 
 def get_slot(db: Session, slot_id: int, lock: bool = False) -> Slot | None:
@@ -95,16 +95,3 @@ def events_for(db: Session, booking_id: int) -> list[BookingEvent]:
     return list(db.execute(
         select(BookingEvent).where(BookingEvent.booking_id == booking_id).order_by(BookingEvent.at, BookingEvent.id)
     ).scalars())
-
-
-def blackout_days(db: Session, start: date | None = None, end: date | None = None) -> list[Blackout]:
-    stmt = select(Blackout).order_by(Blackout.day)
-    if start:
-        stmt = stmt.where(Blackout.day >= start)
-    if end:
-        stmt = stmt.where(Blackout.day <= end)
-    return list(db.execute(stmt).scalars())
-
-
-def is_blackout(db: Session, day: date) -> bool:
-    return db.execute(select(Blackout.id).where(Blackout.day == day)).first() is not None

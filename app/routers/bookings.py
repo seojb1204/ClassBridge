@@ -9,11 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal, require
 from app.core.permissions import P
 from app.db import get_db
-from app.repositories import bookings as repo
 from app.repositories import users as users_repo
 from app.schemas.bookings import (
-    BlackoutIn,
-    BlackoutOut,
     BookingCancelIn,
     BookingCreateIn,
     BookingRescheduleIn,
@@ -104,23 +101,6 @@ def update_slot(slot_id: int, body: SlotUpdateIn, p: Principal = Depends(require
 def cancel_slot(slot_id: int, body: SlotCancelIn, p: Principal = Depends(require(P.SLOT_MANAGE)),
                 db: Session = Depends(get_db)):
     return svc.cancel_slot(db, p.user, slot_id, body.force, body.reason)
-
-
-@router.get("/blackouts", response_model=list[BlackoutOut])
-def list_blackouts(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
-    return repo.blackout_days(db)
-
-
-@router.post("/blackouts", response_model=BlackoutOut, status_code=201)
-def add_blackout(body: BlackoutIn, p: Principal = Depends(require(P.SLOT_MANAGE)),
-                 db: Session = Depends(get_db)):
-    return svc.add_blackout(db, p.user, body.day, body.reason)
-
-
-@router.delete("/blackouts/{blackout_id}", status_code=204)
-def remove_blackout(blackout_id: int, p: Principal = Depends(require(P.SLOT_MANAGE)),
-                    db: Session = Depends(get_db)):
-    svc.remove_blackout(db, p.user, blackout_id)
 
 
 # ── 예약 (학생 본인) ──

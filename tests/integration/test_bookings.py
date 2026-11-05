@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from app.db import utcnow
-from app.models import Slot
+from app.models import Blackout, Slot
 from app.timeutil import today_kst
 from tests.conftest import future_day, make_slots
 
@@ -168,21 +168,39 @@ def test_break_and_repeat_generation(clients):
     assert len(ids) == 4
 
 
-def test_blackout_blocks_slot_generation(clients):
-    p = clients["prof"]
+def test_only_registered_slots_control_availability(app, clients):
+    p, student = clients["prof"], clients["s1"]
     day = future_day(9)
-    assert p.post("/api/blackouts", json={"day": day.isoformat(), "reason": "학회"}).status_code == 201
-    r = p.post("/api/slots", json={"start_date": day.isoformat(), "start_time": "10:00",
-                                   "end_time": "11:00", "duration_minutes": 30})
-    assert r.status_code == 409
-    # 반복 생성 시 휴무일은 건너뜀
-    r = p.post("/api/slots", json={"start_date": (day - timedelta(days=7)).isoformat(), "start_time": "10:00",
-                                   "end_time": "10:30", "duration_minutes": 30, "repeat_weeks": 2})
-    assert r.status_code == 201 and r.json()["skipped_blackout_days"] == [day.isoformat()]
-    # 열린 상담이 있는 날은 휴무 등록 불가
-    other = future_day(5)
-    make_slots(p, day=other)
-    assert p.post("/api/blackouts", json={"day": other.isoformat()}).status_code == 409
+    # Retained legacy storage must no longer silently block availability.
+    with app.state.SessionLocal() as db:
+        db.add(Blackout(day=day, reason="legacy", created_by_id=p.me["id"]))
+        db.commit()
+    spec = {"start_date": day.isoformat(), "start_time": "10:00", "end_time": "11:00",
+            "duration_minutes": 30, "repeat_weeks": 2}
+    preview = p.post("/api/slots/preview", json=spec)
+    assert preview.status_code == 200
+    assert preview.json()["created"] == 4 and preview.json()["skipped_blackout_days"] == []
+    created = p.post("/api/slots", json=spec)
+    assert created.status_code == 201 and created.json()["created"] == 4
+    ids = created.json()["slot_ids"]
+    slots = student.get(f"/api/slots?start={day}&days=7").json()
+    assert len(slots) == 2 and all(s["bookable"] for s in slots)
+    assert student.post("/api/bookings", json={"slot_id": 999999}).status_code == 404
+    p.post(f"/api/slots/{ids[0]}/cancel", json={})
+    assert student.post("/api/bookings", json={"slot_id": ids[0]}).status_code == 404
+    assert student.post("/api/bookings", json={"slot_id": ids[1]}).status_code == 201
+    assert student.get(f"/api/slots?start={future_day(8)}&days=1").json() == []
+    with app.state.SessionLocal() as db:
+        assert db.query(Blackout).count() == 1  # no destructive migration or cleanup
+
+
+def test_retired_blackout_routes_do_not_create_or_remove_data(app, clients):
+    for client in clients.values():
+        assert client.get("/api/blackouts").status_code == 404
+        assert client.post("/api/blackouts", json={"day": future_day().isoformat()}).status_code == 404
+        assert client.delete("/api/blackouts/1").status_code == 404
+    with app.state.SessionLocal() as db:
+        assert db.query(Blackout).count() == 0
 
 
 def test_outcome_requires_slot_started(app, clients):
