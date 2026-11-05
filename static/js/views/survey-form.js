@@ -6,7 +6,9 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
   const form = h("form", { class: "survey-form" },
     h("div", { class: "panel" }, h("h2", {}, survey.title || "(제목 없음)"),
       survey.description ? h("p", { class: "pre" }, survey.description) : null,
-      h("p", { class: "muted" }, "응답은 익명으로 저장되며 작성자와 연결되지 않습니다. * 표시는 필수입니다.")),
+      h("p", { class: "muted" }, "참여는 선택입니다. 중복 제출 방지를 위한 참여 여부는 답변과 별도로 저장하며, 교수자·관리자 화면에는 답변 작성자 정보가 표시되지 않습니다. * 표시는 문항의 필수 입력 표시입니다."),
+      h("p", { class: "hint" }, "이름·학번·연락처나 건강·심리 상태 등 민감정보를 적지 마세요. 내용이나 DB·서버 기록으로 작성자를 추정할 가능성까지 없애지는 못합니다."),
+      h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침")),
     survey.questions.map((q) => {
       const { node, value } = input(q, disabled);
       getters.push([q, value]);

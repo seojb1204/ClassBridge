@@ -1,6 +1,6 @@
 // 익명 건의함: 학생 제출 / 교수자·관리자 열람
 import { get, post, put } from "../api.js";
-import { can } from "../state.js";
+import { can, feature } from "../state.js";
 import { fmtDate } from "../time.js";
 import { STATUS_LABEL, badge, busy, empty, errorToast, field, h, mount, select, toast } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
@@ -21,7 +21,9 @@ function submitForm(root) {
   content.addEventListener("input", () => { counter.textContent = `${content.value.length} / 2000`; });
   const btn = h("button", { class: "btn primary", type: "submit" }, "익명으로 제출");
   const form = h("form", { class: "panel" },
-    h("p", { class: "muted" }, "작성자 정보와 제출 시각은 저장되지 않습니다(날짜만 저장). 교수자·관리자만 내용을 볼 수 있습니다."),
+    h("p", { class: "muted" }, "제출은 선택입니다. 건의 내용에는 계정 정보와 정확한 제출 시각을 저장하지 않으며, 날짜만 저장합니다. 교수자·관리자 화면에는 작성자 정보가 표시되지 않습니다."),
+    h("p", { class: "hint" }, "이름·학번·연락처나 건강·심리 상태 등 민감정보를 적지 마세요. 내용이나 DB·서버 기록으로 작성자를 추정할 가능성까지 없애지는 못합니다."),
+    h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
     field("유형", cat), field("내용", content), counter, btn);
   form.addEventListener("submit", busy(btn, async (e) => {
     e.preventDefault();
@@ -54,7 +56,7 @@ async function inbox(root) {
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "건의함"), h("span", { class: "muted" }, `전체 ${stats.total}건`)),
     h("div", { class: "stats" }, CATS.map(([k, label]) => h("span", { class: "stat" }, label, h("strong", {}, String(stats.by_category[k] || 0))))),
-    h("div", { class: "filters" }, st, ct, can("ai:analyze") ? aBtn : null),
+    h("div", { class: "filters" }, st, ct, can("ai:analyze") && ["demo", "external"].includes(feature("ai")) ? aBtn : null),
     analysisBox,
     list.length ? h("div", { class: "cards" }, list.map((s) => card(root, s))) : empty("건의가 없습니다."));
 }
