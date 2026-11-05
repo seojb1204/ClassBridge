@@ -343,7 +343,7 @@ def test_suggestion_flow(server, browser):
     assert st.page.get_by_text("제출은 선택입니다.", exact=False).is_visible()
     assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
     st.shot("pc_student_suggestion_notice")
-    st.page.locator("select").select_option("assignment")
+    st.page.get_by_label("유형", exact=False).select_option("assignment")
     st.page.fill("textarea", "<b>과제 마감</b>을 조금 늦춰 주세요")
     st.page.click("text=익명으로 제출")
     st.toast("익명으로 접수")
@@ -471,3 +471,89 @@ def test_mobile_optional_sections_do_not_render_null(server, browser):
             session.shot("optional_student" if path == "/booking" else "optional_professor")
         finally:
             session.close()
+
+
+def test_public_suggestion_reply_trash_and_restore(server, browser):
+    base, _ = server
+    student = Session(browser, base, "public-board@test.ac.kr", MOBILE)
+    student.go("/suggestions")
+    student.page.get_by_label("공개 범위", exact=False).select_option("public")
+    student.page.locator("textarea").fill("공개 게시판 회귀 검증 의견")
+    student.page.get_by_role("button", name="익명으로 제출").click()
+    student.page.locator(".public-board .card").filter(has_text="공개 게시판 회귀 검증 의견").wait_for()
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    prof.go("/suggestions")
+    card = prof.page.locator(".card").filter(has_text="공개 게시판 회귀 검증 의견")
+    card.get_by_role("button", name="답변 달기").click()
+    prof.page.locator(".modal textarea").fill("교수자 공개 답변 테스트")
+    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    card.get_by_text("교수자 공개 답변 테스트").wait_for()
+    student.page.reload()
+    student.page.get_by_text("교수자 공개 답변 테스트").wait_for()
+    student.shot("mobile_public_board")
+    assert student.page.locator("body").evaluate("el => el.scrollWidth") <= MOBILE["width"]
+    card.get_by_role("button", name="휴지통으로").click()
+    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    prof.page.get_by_role("button", name="휴지통", exact=True).click()
+    card.get_by_role("button", name="복원").wait_for()
+    student.page.reload()
+    student.page.locator(".public-board").wait_for()
+    assert student.page.get_by_text("공개 게시판 회귀 검증 의견", exact=True).count() == 0
+    prof.shot("suggestion_trash")
+    card.get_by_role("button", name="복원").click()
+    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    prof.page.get_by_role("button", name="건의 목록", exact=True).click()
+    card.get_by_role("button", name="휴지통으로").wait_for()
+    student.page.reload()
+    student.page.get_by_text("교수자 공개 답변 테스트").wait_for()
+    student.close()
+    prof.close()
+
+
+def test_survey_trash_restore_and_purge_ui(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    prof.go("/surveys/edit/new")
+    prof.page.fill(".title-input", "휴지통 시험 설문")
+    prof.page.get_by_role("button", name="+ 문항 추가").click()
+    prof.page.fill(".q-title", "테스트 문항")
+    prof.page.get_by_role("button", name="초안 저장").click()
+    prof.page.wait_for_url(re.compile(r".*/surveys/edit/\d+$"))
+    prof.go("/surveys")
+    card = prof.page.locator(".card").filter(has_text="휴지통 시험 설문")
+    for action in ("trash", "restore", "trash"):
+        card.get_by_role("button", name="복원" if action == "restore" else "휴지통으로", exact=True).click()
+        prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+        prof.page.get_by_role("button", name="설문 목록" if action == "restore" else "휴지통", exact=True).click()
+        card.wait_for()
+    prof.shot("survey_trash")
+    card.get_by_role("button", name="영구 삭제").click()
+    prof.page.locator(".modal input").fill("영구 삭제")
+    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    card.wait_for(state="hidden")
+    prof.close()
+
+
+def test_consultation_download_and_print_view(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    prof.go("/staff/insights")
+    panel = prof.page.locator(".export-panel")
+    panel.locator("summary").click()
+    panel.locator('input[type="date"]').nth(0).fill(SLOT_DAY.isoformat())
+    panel.locator('input[type="date"]').nth(1).fill(SLOT_DAY.isoformat())
+    prof.shot("consultation_export_options")
+    with prof.page.expect_download() as event:
+        panel.get_by_role("link", name="Excel 다운로드").click()
+    assert event.value.suggested_filename.endswith(".xlsx")
+    with prof.page.expect_popup() as popup:
+        panel.get_by_role("link", name="PDF 저장 / 인쇄").click()
+    print_page = popup.value
+    print_page.wait_for_load_state("domcontentloaded")
+    assert print_page.get_by_role("heading", name="ClassBridge 상담 자료").count(), (
+        print_page.url, print_page.locator("body").inner_text())
+    assert print_page.get_by_role("button", name="PDF 저장 / 인쇄").is_visible()
+    assert "교수자 전용 상담 기록" not in print_page.locator("body").inner_text()
+    print_page.screenshot(path=str(SHOTS / "consultation_print.png"), full_page=True)
+    print_page.close()
+    prof.close()

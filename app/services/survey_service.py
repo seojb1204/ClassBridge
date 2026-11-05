@@ -243,7 +243,7 @@ def submit(db: Session, student: User, survey_id: int, answers: dict[str, object
            now: datetime | None = None) -> None:
     """참여 기록과 응답을 한 트랜잭션에 넣되, 둘 사이에 어떤 연결 값도 저장하지 않는다."""
     now = now or utcnow()
-    s = _get(db, survey_id)
+    s = _get(db, survey_id, lock=True)
     if not is_open(s, now):
         raise Conflict("응답 기간이 아닙니다", code="survey_closed")
     by_id = {str(q.id): q for q in s.questions}

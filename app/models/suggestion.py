@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import CheckConstraint, Date, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -25,3 +25,13 @@ class Suggestion(Base):
     content: Mapped[str] = mapped_column(Text)
     submitted_on: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(20), default="new")
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    deleted_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class SuggestionReply(Base):
+    __tablename__ = "suggestion_replies"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    suggestion_id: Mapped[str] = mapped_column(ForeignKey("suggestions.id", ondelete="CASCADE"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    created_on: Mapped[date] = mapped_column(Date)

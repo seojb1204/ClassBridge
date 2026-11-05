@@ -11,7 +11,8 @@ def test_submit_and_read(app, clients):
     for i in range(3):
         assert s1.post("/api/suggestions", json={"category": "lecture", "content": f"의견 {i}"}).status_code == 201
     items = p.get("/api/suggestions").json()
-    assert len(items) == 3 and set(items[0]) == {"id", "category", "content", "submitted_on", "status"}
+    assert len(items) == 3 and set(items[0]) == {"id", "category", "content", "submitted_on", "status",
+                                             "is_public", "deleted_on", "replies"}
     assert p.put(f"/api/suggestions/{items[0]['id']}/status", json={"status": "reviewed"}).json()["status"] == "reviewed"
     stats = p.get("/api/suggestions/stats").json()
     assert stats["total"] == 3 and stats["by_category"] == {"lecture": 3}

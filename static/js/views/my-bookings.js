@@ -1,3 +1,4 @@
+import { exportPanel } from "../components/export-panel.js";
 // 학생: 내 예약 목록 · 취소
 import { get, post } from "../api.js";
 import { downloadConsultationIcs } from "../calendar-ics.js";
@@ -6,7 +7,7 @@ import { STATUS_LABEL, badge, busy, confirmAction, empty, errorToast, h, mount, 
 
 export async function render(root) {
   const list = await get("/api/bookings/mine");
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "내 예약")),
+  mount(root, exportPanel(false), h("div", { class: "page-head" }, h("h1", {}, "내 예약")),
     list.length ? h("div", { class: "cards" }, list.map((b) => item(root, b))) : empty("예약 내역이 없습니다."));
 }
 

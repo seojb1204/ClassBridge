@@ -41,14 +41,14 @@ def limiter_key(secret: str, user_id: int) -> str:
 
 
 def submit(db: Session, limiter: RateLimiter, secret: str, user: User, category: str, content: str,
-           now: datetime | None = None) -> None:
+           now: datetime | None = None, *, is_public: bool = False) -> None:
     now = now or utcnow()
     if category not in SUGGESTION_CATEGORIES:
         raise BadRequest("건의 유형이 올바르지 않습니다")
     text = clean_content(content)
     limiter.hit(limiter_key(secret, user.id))
     repo.add(db, Suggestion(id=str(uuid.uuid4()), category=category, content=text,
-                            submitted_on=kst_date(now)))
+                            submitted_on=kst_date(now), is_public=is_public))
     db.commit()
 
 
@@ -62,7 +62,7 @@ def set_status(db: Session, suggestion_id: str, status: str) -> Suggestion:
     if status not in STATUSES:
         raise BadRequest("상태 값이 올바르지 않습니다")
     s = repo.get(db, suggestion_id)
-    if s is None:
+    if s is None or s.deleted_on is not None:
         raise NotFound("건의를 찾을 수 없습니다")
     s.status = status
     db.commit()
