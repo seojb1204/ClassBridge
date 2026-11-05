@@ -13,6 +13,7 @@ import * as studentBooking from "./views/student-booking.js";
 import * as editor from "./views/survey-editor.js";
 import * as suggestions from "./views/suggestions.js";
 import * as surveys from "./views/surveys.js";
+import * as support from "./views/support.js";
 
 function home(root) {
   if (can("slot:manage")) return go("/slots");
@@ -36,6 +37,12 @@ function registerRoutes() {
     route("/surveys/results/:id", "survey:results", surveys.renderResults);
   }
   if (feature("suggestions")) route("/suggestions", null, suggestions.render, can("suggestion:read") ? "건의함" : "익명 건의");
+  route("/help", "slot:view", support.renderHome);
+  route("/help/new", "slot:view", support.renderNew);
+  route("/help/mine", "slot:view", (root) => support.renderList(root));
+  route("/help/tickets/:id", "slot:view", support.renderDetail);
+  route("/help/inbox", "support:manage", (root) => support.renderList(root, true));
+  route("/help/inbox/:id", "support:manage", (root, params) => support.renderDetail(root, params, true));
   // 관리자
   route("/admin/users", "user:manage", admin.renderUsers, "계정·권한");
   route("/admin/settings", "settings:manage", admin.renderSettings, "운영 설정");
@@ -67,14 +74,21 @@ function renderMobileTabs() {
 function renderChrome() {
   const nav = document.getElementById("nav");
   mount(nav, navItems().map((r) => h("a", { href: `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, r.navLabel)));
+  const mobileHelp = support.helpLink("mobile-help-link");
+  mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
+  nav.append(mobileHelp);
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
   mount(document.getElementById("userbox"),
+    support.helpLink("btn small desktop-help-link"),
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
   const menu = document.getElementById("menu-btn");
   menu.onclick = () => { const o = nav.classList.toggle("open"); menu.setAttribute("aria-expanded", String(o)); };
   renderMobileTabs();
-  window.addEventListener("hashchange", renderMobileTabs);
+  support.rememberSource();
+  support.refreshCounts();
+  window.addEventListener("hashchange", () => { renderMobileTabs(); support.rememberSource(); support.refreshCounts(); });
+  window.addEventListener("focus", support.refreshCounts);
 }
 
 async function start() {

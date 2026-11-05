@@ -286,3 +286,17 @@ code { font-size: .78rem; word-break: break-all; }
 }
 .inline-form input[type="date"] { flex: 0 0 170px; }
 .inline-form button { white-space: nowrap; flex: 0 0 auto; }
+
+/* Help stays out of the primary navigation on desktop. */
+.nav .mobile-help-link { display: none; }
+.desktop-help-link, .brand { white-space: nowrap; }
+.support-guide, .support-list { margin-top: 1rem; }
+.support-list { margin-bottom: 1rem; }
+.support-title { overflow-wrap: anywhere; }
+.support-thread { max-width: 900px; }
+@media (min-width: 721px) and (max-width: 1200px) { .userbox .who { display: none; } }
+@media (max-width: 720px) {
+  .nav .mobile-help-link { display: block; }
+  .userbox .desktop-help-link { display: none; }
+}
+.support-count[hidden] { display: none; }
