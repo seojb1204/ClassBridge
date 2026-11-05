@@ -13,8 +13,20 @@ let selectedDay = null;
 let mobileView = "list";
 let detach = null;
 
+export async function renderToday(root) {
+  viewMode = "list";
+  filter = { start: todayKst(), days: 1, status: "" };
+  return render(root);
+}
+
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
+    ...[[0, "오늘 상담"], [1, "내일 상담"]].map(([offset, label]) => h("button", {
+      class: "btn", onclick: () => {
+        viewMode = "list"; filter = { start: addDays(todayKst(), offset), days: 1, status: "" };
+        render(root);
+      },
+    }, label)),
     ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { viewMode = value; render(root); } }, label)));
@@ -125,6 +137,7 @@ export async function render(root) {
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
     viewSwitcher(root),
     h("div", { class: "filters" }, field("시작일", start), field("상태", status)),
+    h("p", { class: "muted" }, `${filter.start}부터 ${filter.days}일 · ${list.length}건 (한국시간)`),
     list.length ? h("div", { class: "table-wrap" }, table(root, list)) : empty("해당 조건의 예약이 없습니다."));
 }
 

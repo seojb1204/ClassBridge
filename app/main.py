@@ -77,6 +77,12 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+        @app.get("/sw.js", include_in_schema=False)
+        def service_worker():
+            return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript",
+                                headers={"Cache-Control": "no-cache, must-revalidate",
+                                         "Service-Worker-Allowed": "/"})
+
         @app.get("/", include_in_schema=False)
         def index():
             return FileResponse(STATIC_DIR / "index.html")

@@ -33,6 +33,67 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+def test_pwa_install_guide_today_and_private_offline(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go("/slots")
+    prof.page.locator("#menu-btn").click()
+    prof.page.get_by_role("button", name="앱 설치 안내", exact=True).click()
+    prof.page.get_by_role("heading", name="안드로이드 앱 설치", exact=True).wait_for()
+    prof.shot("mobile_pwa_install_guide")
+    prof.page.get_by_role("button", name="확인", exact=True).click()
+    prof.go("/staff/today")
+    prof.page.get_by_text(f"{today_kst(utcnow())}부터 1일", exact=False).wait_for()
+    prof.page.get_by_role("button", name="내일 상담", exact=True).click()
+    prof.page.get_by_text(f"{today_kst(utcnow()) + timedelta(days=1)}부터 1일", exact=False).wait_for()
+    prof.page.get_by_role("button", name="오늘 상담", exact=True).click()
+    prof.page.get_by_text(f"{today_kst(utcnow())}부터 1일", exact=False).wait_for()
+    assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
+    prof.shot("mobile_pwa_today")
+    prof.page.evaluate("navigator.serviceWorker.ready")
+    prof.page.reload()
+    prof.page.wait_for_selector('body[data-ready="/staff/today"]')
+    cached = prof.page.evaluate("""async () => {
+      const result = [];
+      for (const key of await caches.keys()) {
+        const cache = await caches.open(key);
+        for (const request of await cache.keys()) result.push(new URL(request.url).pathname);
+      }
+      return result;
+    }""")
+    assert cached == ["/static/offline.html"]
+    assert prof.errors == []
+    prof.ctx.set_offline(True)
+    prof.page.reload()
+    prof.page.get_by_role("heading", name="인터넷 연결을 확인해 주세요").wait_for()
+    assert "교수" not in prof.page.locator("body").inner_text()
+    assert prof.page.evaluate("fetch('/api/bookings').then(() => false).catch(() => true)")
+    assert all("ERR_INTERNET_DISCONNECTED" in error for error in prof.errors), prof.errors
+    prof.errors.clear()
+    prof.ctx.set_offline(False)
+    prof.page.get_by_role("link", name="다시 연결하기").click()
+    prof.page.wait_for_selector('body[data-ready="/slots"]')
+    prof.close()
+    student = Session(browser, base, "pwa-student@test.ac.kr", MOBILE)
+    student.page.locator("#menu-btn").click()
+    assert student.page.locator(".pwa-install").count() == 0
+    student.close()
+
+
+def test_pwa_standalone_staff_home(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.ctx.add_init_script("""(() => {
+      const original = window.matchMedia.bind(window);
+      window.matchMedia = query => query === '(display-mode: standalone)'
+        ? {matches: true, addEventListener() {}} : original(query);
+    })();""")
+    prof.page.goto(base + "/")
+    prof.page.wait_for_selector('body[data-ready="/staff/today"]')
+    assert prof.page.locator(".pwa-install").count() == 0
+    prof.close()
+
+
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
     db = tmp_path_factory.mktemp("e2e") / "e2e.db"
