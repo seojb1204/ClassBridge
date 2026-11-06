@@ -29,7 +29,6 @@ function submitForm(root) {
   const btn = h("button", { class: "btn primary", type: "submit" }, "익명으로 제출");
   const form = h("form", { class: "panel" },
     h("p", { class: "muted" }, "제출은 선택입니다. 건의 내용에는 계정 정보와 정확한 제출 시각을 저장하지 않으며, 날짜만 저장합니다. 교수자·관리자 화면에는 작성자 정보가 표시되지 않습니다."),
-    h("p", { class: "hint" }, "이름·학번·연락처나 건강·심리 상태 등 민감정보를 적지 마세요. 내용이나 DB·서버 기록으로 작성자를 추정할 가능성까지 없애지는 못합니다."),
     h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
     field("공개 범위", visibility),
     h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 교수자 검토용이며 학생 게시판에 나타나지 않습니다."),

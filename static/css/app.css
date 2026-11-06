@@ -330,3 +330,15 @@ code { font-size: .78rem; word-break: break-all; }
 .available-day-buttons .btn { white-space: normal; text-align: left; }
 #slot-create-panel .notice { margin: 10px 0 0; overflow-wrap: anywhere; }
 #slot-create-panel [hidden] { display: none !important; }
+
+.schedule-preview{width:100%;min-width:0}
+.preview-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;margin:12px 0}
+.preview-month button{min-width:0;min-height:48px;padding:4px 0;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#174a78}
+.preview-month button strong,.preview-month button small{display:block}
+.preview-month button[aria-pressed="true"]{background:#e0e7ff;border:2px solid #4338ca;color:#312e81}
+.preview-month button:disabled{color:#94a3b8;background:#f8fafc;border-color:transparent}
+.preview-times{max-height:220px;overflow:auto;border-top:1px solid #dbe2ed;padding-top:8px}
+.notification-summary{font-size:.9rem}.notification-summary>div{margin:8px 0}.notification-summary small{display:block}
+.week-grid{scroll-margin-top:80px}
+
+.schedule-preview-body>p{margin:6px 0}.schedule-preview-body .row{justify-content:space-between}.schedule-preview-body h3{margin:6px 0}

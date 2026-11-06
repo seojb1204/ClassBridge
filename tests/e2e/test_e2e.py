@@ -340,6 +340,8 @@ SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
 
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
+    if s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).count():
+        s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
     form = s.page.locator("form.grid-form")
     form.get_by_label("날짜(시작일)", exact=True).fill(SLOT_DAY.isoformat())
     form.get_by_label("시작", exact=True).fill(start)
@@ -560,7 +562,8 @@ def test_survey_create_submit_results(server, browser):
     st.page.click("text=응답하기")
     st.page.locator(".survey-form").wait_for(state="visible")
     assert st.page.get_by_text("참여는 선택입니다.", exact=False).is_visible()
-    assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
+    assert st.page.get_by_text("DB·서버 기록", exact=False).count() == 0
+    assert st.page.get_by_text("이름·학번·연락처나", exact=False).count() == 0
     st.page.locator(".scale-choices .check").nth(3).click()
     st.page.get_by_label("서울", exact=True).check()
     st.page.fill("textarea", "실습이 좋았어요")
@@ -583,7 +586,8 @@ def test_suggestion_flow(server, browser):
     st = Session(browser, base, "student4@test.ac.kr", PC)
     st.go("/suggestions")
     assert st.page.get_by_text("제출은 선택입니다.", exact=False).is_visible()
-    assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
+    assert st.page.get_by_text("DB·서버 기록", exact=False).count() == 0
+    assert st.page.get_by_text("이름·학번·연락처나", exact=False).count() == 0
     st.shot("pc_student_suggestion_notice")
     st.page.get_by_label("유형", exact=False).select_option("assignment")
     st.page.fill("textarea", "<b>과제 마감</b>을 조금 늦춰 주세요")
@@ -955,10 +959,20 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.page.get_by_label('총 몇 주', exact=True).fill('2')
     prof.page.get_by_role('button', name='등록 미리보기', exact=True).click()
     prof.page.get_by_text('생성할 새 상담 12건', exact=True).wait_for()
-    assert (day + timedelta(days=7)).isoformat() in prof.page.locator('.modal').inner_text()
+    preview = prof.page.get_by_role('region', name='등록 예정 달력')
+    assert preview.get_by_role('button', name=f'{day.isoformat()} · 6개 예정', exact=True).count() == 1
+    assert preview.locator('.preview-times li').count() == 6
+    assert prof.page.evaluate('document.documentElement.scrollWidth') <= MOBILE['width'] + 1
+    prof.page.set_viewport_size(PC)
+    assert prof.page.evaluate('document.documentElement.scrollWidth') <= PC['width'] + 1
+    prof.shot('pc_schedule_calendar_preview')
+    prof.page.set_viewport_size(MOBILE)
     prof.shot('mobile_schedule_preview')
     prof.page.get_by_role('button', name='등록 확정', exact=True).click()
     prof.toast('12개 등록')
+    prof.page.locator('.daily-title:focus').wait_for()
+    assert prof.page.locator('#slot-create-panel').count() == 0
+    assert prof.page.locator('.daily .card.slot.open').count() == 6
     summary = prof.page.get_by_role('region', name='예약 가능한 상담 일정')
     # More than three dates may already exist from other end-to-end scenarios.
     if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
@@ -1009,3 +1023,38 @@ def test_late_calendar_response_does_not_overwrite_new_page(server, browser):
     assert student.page.get_by_role('heading', name='내 예약', exact=True).is_visible()
     assert student.page.get_by_role('region', name='예약 가능한 상담 일정').count() == 0
     student.close()
+
+
+def test_preview_month_boundary_and_professor_notification_summary(server, browser):
+    base, _ = server
+    session = Session(browser, base, "prof@test.ac.kr", MOBILE, service_workers="block")
+    page = session.page
+    page.route("**/api/admin/notification-summary", lambda route: route.fulfill(json={
+        "gmail": {"enabled": True, "recipient": True, "attention": 2, "pending": 1, "last_success": None},
+        "push": {"enabled": False, "recipient": True, "attention": 0, "pending": 0,
+                 "last_success": None, "session_registered": False}}))
+    session.go("/bookings")
+    panel = page.get_by_role("region", name="내 예약 알림 상태")
+    panel.get_by_text("확인 필요 2건", exact=False).wait_for()
+    assert "미설정" in panel.inner_text()
+    session.shot("mobile_professor_notification_summary")
+    page.route("**/api/admin/notification-summary", lambda route: route.fulfill(status=503, json={"message": "test"}))
+    panel.get_by_role("button", name="상태 새로고침").click()
+    panel.get_by_text("상태를 불러오지 못했습니다.", exact=False).wait_for()
+    expected_error = "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    assert session.errors == [expected_error]
+    session.errors.remove(expected_error)
+    page.evaluate("""async () => {
+        const {schedulePreview} = await import('/static/js/components/schedule-preview.js');
+        const root = document.createElement('div'); root.id='boundary-test';
+        root.append(schedulePreview(['2030-12-31','2031-01-07'].map(d => ({
+            start_at:d+'T10:00:00+09:00',end_at:d+'T10:30:00+09:00'}))));
+        document.body.append(root);
+    }""")
+    preview = page.locator("#boundary-test")
+    preview.get_by_role("button", name="다음 달").click()
+    assert preview.get_by_role("button", name="2031-01-07 · 1개 예정").get_attribute("aria-pressed") == "true"
+    assert "10:00 ~ 10:30" in preview.inner_text()
+    preview.get_by_role("button", name="이전 달").click()
+    assert preview.get_by_role("button", name="2030-12-31 · 1개 예정").get_attribute("aria-pressed") == "true"
+    session.close()
