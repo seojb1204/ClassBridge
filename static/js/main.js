@@ -1,4 +1,5 @@
 import { navIcon } from "./components/nav-icon.js";
+import { pushButton } from "./push.js";
 import { initializePwa, installButton, isStandalone } from "./pwa.js";
 // 앱 시작점: 로그인 확인 → 메뉴 구성 → 라우터 시작
 import { ApiError, get, post, setCsrf } from "./api.js";
@@ -98,6 +99,7 @@ function renderChrome() {
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
   mount(document.getElementById("userbox"),
     support.helpLink("btn small desktop-help-link"),
+      pushButton(),
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
   const menu = document.getElementById("menu-btn");

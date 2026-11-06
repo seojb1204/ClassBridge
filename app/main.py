@@ -1,7 +1,9 @@
 """앱 조립만 담당한다. 업무 로직은 services/, HTTP 처리는 routers/에 있다."""
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -31,6 +33,7 @@ from app.routers import (
     support,
     surveys,
 )
+from app.services.notifications import NotificationWorker
 
 log = logging.getLogger("classbridge")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -39,12 +42,25 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 def create_app(settings: Settings | None = None, identity_verifier=None) -> FastAPI:
     settings = settings or load_settings()
     settings.validate()
-    app = FastAPI(title="ClassBridge", version="1.0.0",
+    @asynccontextmanager
+    async def lifespan(app):
+        worker = None
+        if settings.gmail_notifications_enabled or settings.push_enabled:
+            worker = NotificationWorker(app.state.SessionLocal, settings)
+            worker.start()
+        try:
+            yield
+        finally:
+            if worker:
+                await asyncio.to_thread(worker.stop)
+
+    app = FastAPI(lifespan=lifespan, title="ClassBridge", version="1.0.0",
                   docs_url=None if settings.is_production else "/docs", redoc_url=None)
     engine = make_engine(settings.database_url)
     app.state.settings = settings
     app.state.engine = engine
     app.state.SessionLocal = make_sessionmaker(engine)
+    app.state.SessionLocal.configure(info={"settings": settings})
     app.state.identity_verifier = identity_verifier or verify_with_google
     # 건의함: 제출 '횟수'는 무제한이지만 자동화된 폭주는 차단 (분당 5회, 시간당 30회)
     app.state.suggestion_limiter = RateLimiter([(5, 60), (30, 3600)])
@@ -78,6 +94,8 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
               suggestions.router, support.router, analysis.router, announcement.router, public_surveys.router):
         app.include_router(r)
     app.include_router(site_share.router)
+    from app.routers import notifications
+    app.include_router(notifications.router)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz():

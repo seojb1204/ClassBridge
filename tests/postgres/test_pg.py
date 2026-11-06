@@ -23,6 +23,83 @@ from tests.conftest import ADMIN, PG_URL, login, make_settings, make_slots
 pytestmark = pytest.mark.skipif(not PG_URL, reason="TEST_PG_URL 미설정")
 
 
+def test_notification_last_seat_and_worker_claim_race(pg_app):
+    from app.models import Notification
+    from app.services.notifications import claim
+    from tests.integration.test_notifications import enable
+    enable(pg_app)
+    p = login(pg_app, "prof@test.ac.kr")
+    slot = make_slots(p)[0]
+    ids = _students(pg_app, 8)
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            booking_service.book(db, db.get(User, ids[i]), slot)
+    assert _race(8, attempt).count("ok") == 1
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Notification)) == 1
+    claimed = []
+    def take(_):
+        row = claim(pg_app.state.SessionLocal)
+        if row:
+            claimed.append(row.id)
+    assert _race(5, take) == ["ok"] * 5
+    assert len(claimed) == 1
+
+
+def test_account_delete_vs_booking_preserves_references(pg_app):
+    from sqlalchemy.exc import IntegrityError
+
+    from app.core.errors import AppError
+    admin = login(pg_app, ADMIN)
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = _students(pg_app, 1)[0]
+    slot = make_slots(prof)[0]
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            try:
+                if i == 0:
+                    user_service.delete_empty_student(db, db.get(User, admin.me["id"]), student)
+                else:
+                    actor = db.get(User, student)
+                    if actor:
+                        booking_service.book(db, actor, slot)
+            except (AppError, IntegrityError):
+                db.rollback()
+    assert _race(2, attempt) == ["ok", "ok"]
+    with pg_app.state.SessionLocal() as db:
+        count = db.scalar(select(func.count()).select_from(Booking).where(Booking.student_id == student))
+        assert db.get(Slot, slot).booked_count == count
+        if count:
+            assert db.get(User, student) is not None
+
+
+@pytest.mark.parametrize("reschedule", [False, True])
+def test_slot_cancel_vs_student_action_has_no_duplicate_alert(pg_app, reschedule):
+    from app.models import Notification
+    from tests.integration.test_notifications import enable
+    enable(pg_app)
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = login(pg_app, "race-student@test.ac.kr")
+    slots = make_slots(prof)
+    booking = student.post("/api/bookings", json={"slot_id": slots[0]}).json()["id"]
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            if i == 0:
+                booking_service.cancel_slot(db, db.get(User, prof.me["id"]), slots[0], True, "test")
+            elif reschedule:
+                booking_service.reschedule(db, db.get(User, student.me["id"]), booking, slots[1])
+            else:
+                booking_service.cancel(db, db.get(User, student.me["id"]), booking)
+    results = _race(2, attempt)
+    assert "ok" in results
+    assert all(not r.startswith("ERR:") for r in results), results
+    with pg_app.state.SessionLocal() as db:
+        queue = list(db.scalars(select(Notification)))
+        assert len(queue) == 2  # created + exactly one cancellation/change
+        assert db.get(Slot, slots[0]).booked_count == 0
+        assert db.get(Booking, booking).status == "cancelled"
+
+
 @pytest.mark.parametrize("revision", [0, 1])
 def test_announcement_concurrent_publish_has_one_winner(pg_app, revision):
     from types import SimpleNamespace

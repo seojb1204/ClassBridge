@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Callable, TypeVar
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, BadRequest, Conflict, Forbidden, NotFound
@@ -24,6 +24,7 @@ from app.repositories import bookings as repo
 from app.repositories import users as users_repo
 from app.services import booking_policy as policy_mod
 from app.services.booking_policy import Policy
+from app.services.notifications import enqueue
 from app.services.settings_service import get_settings
 from app.timeutil import KST
 
@@ -56,6 +57,12 @@ def _atomic(db: Session, fn: Callable[[], T]) -> T:
         if "booked_range" in msg or "check" in msg:
             raise Conflict("정원 조건을 만족하지 않습니다", code="capacity") from exc
         raise Conflict("데이터 충돌이 발생했습니다. 다시 시도하세요") from exc
+    except OperationalError as exc:
+        db.rollback()
+        if getattr(exc.orig, "sqlstate", None) in ("40P01", "40001"):
+            raise Conflict("다른 예약 작업과 겹쳤습니다. 기존 기록은 유지됩니다. 다시 시도해 주세요",
+                           code="booking_concurrent_change") from None
+        raise
     except AppError:
         db.rollback()
         raise
@@ -291,11 +298,17 @@ def update_slot(db: Session, actor: User, slot_id: int, *, capacity: int | None 
             if repo.overlapping_open_slots(db, ns, ne, exclude_id=s.id):
                 raise Conflict("다른 상담 시간과 겹칩니다", code="slot_overlap")
             s.start_at, s.end_at = ns, ne
+        changed_info = (new_kind != s.kind or (location is not None and location != s.location)
+                        or (note is not None and note != s.note))
         s.kind, s.capacity = new_kind, new_cap
         if location is not None:
             s.location = location[:200]
         if note is not None:
             s.note = note[:500]
+        if changed_info:
+            for b in repo.active_bookings_for_slot(db, s.id):
+                ev = repo.add_event(db, b.id, actor.id, "slot_changed")
+                enqueue(db, b, ev, "slot_changed")
         audit_repo.add(db, actor.id, "slot.update", "slot", s.id,
                        {"capacity": s.capacity, "kind": s.kind})
         return s
@@ -319,7 +332,8 @@ def cancel_slot(db: Session, actor: User, slot_id: int, force: bool, reason: str
         for b in active:
             b.status = "cancelled"
             b.cancel_reason = f"상담 시간 취소: {reason}"[:500]
-            repo.add_event(db, b.id, actor.id, "cancel_by_slot", reason)
+            ev = repo.add_event(db, b.id, actor.id, "cancel_by_slot", reason)
+            enqueue(db, b, ev, "cancelled")
         s.status = "cancelled"
         s.booked_count = 0
         audit_repo.add(db, actor.id, "slot.cancel", "slot", s.id,
@@ -376,7 +390,8 @@ def book(db: Session, actor: User, slot_id: int, student_id: int | None = None,
                     consultation_type=consultation_type, consultation_mode=consultation_mode)
         db.add(b)
         db.flush()  # 부분 유니크 인덱스 위반은 여기서 IntegrityError
-        repo.add_event(db, b.id, actor.id, "book" if actor.id == student.id else "book_by_staff")
+        ev = repo.add_event(db, b.id, actor.id, "book" if actor.id == student.id else "book_by_staff")
+        enqueue(db, b, ev, "created")
         if actor.id != student.id:
             audit_repo.add(db, actor.id, "booking.create_for_student", "booking", b.id,
                            {"student_id": student.id, "slot_id": slot.id})
@@ -404,7 +419,8 @@ def cancel(db: Session, actor: User, booking_id: int, reason: str = "",
         b.status = "cancelled"
         b.cancel_reason = reason[:500]
         repo.release_seat(db, b.slot_id)
-        repo.add_event(db, b.id, actor.id, "cancel_by_staff" if staff else "cancel", reason)
+        ev = repo.add_event(db, b.id, actor.id, "cancel_by_staff" if staff else "cancel", reason)
+        enqueue(db, b, ev, "cancelled")
         if staff:
             audit_repo.add(db, actor.id, "booking.cancel_by_staff", "booking", b.id,
                            {"student_id": b.student_id, "reason": reason[:200]})
@@ -447,7 +463,8 @@ def reschedule(db: Session, actor: User, booking_id: int, new_slot_id: int, reas
         db.add(nb)
         db.flush()
         repo.add_event(db, old.id, actor.id, "rescheduled_from", f"→ booking {nb.id}")
-        repo.add_event(db, nb.id, actor.id, "rescheduled_to", f"← booking {old.id}; {reason}")
+        ev = repo.add_event(db, nb.id, actor.id, "rescheduled_to", f"← booking {old.id}; {reason}")
+        enqueue(db, nb, ev, "changed", old=old)
         if staff:
             audit_repo.add(db, actor.id, "booking.reschedule_by_staff", "booking", nb.id,
                            {"from_booking": old.id, "student_id": old.student_id, "reason": reason[:200]})

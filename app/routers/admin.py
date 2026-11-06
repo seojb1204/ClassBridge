@@ -38,6 +38,17 @@ def get_settings(p: Principal = Depends(require(P.SETTINGS_MANAGE)), db: Session
     return {"values": settings_service.get_settings(db), "specs": settings_service.describe()}
 
 
+@router.get("/users/{user_id}/deletion-preview")
+def deletion_preview(user_id: int, p: Principal = Depends(require(P.USER_MANAGE)), db: Session = Depends(get_db)):
+    return user_service.deletion_preview(db, p.user, user_id)
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, p: Principal = Depends(require(P.USER_MANAGE)), db: Session = Depends(get_db)):
+    user_service.delete_empty_student(db, p.user, user_id)
+    return {"ok": True}
+
+
 @router.put("/settings")
 def put_settings(changes: dict = Body(...),
                  p: Principal = Depends(require(P.SETTINGS_MANAGE)), db: Session = Depends(get_db)):
