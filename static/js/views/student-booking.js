@@ -117,7 +117,8 @@ async function openSlot(root, s, active, policy) {
         });
         return true;
       } catch (e) {
-        errorToast(e);
+        if (e.code === "slot_full") toast("다른 학생이 먼저 예약했습니다. 가능한 시간을 다시 선택해 주세요.", "error");
+        else errorToast(e);
         if (e.code === "slot_full" || e.status === 0) { await draw(root); return null; }
         return false;
       }

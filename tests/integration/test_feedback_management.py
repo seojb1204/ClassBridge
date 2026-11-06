@@ -62,8 +62,7 @@ def test_survey_trash_protects_responses_and_cascades_only_on_confirmed_purge(ap
     path = f"/api/surveys/{sid}"
     s.post(path + "/responses", json={"answers": _answers(qids)})
     copy_id = p.post(path + "/duplicate").json()["id"]
-    assert p.post(path + "/trash").status_code == 409
-    p.post(path + "/close")
+    # Published surveys can now be trashed directly; restore must stay closed.
     assert p.post(path + "/trash").status_code == 204
     assert s.get(f"/api/surveys/student/{sid}").status_code == 404
     assert s.post(path + "/responses", json={"answers": _answers(qids)}).status_code == 404

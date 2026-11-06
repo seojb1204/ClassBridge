@@ -52,7 +52,7 @@ def manage_survey(db, actor, sid, action, confirmation="", expected_count=None):
         raise NotFound("설문을 찾을 수 없습니다")
     if action == "trash":
         if item.status == "published":
-            raise Conflict("게시 중인 설문은 먼저 종료해 주세요")
+            item.status = "closed"
         item.deleted_at = utcnow()
     elif action == "restore":
         item.deleted_at = None

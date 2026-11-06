@@ -24,7 +24,7 @@ async function staffList(root) {
         if (word !== "영구 삭제") return;
         body = { confirmation: word, response_count: s.response_count };
       } else if (!(await confirmAction(action === "trash" ? "설문 휴지통 이동" : "설문 복원",
-        action === "trash" ? `‘${s.title}’과 답변 ${s.response_count}건을 휴지통으로 옮깁니다. 학생에게 숨겨지며 복원할 수 있습니다. 필요한 결과 파일은 먼저 내려받으세요.` : "이전 상태로 복원합니다. 종료된 설문은 다시 게시되지 않습니다.", "확인", action === "trash"))) return;
+        action === "trash" ? `‘${s.title}’과 답변 ${s.response_count}건을 휴지통으로 옮기고 응답 접수를 중단합니다. 복원해도 자동으로 다시 공개되지 않습니다. 필요한 결과 파일은 먼저 내려받으세요.` : "설문을 복원합니다. 종료된 설문은 다시 게시되지 않습니다.", "확인", action === "trash"))) return;
       await post(`/api/surveys/${s.id}/${action}`, body);
       await staffList(root);
     } catch (e) { errorToast(e); }
@@ -45,8 +45,7 @@ async function staffList(root) {
         h("a", { class: "btn small", href: `#/surveys/edit/${s.id}` }, s.status === "draft" ? "편집" : "설정"),
         s.status === "published" ? h("button", { class: "btn small", onclick: () => showSurveyQr(s) }, "QR 공유") : null,
         s.status !== "draft" ? h("a", { class: "btn small", href: `#/surveys/results/${s.id}` }, "결과") : null,
-        s.status !== "published" ? h("button", { class: "btn small danger", onclick: () => manage(s, "trash") }, "휴지통으로")
-          : h("span", { class: "hint" }, "삭제하려면 설정에서 먼저 설문을 종료하세요."),
+        h("button", { class: "btn small danger", onclick: () => manage(s, "trash") }, "휴지통으로"),
       ])))) : empty(showTrash ? "휴지통이 비어 있습니다." : "아직 설문이 없습니다."));
 }
 

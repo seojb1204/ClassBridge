@@ -137,3 +137,45 @@ def set_active(db: Session, actor: User, target_id: int, active: bool) -> User:
                    {"email": target.email})
     db.commit()
     return target
+
+
+def deletion_preview(db: Session, actor: User, target_id: int, *, lock=False) -> dict:
+    from sqlalchemy import func, or_, select
+
+    from app.db import Base
+    if actor.role != "admin":
+        raise Forbidden("관리자만 학생 계정을 삭제할 수 있습니다")
+    target = _target(db, target_id, lock=lock)
+    if target.id == actor.id or target.role != "student":
+        raise Forbidden("학생 계정만 삭제할 수 있습니다")
+    # Discover every FK, including future features; no cascading business-data deletion.
+    records = {}
+    labels = {"bookings": "예약", "booking_events": "예약 작업", "surveys": "설문",
+              "survey_participation": "설문 참여", "audit_logs": "관리 작업 이력",
+              "support_tickets": "개발자 메시지", "slots": "상담 시간"}
+    for table in Base.metadata.tables.values():
+        if table.name == "auth_sessions":
+            continue
+        columns = [fk.parent for fk in table.foreign_keys if fk.target_fullname == "users.id"]
+        if columns:
+            count = db.scalar(select(func.count()).select_from(table).where(or_(*(c == target_id for c in columns))))
+            if count:
+                records[labels.get(table.name, "연결 기록 (" + table.name + ")")] = count
+    return {"id": target.id, "name": target.name, "email": target.email,
+            "can_delete": not records, "records": records}
+
+
+def delete_empty_student(db: Session, actor: User, target_id: int):
+    from sqlalchemy.exc import IntegrityError
+    preview = deletion_preview(db, actor, target_id, lock=True)
+    if not preview["can_delete"]:
+        raise Conflict("연결된 기록이 있어 삭제할 수 없습니다. 기록은 보존됩니다")
+    target = _target(db, target_id)
+    invalidate_user_sessions(db, target_id)
+    db.delete(target)
+    audit_repo.add(db, actor.id, "user.delete_empty_student", "user", target_id)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise Conflict("연결 기록이 추가되어 삭제하지 않았습니다. 목록을 새로 확인하세요") from None

@@ -31,6 +31,18 @@ class Settings:
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    gmail_notifications_enabled: bool = False
+    gmail_client_id: str = ""
+    gmail_client_secret: str = field(default="", repr=False)
+    gmail_refresh_token: str = field(default="", repr=False)
+    gmail_sender_email: str = ""
+    gmail_professor_email: str = ""
+    push_enabled: bool = False
+    push_public_key: str = ""
+    push_private_key: str = field(default="", repr=False)
+    push_professor_email: str = ""
+    push_contact_email: str = ""
+
     # 최초 역할 부여용 허용 목록 (계정 최초 생성 시에만 적용)
     admin_emails: list[str] = field(default_factory=list)
     professor_emails: list[str] = field(default_factory=list)
@@ -62,6 +74,31 @@ class Settings:
         return self.env == "production"
 
     def validate(self) -> None:
+        if self.push_enabled:
+            if not all((self.push_public_key, self.push_private_key,
+                        self.push_professor_email, self.push_contact_email)):
+                raise ConfigError("휴대폰 알림 키·수신 교수자·운영 연락처 설정이 필요합니다")
+            from app.infra.push import validate_keys
+            validate_keys(self.push_public_key, self.push_private_key)
+            import re
+            for address in (self.push_professor_email, self.push_contact_email):
+                if not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", address):
+                    raise ConfigError("휴대폰 알림 수신·연락처는 각각 하나의 이메일이어야 합니다")
+        if self.gmail_notifications_enabled:
+            import re
+            from urllib.parse import urlsplit
+            if not all((self.gmail_client_id, self.gmail_client_secret, self.gmail_refresh_token)):
+                raise ConfigError("Gmail 발송용 인증 설정이 필요합니다 (값은 로그에 표시하지 않습니다)")
+            for address in (self.gmail_sender_email, self.gmail_professor_email):
+                if not re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", address):
+                    raise ConfigError("Gmail 발신·수신 주소는 각각 하나의 이메일이어야 합니다")
+            url = urlsplit(self.base_url)
+            if not url.netloc or url.username or url.password or url.query or url.fragment:
+                raise ConfigError("Gmail 확인 링크 BASE_URL을 확인하세요")
+            if self.is_production and url.scheme != "https":
+                raise ConfigError("운영 Gmail 확인 링크에는 HTTPS가 필요합니다")
+            if self.gmail_client_id == self.google_client_id:
+                raise ConfigError("로그인용과 발송용 OAuth 클라이언트를 분리하세요")
         if self.public_notice_enabled and (not self.operator_name.strip()
                 or "@" not in self.support_email or any(c in self.support_email for c in "\r\n<>")):
             raise ConfigError("Public notice requires OPERATOR_NAME and SUPPORT_EMAIL")
@@ -108,6 +145,17 @@ def load_settings() -> Settings:
         base_url=os.getenv("BASE_URL", Settings.base_url).rstrip("/"),
         google_client_id=os.getenv("GOOGLE_CLIENT_ID", ""),
         google_client_secret=os.getenv("GOOGLE_CLIENT_SECRET", ""),
+        gmail_notifications_enabled=_bool("GMAIL_NOTIFICATIONS_ENABLED", False),
+        push_enabled=_bool("PUSH_ENABLED", False),
+        push_public_key=os.getenv("PUSH_PUBLIC_KEY", ""),
+        push_private_key=os.getenv("PUSH_PRIVATE_KEY", ""),
+        push_professor_email=os.getenv("PUSH_PROFESSOR_EMAIL", "").strip().lower(),
+        push_contact_email=os.getenv("PUSH_CONTACT_EMAIL", "").strip().lower(),
+        gmail_client_id=os.getenv("GMAIL_CLIENT_ID", ""),
+        gmail_client_secret=os.getenv("GMAIL_CLIENT_SECRET", ""),
+        gmail_refresh_token=os.getenv("GMAIL_REFRESH_TOKEN", ""),
+        gmail_sender_email=os.getenv("GMAIL_SENDER_EMAIL", "").strip().lower(),
+        gmail_professor_email=os.getenv("GMAIL_PROFESSOR_EMAIL", "").strip().lower(),
         admin_emails=_list("ADMIN_EMAILS"),
         professor_emails=_list("PROFESSOR_EMAILS"),
         allowed_email_domains=_list("ALLOWED_EMAIL_DOMAINS"),

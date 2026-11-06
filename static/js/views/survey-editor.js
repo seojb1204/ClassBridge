@@ -156,6 +156,11 @@ export async function render(root, { id }) {
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, model.id ? "설문 편집" : "새 설문"), badge(STATUS_LABEL[s.status], s.status)),
     h("div", { class: "toolbar" }, saveBtn, previewBtn,
+      model.id ? h("button", { class: "btn danger", onclick: async () => {
+        if (!await confirmAction("설문 삭제", "설문을 휴지통으로 옮기고 응답 접수를 중단합니다. 기존 답변은 보존하며 복원해도 자동으로 다시 공개되지 않습니다. 저장하지 않은 편집 내용은 사라집니다.", "삭제", true)) return;
+        try { await post(`/api/surveys/${model.id}/trash`); go("/surveys"); toast("휴지통으로 옮겼습니다", "success"); }
+        catch (e) { errorToast(e); }
+      } }, "삭제") : null,
       s.status === "draft" && model.id ? pubBtn : null,
       s.status === "published" ? closeBtn : null,
       model.id ? dupBtn : null, model.id && s.status !== "draft" ? linkBtn : null,

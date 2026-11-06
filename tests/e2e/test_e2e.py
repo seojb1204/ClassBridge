@@ -27,6 +27,46 @@ PC = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
 
 
+def test_editor_direct_trash_and_empty_account_cleanup(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go("/surveys/edit/new")
+    prof.page.fill(".title-input", "바로 삭제 검증")
+    prof.page.get_by_role("button", name="+ 문항 추가", exact=True).click()
+    prof.page.locator(".q-title").fill("소감")
+    prof.page.get_by_role("button", name="초안 저장", exact=True).click()
+    prof.page.wait_for_url(re.compile(r".*/surveys/edit/\d+$"))
+    prof.page.locator(".toolbar").get_by_role("button", name="게시", exact=True).click()
+    prof.page.locator(".modal").get_by_role("button", name="게시", exact=True).click()
+    prof.toast("게시했습니다")
+    prof.page.locator(".toolbar").get_by_role("button", name="삭제", exact=True).click()
+    prof.shot("mobile_survey_direct_delete")
+    prof.page.locator(".modal").get_by_role("button", name="삭제", exact=True).click()
+    prof.page.wait_for_url(re.compile(r".*/#/surveys$"))
+    prof.page.get_by_role("button", name="휴지통", exact=True).click()
+    card = prof.page.locator(".card").filter(has_text="바로 삭제 검증")
+    card.get_by_role("button", name="복원", exact=True).click()
+    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    card.wait_for(state="detached")
+    prof.page.get_by_role("button", name="설문 목록", exact=True).click()
+    prof.page.locator(".card").filter(has_text="바로 삭제 검증").get_by_text("종료", exact=True).wait_for()
+    prof.close()
+    student = Session(browser, base, "empty-delete@test.ac.kr", MOBILE)
+    student.close()
+    admin = Session(browser, base, "admin@test.ac.kr", PC)
+    admin.go("/admin/users")
+    row = admin.page.locator("tr[data-user-email='empty-delete@test.ac.kr']")
+    row.get_by_role("button", name="계정 삭제", exact=True).click()
+    admin.shot("pc_empty_account_delete")
+    admin.page.locator(".modal").get_by_role("button", name="삭제", exact=True).click()
+    admin.toast("학생 계정을 삭제했습니다")
+    assert row.count() == 0
+    admin.go("/admin/settings")
+    admin.page.get_by_role("heading", name="예약 알림 상태", exact=True).wait_for()
+    admin.shot("pc_notification_settings")
+    admin.close()
+
+
 def test_booking_announcement_mobile_lifecycle(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)

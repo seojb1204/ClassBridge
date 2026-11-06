@@ -1,6 +1,7 @@
 // 관리자: 계정·역할, 운영 설정, 감사 기록
-import { get, put } from "../api.js";
+import { del, get, put } from "../api.js";
 import { state } from "../state.js";
+import { notificationStatus } from "../components/notification-status.js";
 import { fmtDateTime } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, mount, select, toast } from "../ui.js";
 
@@ -34,7 +35,20 @@ function row(root, u) {
   }));
   return h("tr", { dataset: { userEmail: u.email } },
     h("td", { "data-label": "이름" }, u.name, self ? " (나)" : ""), h("td", { "data-label": "이메일" }, u.email),
-    h("td", { "data-label": "역할" }, role), h("td", { "data-label": "상태" }, toggle),
+    h("td", { "data-label": "역할" }, role), h("td", { "data-label": "상태" }, toggle,
+      !self && u.role === "student" ? h("button", { class: "btn small danger", onclick: async () => {
+        try {
+          const preview = await get(`/api/admin/users/${u.id}/deletion-preview`);
+          if (!preview.can_delete) {
+            await confirmAction("삭제할 수 없는 계정", Object.entries(preview.records).map(([k, v]) => `${k} ${v}건`).join(" · ") + "이 연결되어 있습니다. 기록과 계정은 보존합니다.", "확인");
+            return;
+          }
+          if (!await confirmAction("학생 계정 삭제", `${preview.name} (${preview.email}) 계정을 삭제합니다. 연결된 활동 기록은 없으며 로그인은 해제됩니다. 계정 삭제는 복원할 수 없지만, 다시 Google 로그인하면 새로 가입할 수 있습니다.`, "삭제", true)) return;
+          await del(`/api/admin/users/${u.id}`);
+          await renderUsers(root);
+          toast("학생 계정을 삭제했습니다", "success");
+        } catch (e) { errorToast(e); }
+      } }, "계정 삭제") : null),
     h("td", { "data-label": "최근 로그인" }, u.last_login_at ? fmtDateTime(u.last_login_at) : "-"));
 }
 
@@ -55,7 +69,7 @@ export async function renderSettings(root) {
     try { await put("/api/admin/settings", changes); toast("저장했습니다", "success"); renderSettings(root); }
     catch (err) { errorToast(err); }
   }));
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "운영 설정")), form);
+  mount(root, h("div", { class: "page-head" }, h("h1", {}, "운영 설정")), form, await notificationStatus());
 }
 
 export async function renderAudit(root) {

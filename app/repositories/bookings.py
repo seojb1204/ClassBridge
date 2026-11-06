@@ -70,7 +70,7 @@ def bookings_of_student(db: Session, student_id: int) -> list[Booking]:
 
 def active_bookings_for_slot(db: Session, slot_id: int) -> list[Booking]:
     return list(db.execute(
-        select(Booking).where(Booking.slot_id == slot_id, Booking.status == "booked")
+        select(Booking).where(Booking.slot_id == slot_id, Booking.status == "booked").with_for_update(of=Booking)
     ).unique().scalars())
 
 
@@ -87,8 +87,11 @@ def search_bookings(db: Session, start: datetime | None, end: datetime | None,
     return [(b, u) for b, u in db.execute(stmt).unique().all()]
 
 
-def add_event(db: Session, booking_id: int, actor_id: int, action: str, detail: str = "") -> None:
-    db.add(BookingEvent(booking_id=booking_id, actor_id=actor_id, action=action, detail=detail[:500]))
+def add_event(db: Session, booking_id: int, actor_id: int, action: str, detail: str = "") -> BookingEvent:
+    event = BookingEvent(booking_id=booking_id, actor_id=actor_id, action=action, detail=detail[:500])
+    db.add(event)
+    db.flush()
+    return event
 
 
 def events_for(db: Session, booking_id: int) -> list[BookingEvent]:
