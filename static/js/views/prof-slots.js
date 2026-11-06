@@ -1,4 +1,5 @@
 import { schedulePreview } from "../components/schedule-preview.js";
+import { staffToday } from "../components/staff-today.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
@@ -48,6 +49,7 @@ async function draw(root, revealDay = false) {
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
+    staffToday(),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,

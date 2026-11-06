@@ -6,6 +6,7 @@ import { onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../c
 import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 import { state } from "../state.js";
+import { watchRefresh } from "../live-refresh.js";
 
 let weekStart = null;
 let selectedDay = null;
@@ -28,6 +29,10 @@ export async function render(root) {
   detach?.();
   detach = onLayoutChange(() => draw(root));
   await draw(root);
+  watchRefresh(root, () => draw(root), () => {
+    const label = root.querySelector('.refresh-status');
+    if (label) label.textContent = '자동 갱신 실패 · 연결을 확인하고 새로고침하세요.';
+  });
 }
 
 async function draw(root, revealDay = false) {
@@ -43,6 +48,9 @@ async function draw(root, revealDay = false) {
   const active = mine.find((b) => b.status === "booked");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
+    h("div", { class: "actions" },
+      h("small", { class: "muted refresh-status" }, "30초마다 갱신 · 최종 확인 " + new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' })),
+      h("button", { class: "btn small", onclick: () => draw(root).catch(errorToast) }, "예약 현황 새로고침")),
     announcementPanel(announcement),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
@@ -130,4 +138,3 @@ async function openSlot(root, s, active, policy) {
     await draw(root);
   }
 }
-

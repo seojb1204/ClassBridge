@@ -1,4 +1,5 @@
 import { get, post } from "../api.js";
+import { notificationHelp } from './notification-help.js';
 import { confirmAction, errorToast, h, toast } from "../ui.js";
 
 const labels = { pending: "발송 대기", sending: "발송 중", sent: "서비스 접수 완료", uncertain: "발송 여부 확인 필요", reauth: "인증·키 확인 필요", failed: "발송 실패", skipped: "발송 제외" };
@@ -14,6 +15,7 @@ export async function notificationStatus() {
         ...status.items.map((item) => h("div", { class: "card" },
           h("strong", {}, `${item.channel === "push" ? "휴대폰" : "이메일"} · 예약 #${item.booking_id} · ${labels[item.status] || item.status}`),
           h("span", { class: "muted" }, `${item.attempts}회 시도 · ${item.error_code || "대기 중"}`),
+          h("p", { class: "notification-help" }, notificationHelp(item)),
           ["uncertain", "reauth", "failed"].includes(item.status) ? h("div", { class: "actions" },
             ...[["retry", "재시도"], ["confirmed_sent", "수신 확인됨"], ["skip", "발송 제외"]].map(([action, label]) => h("button", { class: "btn small", onclick: async () => {
               if (!await confirmAction("알림 처리", `${label} 처리할까요? 발신함·기기를 먼저 확인하세요. 재시도하면 이미 전달된 알림이 중복으로 전달될 수 있습니다.`, "확인")) return;
