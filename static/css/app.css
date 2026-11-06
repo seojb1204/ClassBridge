@@ -318,3 +318,13 @@ code { font-size: .78rem; word-break: break-all; }
 .survey-settings .field { min-width: 0; }
 .survey-settings input, .survey-settings select { min-width: 0; max-width: 100%; }
 @media (max-width: 720px) { .survey-settings .grid-form { grid-template-columns: minmax(0, 1fr); } }
+
+/* Distinct navigation shapes and an availability summary above the notice. */
+#nav > a:not(.mobile-help-link) { display: inline-flex; align-items: center; gap: 6px; }
+.nav-icon { flex: 0 0 auto; vertical-align: middle; }
+.available-days { padding: 16px; margin: 12px 0; border: 1px solid #b8d4cc; border-left: 4px solid #176d59; border-radius: 12px; background: #f2faf7; }
+.available-days h2 { font-size: 1rem; margin: 0 0 12px; }
+.available-day-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.available-day-buttons .btn { white-space: normal; text-align: left; }
+#slot-create-panel .notice { margin: 10px 0 0; overflow-wrap: anywhere; }
+#slot-create-panel [hidden] { display: none !important; }

@@ -435,3 +435,23 @@ def test_non_superuser_owner_bypasses_rls(pg_app):
         n = conn.execute(text("SELECT count(*) FROM users")).scalar()
         conn.rollback()  # 소유자 변경 되돌림
     assert n >= 1
+
+
+def test_cancelled_slot_delete_race_has_one_winner(pg_app):
+    admin = login(pg_app, ADMIN)
+    sid = make_slots(admin)[0]
+    admin.post(f"/api/slots/{sid}/cancel", json={})
+
+    def remove(_):
+        with pg_app.state.SessionLocal() as db:
+            actor = db.get(User, admin.me["id"])
+            try:
+                booking_service.delete_empty_cancelled_slot(db, actor, sid)
+                return "deleted"
+            except AppError as error:
+                return error.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(remove, range(2)))
+    assert outcomes.count("deleted") == 1
+    assert outcomes.count(404) == 1

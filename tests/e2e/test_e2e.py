@@ -266,13 +266,12 @@ SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
     form = s.page.locator("form.grid-form")
-    form.locator("input[type=date]").fill(SLOT_DAY.isoformat())
-    times = form.locator("input[type=time]")
-    times.nth(0).fill(start)
-    times.nth(1).fill(end)
+    form.get_by_label("날짜(시작일)", exact=True).fill(SLOT_DAY.isoformat())
+    form.get_by_label("시작", exact=True).fill(start)
+    form.get_by_label("종료", exact=True).fill(end)
     form.locator("input[type=number]").nth(0).fill(str(duration))
     if kind == "group":
-        form.locator("select").select_option("group")
+        form.get_by_label("유형", exact=True).select_option("group")
         form.locator("input[type=number]").nth(2).fill(str(cap))
     form.locator("button[type=submit]").click()
     s.page.locator(".modal button:text-is('등록 확정')").click()
@@ -616,7 +615,7 @@ def test_mobile_professor_views(server, browser):
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
             prof.page.get_by_role("button", name="+ 상담 시간 등록").click()
             assert prof.page.get_by_label("장소", exact=True).input_value() == "m205"
-            datebox = prof.page.locator("#slot-create-panel input[type=date]").bounding_box()
+            datebox = prof.page.get_by_label("날짜(시작일)", exact=True).bounding_box()
             assert datebox and datebox["height"] < 70
         width = prof.page.evaluate("document.documentElement.scrollWidth")
         assert width <= MOBILE["width"] + 1, f"{path} 가로 스크롤 발생: {width}"
@@ -828,3 +827,97 @@ def test_site_qr_available_to_guests_students_and_staff(server, browser):
     page.get_by_role("button", name="사이트 접속 QR", exact=True).click()
     page.get_by_alt_text("ClassBridge 사이트 접속 QR 코드").evaluate("img => img.decode()")
     context.close()
+
+
+def test_daytime_input_parser_boundaries(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", PC)
+    result = prof.page.evaluate("""async () => {
+      const m = await import('/static/js/schedule-input.js');
+      const safe = fn => { try { return fn(); } catch { return 'invalid'; } };
+      return {
+        times: ['10 00', '1000', '10시', '3', '3 30', '12', '18:00', '7', '오전 6시', '저녁7시', '18:30', '10:60']
+          .map(v => safe(() => m.parseTime(v))),
+        dates: ['11 20', '11/20', '11월 20일', '1120', '20261120', '2/30', '1/1']
+          .map(v => safe(() => m.parseDate(v, '2026-11-06'))),
+        sentence: m.parseSchedule('11월 20일 3시~6시', '2026-11-06'),
+        backwards: safe(() => m.parseSchedule('11월 20일 6시~3시', '2026-11-06')),
+        leap: m.parseDate('2028-02-29', '2026-11-06'),
+      };
+    }""")
+    assert result['times'] == ['10:00', '10:00', '10:00', '15:00', '15:30', '12:00', '18:00'] + ['invalid'] * 5
+    assert result['dates'] == ['2026-11-20'] * 5 + ['invalid'] * 2
+    assert result['sentence'] == {'date': '2026-11-20', 'start': '15:00', 'end': '18:00'}
+    assert result['backwards'] == 'invalid' and result['leap'] == '2028-02-29'
+    prof.close()
+
+
+def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go('/slots')
+    assert prof.page.locator('#nav a .nav-icon').count() >= 5
+    prof.page.get_by_role('button', name='+ 상담 시간 등록', exact=True).click()
+    day = today_kst(utcnow()) + timedelta(days=10)
+    prof.page.get_by_label('한 문장으로 입력', exact=True).fill(f'{day.isoformat()} 3시~6시')
+    prof.page.get_by_role('button', name='입력 내용 적용', exact=True).click()
+    assert prof.page.get_by_label('시작', exact=True).input_value() == '15:00'
+    assert prof.page.get_by_label('종료', exact=True).input_value() == '18:00'
+    prof.page.get_by_label('반복 방식', exact=True).select_option('weekly')
+    prof.page.get_by_label('총 몇 주', exact=True).fill('2')
+    prof.page.get_by_role('button', name='등록 미리보기', exact=True).click()
+    prof.page.get_by_text('생성할 새 상담 12건', exact=True).wait_for()
+    assert (day + timedelta(days=7)).isoformat() in prof.page.locator('.modal').inner_text()
+    prof.shot('mobile_schedule_preview')
+    prof.page.get_by_role('button', name='등록 확정', exact=True).click()
+    prof.toast('12개 등록')
+    summary = prof.page.get_by_role('region', name='예약 가능한 상담 일정')
+    # More than three dates may already exist from other end-to-end scenarios.
+    if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
+        summary.get_by_role('button', name='전체 일정 보기', exact=True).click()
+    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*6개 시간')).click()
+    prof.page.locator('.card.slot.open').first.click()
+    prof.page.get_by_role('button', name='이 시간 취소', exact=True).click()
+    prof.page.get_by_role('button', name='취소하기', exact=True).click()
+    prof.toast('취소했습니다')
+    prof.page.get_by_label('취소된 상담 시간 보기', exact=True).check()
+    cancelled = prof.page.locator('.card.slot.cancelled').first
+    cancelled.wait_for()
+    cancelled.click()
+    prof.page.get_by_role('button', name='삭제', exact=True).click()
+    prof.toast('빈 상담 시간을 삭제했습니다')
+    assert prof.page.locator('.card.slot.cancelled').count() == 0
+    assert prof.page.evaluate('document.documentElement.scrollWidth') <= MOBILE['width'] + 1
+    prof.shot('mobile_schedule_summary')
+    prof.close()
+
+
+def test_late_calendar_response_does_not_overwrite_new_page(server, browser):
+    base, _ = server
+    student = Session(browser, base, "slow-calendar@test.ac.kr", MOBILE)
+    student.go('/booking')
+    student.page.evaluate("""() => {
+      const original = window.fetch.bind(window);
+      window.releaseCalendar = [];
+      window.holdCalendar = true;
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (window.holdCalendar && String(args[0]).startsWith('/api/slots?')) {
+          document.body.dataset.calendarHeld = 'true';
+          return new Promise(resolve => window.releaseCalendar.push(() => resolve(response)));
+        }
+        return response;
+      };
+      window.oldCalendarRender = import('/static/js/views/student-booking.js')
+        .then(module => module.render(document.getElementById('view')));
+    }""")
+    student.page.wait_for_selector('body[data-calendar-held="true"]')
+    student.go('/my-bookings')
+    student.page.evaluate("""async () => {
+      window.holdCalendar = false;
+      window.releaseCalendar.forEach(release => release());
+      await window.oldCalendarRender;
+    }""")
+    assert student.page.get_by_role('heading', name='내 예약', exact=True).is_visible()
+    assert student.page.get_by_role('region', name='예약 가능한 상담 일정').count() == 0
+    student.close()

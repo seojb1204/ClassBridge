@@ -19,6 +19,7 @@ class SlotOut(BaseModel):
     mine: bool
     bookable: bool
     reason: str
+    can_delete: bool = False
 
 
 class SlotCreateIn(BaseModel):

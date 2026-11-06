@@ -73,6 +73,7 @@ class SlotView:
     mine: bool
     bookable: bool
     reason: str
+    can_delete: bool = False
 
 
 def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
@@ -82,6 +83,7 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
         raise BadRequest("조회 기간은 최대 62일입니다")
     staff = _is_staff(viewer)
     slots = repo.list_slots(db, start, end, include_cancelled=staff)
+    history = repo.booked_slot_ids(db, [s.id for s in slots]) if staff else set()
     pol = _policy(db)
     mine_active = None if staff else repo.active_booking_of(db, viewer.id)
     views = []
@@ -98,7 +100,9 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
                 policy_mod.check_student_booking_time(s.start_at, now, pol)
             except Conflict as e:
                 reason = e.message
-        views.append(SlotView(s, remaining, mine, reason == "" and not mine, reason))
+        views.append(SlotView(s, remaining, mine, reason == "" and not mine, reason,
+                              staff and s.status == "cancelled" and s.id not in history
+                              and (viewer.role == "admin" or s.created_by_id == viewer.id)))
     return views
 
 
@@ -496,3 +500,22 @@ def set_note(db: Session, actor: User, booking_id: int, note: str) -> Booking:
 def kst_range(start_date: date, days: int) -> tuple[datetime, datetime]:
     start = datetime.combine(start_date, time(0, 0), tzinfo=KST)
     return start, start + timedelta(days=days)
+
+
+def delete_empty_cancelled_slot(db: Session, actor: User, slot_id: int) -> None:
+    if not _is_staff(actor):
+        raise Forbidden("상담 시간 관리 권한이 없습니다")
+
+    def work():
+        slot = repo.get_slot(db, slot_id, lock=True)
+        if slot is None:
+            raise NotFound("상담 시간을 찾을 수 없습니다")
+        if actor.role != "admin" and slot.created_by_id != actor.id:
+            raise Forbidden("본인이 등록한 상담 시간만 삭제할 수 있습니다")
+        if slot.status != "cancelled" or slot.booked_count or repo.booked_slot_ids(db, [slot_id]):
+            raise Conflict("취소 상태이며 예약 이력이 전혀 없는 상담 시간만 삭제할 수 있습니다")
+        audit_repo.add(db, actor.id, "slot.delete_empty_cancelled", "slot", slot.id,
+                       {"start_at": slot.start_at.isoformat(), "end_at": slot.end_at.isoformat()})
+        db.delete(slot)
+
+    _atomic(db, work)

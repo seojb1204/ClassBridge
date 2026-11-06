@@ -66,7 +66,7 @@ def list_slots(start: date = Query(...), days: int = Query(7, ge=1, le=62),
     return [SlotOut(id=v.slot.id, start_at=v.slot.start_at, end_at=v.slot.end_at, kind=v.slot.kind,
                     capacity=v.slot.capacity, remaining=v.remaining, status=v.slot.status,
                     location=v.slot.location, note=v.slot.note, mine=v.mine, bookable=v.bookable,
-                    reason=v.reason)
+                    reason=v.reason, can_delete=v.can_delete)
             for v in svc.list_slots_for(db, p.user, s, e)]
 
 
@@ -183,3 +183,9 @@ def list_students(q: str | None = None, p: Principal = Depends(require(P.BOOKING
     """대리 예약용 학생 목록 (활성 학생의 이름·이메일만)."""
     return [{"id": u.id, "name": u.name, "email": u.email}
             for u in users_repo.list_users(db, role="student", q=q) if u.is_active]
+
+
+@router.delete("/slots/{slot_id}", status_code=204)
+def delete_empty_slot(slot_id: int, p: Principal = Depends(require(P.SLOT_MANAGE)),
+                      db: Session = Depends(get_db)):
+    svc.delete_empty_cancelled_slot(db, p.user, slot_id)

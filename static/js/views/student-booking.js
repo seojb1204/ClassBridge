@@ -1,3 +1,4 @@
+import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { get, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
@@ -9,6 +10,7 @@ import { state } from "../state.js";
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let drawVersion = 0;
 let mobileView = "list";
 
 export async function render(root) {
@@ -29,15 +31,19 @@ export async function render(root) {
 }
 
 async function draw(root) {
-  const [slots, mine, policy, announcement] = await Promise.all([
+  if (location.hash !== "#/booking") return;
+  const version = ++drawVersion, path = location.hash;
+  const [slots, mine, policy, announcement, availableDays] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),
     get("/api/booking-policy"),
-    loadAnnouncement(),
+    loadAnnouncement(), loadAvailableDays(),
   ]);
+  if (version !== drawVersion || location.hash !== path) return;
   const active = mine.find((b) => b.status === "booked");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
+    availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root); }),
     announcementPanel(announcement),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
