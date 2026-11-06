@@ -151,6 +151,8 @@ def test_access_log_filter_hides_anonymous_posts():
                                  ("1.2.3.4", method, path, "1.1", 201), None)
 
     assert not f.filter(rec("POST", "/api/surveys/3/responses"))
+    assert not f.filter(rec("POST", "/api/public-surveys/abc/responses"))
+    assert not f.filter(rec("GET", "/api/public-surveys/abc"))
     assert not f.filter(rec("POST", "/api/suggestions"))
     assert f.filter(rec("GET", "/api/suggestions"))
     assert f.filter(rec("POST", "/api/bookings"))

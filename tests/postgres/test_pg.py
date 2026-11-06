@@ -55,6 +55,24 @@ def _alembic(url: str) -> Config:
     return cfg
 
 
+def test_anonymous_survey_concurrent_duplicate(pg_app):
+    from app.models import GuestParticipation
+    from tests.integration.test_public_surveys import create
+
+    p = login(pg_app, ADMIN)
+    survey = create(p)
+    answers = {str(survey["questions"][0]["id"]): "개선 의견"}
+
+    def write(_):
+        with pg_app.state.SessionLocal() as db:
+            survey_service.submit(db, None, survey["id"], answers, browser_hash="a" * 64)
+
+    assert sorted(_race(2, write)) == ["already_participated", "ok"]
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(GuestParticipation)) == 1
+        assert db.scalar(select(func.count()).select_from(Response)) == 1
+
+
 # Supabase의 기본 상태를 흉내 낸다: anon·authenticated 역할이 있고,
 # postgres가 public에 만드는 테이블·시퀀스에 이 역할들의 권한이 자동으로 붙는다.
 SUPABASE_LIKE_SETUP = """

@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import qrcode
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response as HttpResponse
 from pydantic import BaseModel
+from qrcode.image.svg import SvgPathFillImage
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, require
@@ -35,6 +37,20 @@ def feature_on(request: Request) -> None:
         raise FeatureDisabled("설문 기능이 비활성화되어 있습니다 (운영 보안 검토 후 활성화)")
 
 
+@router.get("/{survey_id}/qr.svg", dependencies=[Depends(feature_on)])
+def survey_qr(survey_id: int, request: Request, p: Principal = Depends(require(P.SURVEY_MANAGE)),
+              db: Session = Depends(get_db)):
+    survey = svc.get(db, survey_id)
+    if survey.status != "published":
+        from app.core.errors import Conflict
+        raise Conflict("게시된 설문만 QR로 공유할 수 있습니다")
+    target = f"public/{survey.public_token}" if survey.access_mode == "anonymous" else f"take/{survey.id}"
+    url = f"{request.app.state.settings.base_url}/#/surveys/{target}"
+    image = qrcode.make(url, image_factory=SvgPathFillImage, border=4)
+    return HttpResponse(image.to_string(), media_type="image/svg+xml",
+                        headers={"Content-Disposition": f'inline; filename="survey-{survey.id}-qr.svg"'})
+
+
 def _q(items) -> list[QuestionInput]:
     return [QuestionInput(q.qtype, q.title, q.required, q.options) for q in items]
 
@@ -44,7 +60,8 @@ def _q(items) -> list[QuestionInput]:
 def staff_list(trash: bool = False, p: Principal = Depends(require(P.SURVEY_MANAGE)),
                      db: Session = Depends(get_db)):
     counts = repo.response_counts(db)
-    return [SurveyStaffListOut(id=s.id, title=s.title, course_name=s.course_name,
+    return [SurveyStaffListOut(id=s.id, title=s.title, access_mode=s.access_mode, public_token=s.public_token,
+                               course_name=s.course_name,
                                semester=s.semester, status=s.status, opens_at=s.opens_at,
                                closes_at=s.closes_at, response_count=counts.get(s.id, 0),
                                min_results=s.min_results) for s in repo.list_all(db, trash=trash)]
@@ -55,7 +72,7 @@ def create(body: SurveyCreateIn, p: Principal = Depends(require(P.SURVEY_MANAGE)
                      db: Session = Depends(get_db)):
     return svc.create(db, p.user, body.title, body.description, _q(body.questions),
                       body.opens_at, body.closes_at, body.min_results,
-                      course_name=body.course_name, semester=body.semester)
+                      course_name=body.course_name, semester=body.semester, access_mode=body.access_mode)
 
 
 @router.get("/{survey_id}", response_model=SurveyOut, dependencies=[Depends(feature_on)])
@@ -71,7 +88,8 @@ def update(survey_id: int, body: SurveyUpdateIn, p: Principal = Depends(require(
     return svc.update(db, p.user, survey_id, title=body.title, description=body.description,
                       questions=_q(body.questions) if body.questions is not None else None,
                       opens_at=body.opens_at, closes_at=body.closes_at, min_results=body.min_results,
-                      course_name=body.course_name, semester=body.semester, fields_set=set(fs))
+                      course_name=body.course_name, semester=body.semester, fields_set=set(fs),
+                      access_mode=body.access_mode)
 
 
 @router.post("/{survey_id}/publish", response_model=SurveyOut, dependencies=[Depends(feature_on)])

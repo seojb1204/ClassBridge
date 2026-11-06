@@ -38,6 +38,16 @@ def test_google_login_flow(tmp_path):
     assert me["email"] == "stu@test.ac.kr" and me["role"] == "student"
 
 
+def test_survey_return_is_signed_and_only_local_numeric_id(tmp_path):
+    app = _app(tmp_path, lambda s, c, n: VerifiedIdentity("qr-user", "qr@test.ac.kr", True))
+    for target, expected in [("42", "/#/surveys/take/42"), ("https://evil.example", "/"), ("//evil", "/")]:
+        c = TestClient(app, follow_redirects=False)
+        r = c.get("/auth/google/login", params={"survey": target})
+        state = parse_qs(urlparse(r.headers["location"]).query)["state"][0]
+        r = c.get("/auth/google/callback", params={"state": state, "code": "ok", "survey": "999"})
+        assert r.status_code == 302 and r.headers["location"] == expected
+
+
 def test_state_mismatch_rejected(tmp_path):
     app = _app(tmp_path, lambda s, c, n: VerifiedIdentity("x", "x@test.ac.kr", True))
     c = TestClient(app, follow_redirects=False)

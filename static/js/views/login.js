@@ -4,8 +4,10 @@ import { busy, errorToast, field, h, mount } from "../ui.js";
 
 export async function render(root) {
   const cfg = await get("/api/auth/config");
+  const survey = location.hash.match(/^#\/surveys\/take\/([1-9][0-9]{0,9})$/)?.[1];
   const parts = [h("h1", {}, "ClassBridge"), h("p", { class: "muted" }, "교수자와 학생을 위한 상담 예약")];
-  if (cfg.google) parts.push(h("a", { class: "btn primary big", href: "/auth/google/login" }, "Google 계정으로 로그인"));
+  if (survey) parts.push(h("p", { class: "notice" }, "이 설문은 로그인 후 참여할 수 있습니다. 로그인하면 해당 설문이 바로 열립니다."));
+  if (cfg.google) parts.push(h("a", { class: "btn primary big", href: `/auth/google/login${survey ? `?survey=${survey}` : ""}` }, "Google 계정으로 로그인"));
   if (cfg.notice) {
     parts.push(h("p", { class: "muted" }, "상담 예약에 필요한 계정 정보와 예약 정보를 처리합니다."),
       h("p", {}, h("a", { href: cfg.notice.url, target: "_blank", rel: "noopener" }, "개인정보처리방침")));
@@ -18,7 +20,7 @@ export async function render(root) {
       field("이메일", email), btn);
     form.addEventListener("submit", busy(btn, async (e) => {
       e.preventDefault();
-      try { await post("/auth/dev/login", { email: email.value }); location.hash = "#/"; location.reload(); }
+      try { await post("/auth/dev/login", { email: email.value }); location.hash = survey ? `#/surveys/take/${survey}` : "#/"; location.reload(); }
       catch (err) { errorToast(err); }
     }));
     parts.push(form);

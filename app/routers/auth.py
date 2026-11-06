@@ -1,6 +1,7 @@
 """로그인/로그아웃 및 현재 사용자 정보."""
 from __future__ import annotations
 
+import re
 import secrets
 
 from fastapi import APIRouter, Depends, Request
@@ -42,13 +43,15 @@ def _start_session(request: Request, db: Session, user, response) -> None:
 
 
 @router.get("/auth/google/login", include_in_schema=False)
-def google_login(request: Request):
+def google_login(request: Request, survey: str = ""):
     s = request.app.state.settings
     if not s.google_client_id:
         raise NotFound("Google 로그인이 설정되지 않았습니다")
     state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
     resp = RedirectResponse(google_oauth.build_auth_url(s, state, nonce), status_code=302)
     payload = {"state": state, "nonce": nonce}
+    if re.fullmatch(r"[1-9][0-9]{0,9}", survey):
+        payload["survey"] = survey
     resp.set_cookie(OAUTH_COOKIE, _signer(request).dumps(payload),
                     max_age=600, httponly=True, secure=s.cookie_secure, samesite="lax", path="/auth")
     return resp
@@ -66,7 +69,9 @@ def google_callback(request: Request, code: str = "", state: str = "", db: Sessi
     verifier = request.app.state.identity_verifier
     ident = verifier(s, code, data["nonce"])
     user = user_service.login_or_register(db, s, ident)
-    resp = RedirectResponse("/", status_code=302)
+    survey = data.get("survey", "")
+    target = f"/#/surveys/take/{survey}" if re.fullmatch(r"[1-9][0-9]{0,9}", survey) else "/"
+    resp = RedirectResponse(target, status_code=302)
     resp.delete_cookie(OAUTH_COOKIE, path="/auth")
     _start_session(request, db, user, resp)
     return resp

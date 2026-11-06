@@ -23,6 +23,7 @@ class QuestionOut(QuestionIn):
 
 
 class SurveyCreateIn(BaseModel):
+    access_mode: Literal["login", "anonymous"] = "login"
     title: str = Field(max_length=200)
     description: str = Field(default="", max_length=5000)
     course_name: str = Field(default="", max_length=120)
@@ -34,6 +35,7 @@ class SurveyCreateIn(BaseModel):
 
 
 class SurveyUpdateIn(BaseModel):
+    access_mode: Literal["login", "anonymous"] | None = None
     title: str | None = Field(default=None, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
     course_name: str | None = Field(default=None, max_length=120)
@@ -45,6 +47,8 @@ class SurveyUpdateIn(BaseModel):
 
 
 class SurveyOut(BaseModel):
+    access_mode: str
+    public_token: str | None
     id: int
     title: str
     description: str
@@ -61,6 +65,8 @@ class SurveyOut(BaseModel):
 
 
 class SurveyStaffListOut(BaseModel):
+    access_mode: str
+    public_token: str | None
     id: int
     title: str
     course_name: str
