@@ -34,6 +34,11 @@ function registerRoutes() {
   route("/staff/insights", "booking:manage", staffInsights.render, "상담 정보");
   if (feature("surveys")) {
     route("/surveys", null, surveys.renderList, "설문");
+    // Restart in the public-only entry point, without reading the login session.
+    route("/surveys/public/:token", null, (_root, { token }) => {
+      if (/^[A-Za-z0-9_-]{32}$/.test(token)) location.reload();
+      else go("/surveys");
+    });
     route("/surveys/take/:id", "survey:respond", surveys.renderTake);
     route("/surveys/edit/:id", "survey:manage", editor.render);
     route("/surveys/results/:id", "survey:results", surveys.renderResults);

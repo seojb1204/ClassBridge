@@ -79,6 +79,8 @@ class SurveyStaffListOut(BaseModel):
 
 
 class SurveyStudentListOut(BaseModel):
+    access_mode: Literal["login", "anonymous"] = "login"
+    public_token: str | None = None
     id: int
     title: str
     description: str

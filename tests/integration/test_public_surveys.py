@@ -81,3 +81,27 @@ def test_scale_labels_and_login_mode_preserved(clients):
             str(s["questions"][0]["id"]): "좋아요", str(s["questions"][1]["id"]): 5}}).status_code == 201
     result = p.get(f"/api/surveys/{s['id']}/results").json()
     assert result["questions"][1]["counts"][-1] == {"option": "5 · 매우 그렇다", "count": 2}
+
+
+def test_logged_in_student_lists_anonymous_surveys_without_account_participation(app, clients):
+    p, student = clients["prof"], clients["s1"]
+    anonymous = create(p)
+    login = create(p, mode="login")
+    draft = create(p, publish=False)
+    listing = student.get("/api/surveys/student/list").json()
+    assert {row["id"] for row in listing} == {anonymous["id"], login["id"]}
+    row = next(row for row in listing if row["id"] == anonymous["id"])
+    assert row["access_mode"] == "anonymous" and row["public_token"] == anonymous["public_token"]
+    assert draft["public_token"] not in str(listing)
+    path = f"/api/public-surveys/{anonymous['public_token']}"
+    opened = student.get(path).json()
+    result = student.post(path + "/responses", headers={"X-Survey-CSRF": opened["csrf_token"]},
+                          json={"answers": {str(anonymous["questions"][0]["id"]): "로그인해도 익명"}})
+    assert result.status_code == 201
+    assert student.get(path).json()["participated"] is True
+    with app.state.SessionLocal() as db:
+        assert list(db.scalars(select(Participation))) == []
+        assert len(list(db.scalars(select(GuestParticipation)))) == 1
+    p.post(f"/api/surveys/{anonymous['id']}/close")
+    p.post(f"/api/surveys/{anonymous['id']}/trash")
+    assert {row["id"] for row in student.get("/api/surveys/student/list").json()} == {login["id"]}

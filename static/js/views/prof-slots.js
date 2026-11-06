@@ -65,7 +65,7 @@ function createForm(root) {
   });
   const weeks = h("input", { type: "number", min: 1, max: 26, value: 1 });
   const wdBoxes = WD.map((w, i) => h("label", { class: "check" }, h("input", { type: "checkbox", value: i }), w));
-  const loc = h("input", { type: "text", maxlength: 200, placeholder: "예: 공학관 512호" });
+  const loc = h("input", { type: "text", maxlength: 200, value: "m205", placeholder: "예: m205" });
   const btn = h("button", { class: "btn primary", type: "submit" }, "등록");
   const form = h("form", { class: "grid-form" },
     field("날짜(시작일)", date), field("시작", start), field("종료", end),

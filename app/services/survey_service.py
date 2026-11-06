@@ -213,8 +213,8 @@ def delete_draft(db: Session, actor: User, survey_id: int) -> None:
 def list_for_student(db: Session, student: User, now: datetime | None = None) -> list[tuple[Survey, bool, bool]]:
     now = now or utcnow()
     done = repo.participated_survey_ids(db, student.id)  # 본인 참여 여부는 본인에게만 보인다
-    return [(s, s.id in done, is_open(s, now)) for s in repo.list_by_status(db, ("published", "closed"))
-            if s.access_mode == "login"]
+    return [(s, s.access_mode == "login" and s.id in done, is_open(s, now))
+            for s in repo.list_by_status(db, ("published", "closed"))]
 
 
 def get_for_student(db: Session, student: User, survey_id: int, now: datetime | None = None) -> tuple[Survey, bool]:
