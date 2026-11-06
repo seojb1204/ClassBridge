@@ -2,7 +2,7 @@ import { availableDaysPanel, loadAvailableDays } from "../components/available-d
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { get, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
-import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
+import { onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 import { state } from "../state.js";
@@ -30,7 +30,7 @@ export async function render(root) {
   await draw(root);
 }
 
-async function draw(root) {
+async function draw(root, revealDay = false) {
   if (location.hash !== "#/booking") return;
   const version = ++drawVersion, path = location.hash;
   const [slots, mine, policy, announcement, availableDays] = await Promise.all([
@@ -43,8 +43,8 @@ async function draw(root) {
   const active = mine.find((b) => b.status === "booked");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
-    availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root); }),
     announcementPanel(announcement),
+    availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
         `시작 ${policy.booking_deadline_hours}시간 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다.`)),
@@ -56,9 +56,10 @@ async function draw(root) {
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, mobileView,
       onViewChange: (mode) => { mobileView = mode; draw(root); },
-      onDay: (d) => { selectedDay = d; draw(root); },
+      onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
   );
+  if (revealDay) revealSelectedDay(root);
 }
 
 function legend() {

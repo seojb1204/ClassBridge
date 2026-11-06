@@ -96,8 +96,9 @@ def test_consultation_exports_scope_options_and_injection(app, clients):
     assert s1.get(base + "&include_notes=true").status_code == 403
     other_id = s2.get("/api/me").json()["id"]
     assert s1.get(base + f"&student_id={other_id}").status_code == 403
-    for client, count in [(p, 3), (s1, 2)]:
-        response = client.get(base)
+    own_id = s1.get("/api/me").json()["id"]
+    for suffix, count in [("", 3), (f"&student_id={own_id}", 2)]:
+        response = p.get(base + suffix)
         assert response.status_code == 200
         wb = load_workbook(BytesIO(response.content))
         assert wb["상담 목록"].max_row == count
@@ -107,10 +108,13 @@ def test_consultation_exports_scope_options_and_injection(app, clients):
     r = p.get(base + "&include_notes=true&include_numbers=true")
     values = str(list(load_workbook(BytesIO(r.content))["상담 목록"].values))
     assert "STAFF-SECRET" in values and "PRIVATE123" in values
-    csv = s1.get(base + "&format=csv").text
+    for student in (s1, s2):
+        for format in ("xlsx", "csv", "print"):
+            assert student.get(base + f"&format={format}").status_code == 403
+    csv = p.get(base + f"&format=csv&student_id={own_id}").text
     assert "'=evil" in csv and "other-student" not in csv
-    html = s1.get(base + "&format=print").text
+    html = p.get(base + f"&format=print&student_id={own_id}").text
     assert "&lt;script&gt;" in html and "STAFF-SECRET" not in html
-    assert "Cache-Control" in s1.get(base).headers
+    assert "Cache-Control" in p.get(base).headers
     assert p.get("/api/exports/consultations?start=2020-01-01&end=2026-01-01").status_code == 400
     assert two["id"] != one["id"]

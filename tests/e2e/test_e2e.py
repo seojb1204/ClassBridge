@@ -27,6 +27,41 @@ PC = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
 
 
+def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, browser):
+    base, _ = server
+    days = [(today_kst(utcnow()) + timedelta(days=i)).isoformat() for i in (1, 2)]
+    slots = [{"id": 9500 + d * 10 + i, "start_at": f"{day}T{10 + i:02d}:00:00+09:00",
+              "end_at": f"{day}T{10 + i:02d}:30:00+09:00", "kind": "individual", "capacity": 1,
+              "remaining": 1, "status": "open", "bookable": True, "mine": False,
+              "location": "m205", "note": "", "reason": ""}
+             for d, day in enumerate(days) for i in range(6)]
+    for email, path in [("scroll-student@test.ac.kr", "/booking"), ("prof@test.ac.kr", "/slots")]:
+        session = Session(browser, base, email, MOBILE, service_workers="block")
+        page = session.page
+        page.emulate_media(reduced_motion="reduce")
+        page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
+        page.route("**/api/announcement", lambda route: route.fulfill(json={"announcement": {
+            "title": "먼저 읽을 공지", "body": "상담 준비 안내입니다.\n" * 18, "published": True, "revision": 1}}))
+        page.reload()
+        session.go(path)
+        page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
+        assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]
+        page.locator(".available-day-buttons button").nth(1).click()
+        title = page.locator(".daily-title:focus")
+        title.wait_for()
+        assert page.locator('.chip[aria-selected="true"] strong').inner_text() == days[1][-2:]
+        header = page.locator(".topbar").bounding_box()
+        box = title.bounding_box()
+        assert header["height"] <= box["y"] <= header["height"] + 30
+        assert page.locator(".daily .cards .card").count() == 6
+        session.shot("mobile_date_scroll_student" if path == "/booking" else "mobile_date_scroll_professor")
+        if path == "/booking":
+            session.go("/my-bookings")
+            assert page.get_by_text("상담 자료 다운로드", exact=True).count() == 0
+            assert page.locator(".export-panel").count() == 0
+        session.close()
+
+
 def test_editor_direct_trash_and_empty_account_cleanup(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
@@ -139,8 +174,8 @@ def test_anonymous_survey_qr_and_direct_response(server, browser):
     link = prof.page.locator(".survey-share-url").get_attribute("href")
     assert "/#/surveys/public/" in link
     with prof.page.expect_download() as download:
-        prof.page.get_by_role("link", name="QR 이미지 다운로드").click()
-    assert download.value.suggested_filename.endswith("-qr.svg")
+        prof.page.get_by_role("link", name="QR 이미지 저장(PNG)", exact=True).click()
+    assert download.value.suggested_filename.endswith("-qr.png")
     ctx = browser.new_context(viewport=MOBILE)
     page = ctx.new_page()
     requests = []
@@ -832,13 +867,26 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
               "reason": "" if i < 2 else "마감"} for i in range(6)]
     prof.page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
     prof.page.reload()
-    for path in ("/slots", "/bookings"):
-        prof.go(path)
-        if path == "/bookings":
-            prof.page.get_by_role("button", name="주간 예약 시간표").click()
-        chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
-        chip.wait_for()
-        assert chip.locator("em").inner_text() == "2"
+    prof.go("/slots")
+    chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
+    chip.wait_for()
+    assert chip.locator("em").inner_text() == "2"
+    slots[3].update(kind="group", capacity=3)
+    bookings = [{"id": 8000 + i, "slot": slots[slot], "student_name": "검증 학생",
+                 "student_id": 8100 + i, "student_email": "synthetic@test.ac.kr", "topic": "",
+                 "consultation_type": "other", "consultation_mode": "in_person", "status": status}
+                for i, (slot, status) in enumerate([(2, "booked"), (3, "booked"), (3, "booked"),
+                    (3, "booked"), (0, "cancelled"), (1, "completed")])]
+    prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
+    prof.go("/bookings")
+    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
+    chip.wait_for()
+    assert chip.locator("em").inner_text() == "4명"
+    prof.shot("mobile_reserved_student_counts")
+    prof.page.set_viewport_size(PC)
+    prof.page.get_by_text("예약 4명", exact=True).wait_for()
+    prof.page.set_viewport_size(MOBILE)
     # A cancellation releases one time; reloading must show the new count.
     slots[2].update(bookable=True, remaining=1, reason="")
     prof.go("/slots")
@@ -856,8 +904,8 @@ def test_site_qr_available_to_guests_students_and_staff(server, browser):
         image = session.page.get_by_alt_text("ClassBridge 사이트 접속 QR 코드")
         image.evaluate("img => img.decode()")
         with session.page.expect_download() as download:
-            session.page.get_by_role("link", name="QR 이미지 다운로드", exact=True).click()
-        assert download.value.suggested_filename == "classbridge-site-qr.svg"
+            session.page.get_by_role("link", name="QR 이미지 저장(PNG)", exact=True).click()
+        assert download.value.suggested_filename == "classbridge-site-qr.png"
         assert session.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
         session.shot("mobile_site_qr")
         session.close()

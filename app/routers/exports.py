@@ -30,13 +30,10 @@ LABELS = {"booked": "예약 중", "completed": "상담 완료", "no_show": "미�
 def export_consultations(start: date, end: date, format: Literal["xlsx", "csv", "print"] = "xlsx",
                          student_id: int | None = None, include_numbers: bool = False,
                          include_contacts: bool = False, include_notes: bool = False,
-                         p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
-    staff = p.can(P.BOOKING_MANAGE) and p.can(P.EXPORT)
-    if not staff:
-        if not p.can(P.BOOKING_SELF) or include_notes or (student_id is not None and student_id != p.user.id):
-            raise Forbidden("본인 예약 정보만 내보낼 수 있습니다")
-        student_id = p.user.id
-    elif include_notes and not p.can(P.CONSULT_NOTE):
+                         p: Principal = Depends(require(P.EXPORT)), db: Session = Depends(get_db)):
+    if not p.can(P.BOOKING_MANAGE):
+        raise Forbidden("교수자·관리자만 상담 자료를 내려받을 수 있습니다")
+    if include_notes and not p.can(P.CONSULT_NOTE):
         raise Forbidden("상담 기록 내보내기 권한이 없습니다")
     days = (end - start).days + 1
     if days < 1 or days > 366:
