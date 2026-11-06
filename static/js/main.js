@@ -1,3 +1,4 @@
+import { navIcon } from "./components/nav-icon.js";
 import { initializePwa, installButton, isStandalone } from "./pwa.js";
 // 앱 시작점: 로그인 확인 → 메뉴 구성 → 라우터 시작
 import { ApiError, get, post, setCsrf } from "./api.js";
@@ -62,11 +63,10 @@ function renderMobileTabs() {
     ? [{ pattern: "/slots", navLabel: "상담 시간" }, { pattern: "/bookings", navLabel: "예약 관리" },
        { pattern: "/staff/insights", navLabel: "상담 정보" }]
     : navItems().slice(0, 3);
-  const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/staff/insights": "▤", "/surveys": "☰"};
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
-      h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, symbols[r.pattern] || "•"),
-      h("span", {}, r.navLabel))),
+      navIcon(r.pattern),
+      h("span", {}, navIcon(r.pattern), h("span", {}, r.navLabel)))),
     h("button", { type: "button", onclick: () => {
       const menu = document.getElementById("menu-btn");
       menu.click();
@@ -83,7 +83,7 @@ function renderMobileTabs() {
 
 function renderChrome() {
   const nav = document.getElementById("nav");
-  mount(nav, navItems().map((r) => h("a", { href: `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, r.navLabel)));
+  mount(nav, navItems().map((r) => h("a", { href: `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, navIcon(r.pattern), h("span", {}, r.navLabel))));
   const mobileHelp = support.helpLink("mobile-help-link");
   mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
   nav.append(mobileHelp);

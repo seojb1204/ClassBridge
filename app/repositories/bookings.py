@@ -95,3 +95,8 @@ def events_for(db: Session, booking_id: int) -> list[BookingEvent]:
     return list(db.execute(
         select(BookingEvent).where(BookingEvent.booking_id == booking_id).order_by(BookingEvent.at, BookingEvent.id)
     ).scalars())
+
+
+def booked_slot_ids(db: Session, ids: list[int]) -> set[int]:
+    """Any booking history, including cancelled/rescheduled bookings."""
+    return set(db.scalars(select(Booking.slot_id).where(Booking.slot_id.in_(ids)).distinct())) if ids else set()
