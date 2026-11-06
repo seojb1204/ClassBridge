@@ -890,3 +890,34 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     assert prof.page.evaluate('document.documentElement.scrollWidth') <= MOBILE['width'] + 1
     prof.shot('mobile_schedule_summary')
     prof.close()
+
+
+def test_late_calendar_response_does_not_overwrite_new_page(server, browser):
+    base, _ = server
+    student = Session(browser, base, "slow-calendar@test.ac.kr", MOBILE)
+    student.go('/booking')
+    student.page.evaluate("""() => {
+      const original = window.fetch.bind(window);
+      window.releaseCalendar = [];
+      window.holdCalendar = true;
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (window.holdCalendar && String(args[0]).startsWith('/api/slots?')) {
+          document.body.dataset.calendarHeld = 'true';
+          return new Promise(resolve => window.releaseCalendar.push(() => resolve(response)));
+        }
+        return response;
+      };
+      window.oldCalendarRender = import('/static/js/views/student-booking.js')
+        .then(module => module.render(document.getElementById('view')));
+    }""")
+    student.page.wait_for_selector('body[data-calendar-held="true"]')
+    student.go('/my-bookings')
+    student.page.evaluate("""async () => {
+      window.holdCalendar = false;
+      window.releaseCalendar.forEach(release => release());
+      await window.oldCalendarRender;
+    }""")
+    assert student.page.get_by_role('heading', name='내 예약', exact=True).is_visible()
+    assert student.page.get_by_role('region', name='예약 가능한 상담 일정').count() == 0
+    student.close()

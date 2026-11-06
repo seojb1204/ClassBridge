@@ -10,6 +10,7 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let drawVersion = 0;
 let showForm = null;
 let showCancelled = false;
 
@@ -33,9 +34,12 @@ export async function render(root) {
 }
 
 async function draw(root) {
+  if (location.hash !== "#/slots") return;
+  const version = ++drawVersion, path = location.hash;
   const [slots, announcement, availableDays] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(),
   ]);
+  if (version !== drawVersion || location.hash !== path) return;
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
       h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
@@ -151,7 +155,7 @@ async function editSlot(root, s) {
   if (s.status === "cancelled") {
     if (!s.can_delete) { toast("예약 이력이 있거나 다른 교수자가 등록한 시간입니다. 삭제하지 않고 보관합니다."); return; }
     if (!(await confirmAction("빈 상담 시간 삭제", `${fmtDateTime(s.start_at)}의 취소된 빈 시간을 영구 삭제할까요? 예약 이력은 없으며 삭제 후 복원할 수 없습니다.`, "삭제", true))) return;
-    try { await del(`/api/slots/${s.id}`); toast("빈 상담 시간을 삭제했습니다", "success"); await draw(root); }
+    try { await del(`/api/slots/${s.id}`); await draw(root); toast("빈 상담 시간을 삭제했습니다", "success"); }
     catch (error) { errorToast(error); }
     return;
   }

@@ -10,6 +10,7 @@ import { state } from "../state.js";
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
+let drawVersion = 0;
 let mobileView = "list";
 
 export async function render(root) {
@@ -30,12 +31,15 @@ export async function render(root) {
 }
 
 async function draw(root) {
+  if (location.hash !== "#/booking") return;
+  const version = ++drawVersion, path = location.hash;
   const [slots, mine, policy, announcement, availableDays] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),
     get("/api/booking-policy"),
     loadAnnouncement(), loadAvailableDays(),
   ]);
+  if (version !== drawVersion || location.hash !== path) return;
   const active = mine.find((b) => b.status === "booked");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
