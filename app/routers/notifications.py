@@ -18,6 +18,29 @@ from app.repositories import audit as audit_repo
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+@router.get("/notification-summary")
+def notification_summary(request: Request, p: Principal = Depends(require(P.BOOKING_MANAGE)),
+                         db: Session = Depends(get_db)):
+    from app.models import PushSubscription
+    settings = request.app.state.settings
+    channels = {}
+    for channel, enabled, recipient in (
+        ("gmail", settings.gmail_notifications_enabled, settings.gmail_professor_email),
+        ("push", settings.push_enabled, settings.push_professor_email),
+    ):
+        own = recipient == p.user.email
+        scope = (Notification.channel == channel, Notification.recipient == p.user.email)
+        counts = dict(db.execute(select(Notification.status, func.count())
+                                .where(*scope).group_by(Notification.status)).all())
+        channels[channel] = {"enabled": enabled, "recipient": own,
+                             "attention": sum(counts.get(s, 0) for s in ("failed", "reauth", "uncertain")),
+                             "pending": sum(counts.get(s, 0) for s in ("pending", "sending")),
+                             "last_success": db.scalar(select(func.max(Notification.sent_at)).where(*scope))}
+    channels["push"]["session_registered"] = bool(db.scalar(select(PushSubscription.id)
+        .where(PushSubscription.session_id == p.session.id).limit(1)))
+    return channels
+
+
 @router.get("/push-config")
 def push_config(request: Request, p: Principal = Depends(require(P.BOOKING_MANAGE))):
     s = request.app.state.settings

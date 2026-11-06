@@ -1,3 +1,4 @@
+import { schedulePreview } from "../components/schedule-preview.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
@@ -121,17 +122,12 @@ function createForm(root) {
       };
       const preview = await post("/api/slots/preview", spec);
       const warning = preview.protected_ids.length;
-      const confirmed = await modal("상담 시간 등록 미리보기", h("div", { class: "booking-detail" },
+      const confirmed = await modal("상담 시간 등록 미리보기", h("div", { class: "schedule-preview-body" },
         h("p", {}, describe(parsed)),
         h("p", {}, `${dur.value}분씩 · 휴식 ${brk.value}분 · 장소 ${loc.value || "미지정"}`),
         h("p", {}, `생성할 새 상담 ${preview.created}건`),
-        h("p", {}, "등록 날짜: " + [...new Set(preview.planned_slots.map(item => kstParts(item.start_at).date))].join(", ")) ,
         h("p", {}, `겹치는 기존 상담 ${preview.replaced}건`),
-        h("p", { class: "muted" }, "등록 예정 시간 (최대 8개 미리보기)"),
-        h("ul", { class: "plain" }, ...preview.planned_slots.slice(0, 8).map((item) =>
-          h("li", {}, `${fmtDateTime(item.start_at)} ~ ${fmtDateTime(item.end_at)}`))),
-        preview.planned_slots.length > 8
-          ? h("p", { class: "muted" }, `그 외 ${preview.planned_slots.length - 8}개`) : null,
+        schedulePreview(preview.planned_slots),
         warning ? h("p", { class: "warn" }, `예약된 상담 ${warning}건이 있어 자동 교체할 수 없습니다.`) : null,
         preview.replaced && !warning
           ? h("p", {}, "기존 미예약 상담을 취소 상태로 보존한 뒤 새 상담으로 교체합니다.") : null), [
@@ -146,7 +142,16 @@ function createForm(root) {
       toast(`${r.created}개 등록${r.replaced ? ` · 기존 미예약 상담 ${r.replaced}개 교체` : ""}`, "success");
       weekStart = mondayOf(parsed.date);
       selectedDay = parsed.date;
-      await draw(root);
+      showForm = false;
+      await draw(root, true);
+      if (!isMobile()) {
+        const calendar = root.querySelector(".week-grid");
+        if (calendar) {
+          calendar.tabIndex = -1;
+          calendar.focus({ preventScroll: true });
+          calendar.scrollIntoView({ block: "start", behavior: "instant" });
+        }
+      }
     } catch (err) { errorToast(err); }
   }));
   return form;

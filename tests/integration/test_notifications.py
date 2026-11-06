@@ -160,3 +160,24 @@ def test_failed_reschedule_rolls_back_without_additional_notification(app, clien
     assert len(rows(app)) == 2
     with app.state.SessionLocal() as db:
         assert db.get(Booking, first["id"]).status == "booked"
+
+
+def test_professor_summary_is_scoped_and_student_denied(app, clients):
+    settings = enable(app)
+    settings.gmail_professor_email = clients["prof"].me["email"]
+    ids = make_slots(clients["prof"])
+    clients["s1"].post("/api/bookings", json={"slot_id": ids[0]})
+    with app.state.SessionLocal() as db:
+        row = db.scalar(select(Notification))
+        row.status = "reauth"
+        db.commit()
+    response = clients["prof"].get("/api/admin/notification-summary")
+    assert response.status_code == 200
+    summary = response.json()
+    assert summary["gmail"]["recipient"] is True
+    assert summary["gmail"]["attention"] == 1
+    assert summary["gmail"]["last_success"] is None
+    assert summary["push"]["session_registered"] is False
+    assert "payload" not in response.text and "sender" not in response.text
+    assert clients["admin"].get("/api/admin/notification-summary").json()["gmail"]["attention"] == 0
+    assert clients["s1"].get("/api/admin/notification-summary").status_code == 403
