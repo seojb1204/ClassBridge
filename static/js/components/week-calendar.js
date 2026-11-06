@@ -114,9 +114,8 @@ function renderDaily(o, byDay) {
   const chips = h("div", { class: "day-chips", role: "tablist" });
   for (let d = 0; d < 7; d++) {
     const day = addDays(o.weekStart, d);
-    const n = (byDay[day] || []).filter((s) => o.countMode === "total"
-      ? s.status !== "cancelled" : s.bookable || s.mine).length;
-    const label = o.countMode === "total" ? "상담" : "선택 가능";
+    const n = (byDay[day] || []).filter((s) => s.bookable === true).length;
+    const label = "예약 가능";
     chips.append(h("button", { class: `chip ${day === sel ? "active" : ""}`, role: "tab",
       "aria-label": `${fmtDate(day)}, ${label} ${n}건`,
       "aria-selected": String(day === sel), onclick: () => o.onDay?.(day) },

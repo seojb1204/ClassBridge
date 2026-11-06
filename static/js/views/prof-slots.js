@@ -42,7 +42,7 @@ async function draw(root) {
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileListOnly: true,
+    renderCalendar({ weekStart, slots, selectedDay, mobileListOnly: true,
       onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) : null) }),
