@@ -27,6 +27,67 @@ PC = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
 
 
+def test_live_booking_refresh_preserves_dialog_and_stops_after_navigation(server, browser):
+    base, _ = server
+    s = Session(browser, base, "live-refresh@test.ac.kr", MOBILE, service_workers="block")
+    page = s.page
+    day = (today_kst(utcnow()) + timedelta(days=1)).isoformat()
+    slot = {"id": 99001, "start_at": f"{day}T10:00:00+09:00", "end_at": f"{day}T10:30:00+09:00",
+            "kind": "individual", "capacity": 1, "remaining": 1, "status": "open", "bookable": True,
+            "mine": False, "location": "m205", "note": "", "reason": ""}
+    calls = []
+
+    def slots(route):
+        calls.append(route.request.url)
+        route.fulfill(json=[slot])
+
+    page.route("**/api/slots?*", slots)
+    page.clock.install()
+    page.reload()
+    s.go("/booking")
+    page.locator('[data-slot-id="99001"]').click()
+    page.locator('.modal textarea').fill('작성 중인 상담 질문')
+    before = len(calls)
+    page.clock.run_for(31000)
+    assert len(calls) == before
+    assert page.locator('.modal textarea').input_value() == '작성 중인 상담 질문'
+    page.keyboard.press('Escape')
+    slot.update(remaining=0, bookable=False, reason="마감")
+    page.clock.run_for(31000)
+    page.locator('[data-slot-id="99001"]').filter(has_text="마감").wait_for()
+    assert len(calls) > before
+    s.shot("mobile_live_booking_refresh")
+    s.go('/my-bookings')
+    before = len(calls)
+    page.clock.run_for(31000)
+    assert len(calls) == before
+    s.close()
+
+
+def test_staff_today_and_actionable_notification_error(server, browser):
+    base, _ = server
+    s = Session(browser, base, 'admin@test.ac.kr', MOBILE, service_workers="block")
+    p = s.page
+    p.route('**/api/bookings?start=*&days=1&status=booked', lambda r: r.fulfill(json=[{}, {}]))
+    p.route('**/api/suggestions/stats', lambda r: r.fulfill(json={"by_status": {"new": 3}}))
+    p.route('**/api/surveys', lambda r: r.fulfill(json=[{"status": "published"}, {"status": "draft"}]))
+    p.reload()
+    s.go('/slots')
+    panel = p.locator('.staff-today')
+    panel.get_by_role('link', name='오늘 예약 2건').wait_for()
+    panel.get_by_role('link', name='새 건의 3건').wait_for()
+    panel.get_by_role('link', name='진행 중 설문 1건').wait_for()
+    s.shot('mobile_staff_today')
+    p.route('**/api/admin/notifications', lambda r: r.fulfill(json={
+        "enabled": True, "push_enabled": True, "push_devices": 0,
+        "items": [{"id": 1, "booking_id": 1, "channel": "gmail", "status": "reauth",
+                   "attempts": 1, "error_code": "token_rejected"}]}))
+    s.go('/admin/settings')
+    p.locator('.notification-help').filter(has_text='로그인용 설정은 변경하지 마세요').wait_for()
+    s.shot('mobile_notification_recovery')
+    s.close()
+
+
 def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, browser):
     base, _ = server
     days = [(today_kst(utcnow()) + timedelta(days=i)).isoformat() for i in (1, 2)]

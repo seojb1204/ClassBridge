@@ -1,4 +1,5 @@
 import { professorNotifications } from "../components/professor-notifications.js";
+import { staffToday } from "../components/staff-today.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { get, post, put } from "../api.js";
 import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
@@ -97,6 +98,7 @@ async function renderCalendarView(root) {
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
       h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약")),
     professorNotifications(),
+    staffToday(),
     viewSwitcher(root),
     h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 상담 시간을 누르면 학생과 기록을 확인할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
@@ -123,6 +125,7 @@ export async function render(root) {
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
     professorNotifications(),
+    staffToday(),
     viewSwitcher(root),
     h("div", { class: "filters" }, field("상태", status)),
     h("p", { class: "muted" }, `전체 기간 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
