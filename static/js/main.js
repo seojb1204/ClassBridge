@@ -1,3 +1,4 @@
+import { initializePwa, installButton, isStandalone } from "./pwa.js";
 // 앱 시작점: 로그인 확인 → 메뉴 구성 → 라우터 시작
 import { ApiError, get, post, setCsrf } from "./api.js";
 import { go, navItems, resolve, route } from "./router.js";
@@ -16,7 +17,7 @@ import * as surveys from "./views/surveys.js";
 import * as support from "./views/support.js";
 
 function home(root) {
-  if (can("slot:manage")) return go("/slots");
+  if (can("slot:manage")) return go(isStandalone() ? "/staff/today" : "/slots");
   if (can("booking:self")) return go("/booking");
   mount(root, h("p", {}, "환영합니다."));
 }
@@ -26,6 +27,7 @@ function registerRoutes() {
   // 학생
   route("/booking", "booking:self", studentBooking.render, "상담 예약");
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
+  route("/staff/today", "booking:manage", profBookings.renderToday);
   // 교수자·관리자
   route("/slots", "slot:manage", profSlots.render, "상담 시간");
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
@@ -51,7 +53,10 @@ function registerRoutes() {
 
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
-  const items = navItems().slice(0, 3);
+  const items = isStandalone() && can("booking:manage")
+    ? [{ pattern: "/staff/today", navLabel: "오늘 상담" }, { pattern: "/bookings", navLabel: "예약 관리" },
+       { pattern: "/staff/insights", navLabel: "상담 정보" }]
+    : navItems().slice(0, 3);
   const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/staff/insights": "▤", "/surveys": "☰"};
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
@@ -77,6 +82,14 @@ function renderChrome() {
   const mobileHelp = support.helpLink("mobile-help-link");
   mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
   nav.append(mobileHelp);
+  const install = installButton("btn mobile-help-link");
+  if (install) {
+    install.addEventListener("click", () => {
+      nav.classList.remove("open");
+      document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
+    });
+    nav.append(install);
+  }
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
   mount(document.getElementById("userbox"),
     support.helpLink("btn small desktop-help-link"),
@@ -111,4 +124,5 @@ async function start() {
   await resolve();
 }
 
+initializePwa();
 start();
