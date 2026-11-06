@@ -55,7 +55,8 @@ ClassBridge가 받거나 저장하지 않습니다.</li>
 메일함의 사본은 각 계정 소유자가 관리합니다. Google 사용자 데이터를 광고나 범용 AI 모델 학습에 사용하지 않습니다.</p>
 <p>발송 인증 토큰은 서버의 비밀 설정에 보관합니다. 운영자는 Google 계정의 연결된 앱 관리에서 발송 권한을
 철회할 수 있으며, 철회 후에는 재인증 전까지 메일을 보낼 수 없습니다. Google API로 받은 정보의 사용과 다른 앱으로의
-이전에는 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API 서비스 사용자 데이터 정책</a>의
+이전에는 <a href="https://developers.google.com/terms/api-services-user-data-policy">
+Google API 서비스 사용자 데이터 정책</a>의
 제한적 사용 요건을 준수합니다.</p>
 <p>휴대폰 알림을 등록하면 기기별 수신 주소·암호화 정보와 로그인 세션을 연결해 저장합니다.
 휴대폰 알림에는 학생 이름·상담 내용을 넣지 않으며, 브라우저 알림 서비스(Google)를 통해 전달됩니다.
