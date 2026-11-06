@@ -27,6 +27,7 @@ export async function render(root) {
     parts.push(form);
   }
   if (!cfg.google && !cfg.dev_login) parts.push(h("p", { class: "error-box" }, "로그인 방식이 설정되지 않았습니다. 관리자에게 문의하세요."));
+  parts.push(h("p", {}, h("a", { href: "/static/about.html" }, "서비스 소개"), " · ", h("a", { href: "/static/terms.html" }, "이용약관")));
   parts.push(siteQrButton());
   mount(root, h("div", { class: "login-box panel" }, parts));
 }
