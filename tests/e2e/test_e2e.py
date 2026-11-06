@@ -119,7 +119,7 @@ def test_anonymous_survey_qr_and_direct_response(server, browser):
     prof.close()
 
 
-def test_pwa_install_guide_today_and_private_offline(server, browser):
+def test_pwa_install_guide_all_bookings_and_private_offline(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/slots")
@@ -128,17 +128,17 @@ def test_pwa_install_guide_today_and_private_offline(server, browser):
     prof.page.get_by_role("heading", name="안드로이드 앱 설치", exact=True).wait_for()
     prof.shot("mobile_pwa_install_guide")
     prof.page.get_by_role("button", name="확인", exact=True).click()
-    prof.go("/staff/today")
-    prof.page.get_by_text(f"{today_kst(utcnow())}부터 1일", exact=False).wait_for()
-    prof.page.get_by_role("button", name="내일 상담", exact=True).click()
-    prof.page.get_by_text(f"{today_kst(utcnow()) + timedelta(days=1)}부터 1일", exact=False).wait_for()
-    prof.page.get_by_role("button", name="오늘 상담", exact=True).click()
-    prof.page.get_by_text(f"{today_kst(utcnow())}부터 1일", exact=False).wait_for()
+    prof.page.goto(base + "/#/staff/today")
+    prof.page.wait_for_selector('body[data-ready="/bookings"]')
+    prof.page.get_by_text("전체 기간 · 현재 예약", exact=False).wait_for()
+    assert prof.page.get_by_role("button", name="오늘 상담", exact=True).count() == 0
+    assert prof.page.get_by_role("button", name="내일 상담", exact=True).count() == 0
+    assert prof.page.locator("input[type=date]").count() == 0
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
-    prof.shot("mobile_pwa_today")
+    prof.shot("mobile_pwa_bookings")
     prof.page.evaluate("navigator.serviceWorker.ready")
     prof.page.reload()
-    prof.page.wait_for_selector('body[data-ready="/staff/today"]')
+    prof.page.wait_for_selector('body[data-ready="/bookings"]')
     cached = prof.page.evaluate("""async () => {
       const result = [];
       for (const key of await caches.keys()) {
@@ -175,7 +175,7 @@ def test_pwa_standalone_staff_home(server, browser):
         ? {matches: true, addEventListener() {}} : original(query);
     })();""")
     prof.page.goto(base + "/")
-    prof.page.wait_for_selector('body[data-ready="/staff/today"]')
+    prof.page.wait_for_selector('body[data-ready="/bookings"]')
     assert prof.page.locator(".pwa-install").count() == 0
     prof.close()
 
@@ -315,7 +315,8 @@ def test_student_booking_flow_pc(server, browser):
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
-    assert prof.page.locator(".week-grid").is_visible()
+    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator(".week-grid").wait_for(state="visible")
     prof.page.locator(".slot.reserved").first.click()
     assert "김테스트" in prof.page.locator(".modal").inner_text()
     assert prof.page.get_by_text("건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.", exact=False).is_visible()
@@ -568,6 +569,8 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
 
     prof.go("/bookings")
+    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator(".day-chips").wait_for()
     day_chip = prof.page.locator(".chip").filter(
         has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
     if not day_chip.count():
@@ -591,6 +594,7 @@ def test_mobile_professor_views(server, browser):
         prof.go(path)
         if path == "/slots":
             assert prof.page.locator(".day-chips").is_visible()
+            assert prof.page.get_by_role("button", name="일간 시간표 보기").count() == 0
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100

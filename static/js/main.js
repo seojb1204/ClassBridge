@@ -17,7 +17,7 @@ import * as surveys from "./views/surveys.js";
 import * as support from "./views/support.js";
 
 function home(root) {
-  if (can("slot:manage")) return go(isStandalone() ? "/staff/today" : "/slots");
+  if (can("slot:manage")) return go(isStandalone() ? "/bookings" : "/slots");
   if (can("booking:self")) return go("/booking");
   mount(root, h("p", {}, "환영합니다."));
 }
@@ -27,7 +27,7 @@ function registerRoutes() {
   // 학생
   route("/booking", "booking:self", studentBooking.render, "상담 예약");
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
-  route("/staff/today", "booking:manage", profBookings.renderToday);
+  route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
   route("/slots", "slot:manage", profSlots.render, "상담 시간");
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
@@ -54,7 +54,7 @@ function registerRoutes() {
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
   const items = isStandalone() && can("booking:manage")
-    ? [{ pattern: "/staff/today", navLabel: "오늘 상담" }, { pattern: "/bookings", navLabel: "예약 관리" },
+    ? [{ pattern: "/slots", navLabel: "상담 시간" }, { pattern: "/bookings", navLabel: "예약 관리" },
        { pattern: "/staff/insights", navLabel: "상담 정보" }]
     : navItems().slice(0, 3);
   const symbols = {"/booking": "▦", "/my-bookings": "✓", "/slots": "▦", "/bookings": "☷", "/staff/insights": "▤", "/surveys": "☰"};

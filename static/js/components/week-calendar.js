@@ -46,6 +46,7 @@ function slotLabel(s) {
  * @param {string} [o.selectedDay] 모바일에서 선택한 날짜
  * @param {(day)=>void} [o.onDay]
  * @param {(slot)=>Node|null} [o.extra] 슬롯 카드에 추가로 붙일 노드
+ * @param {boolean} [o.mobileListOnly] 모바일에서 목록만 표시
  * @param {"list"|"timeline"} [o.mobileView] 모바일 목록/시간표 보기
  * @param {(mode:string)=>void} [o.onViewChange] 모바일 보기 전환
  */
@@ -122,7 +123,7 @@ function renderDaily(o, byDay) {
     h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), h("em", {}, String(n))));
   }
   const list = (byDay[sel] || []);
-  const mode = o.mobileView === "timeline" ? "timeline" : "list";
+  const mode = !o.mobileListOnly && o.mobileView === "timeline" ? "timeline" : "list";
   const changeView = (value) => o.onViewChange?.(value);
   const toggle = h("div", { class: "mobile-view-toggle", role: "group", "aria-label": "일정 보기 방식" },
     h("button", { type: "button", class: mode === "list" ? "btn primary" : "btn",
@@ -137,7 +138,7 @@ function renderDaily(o, byDay) {
       o.extra ? o.extra(s) : null)));
   return h("div", { class: "daily" }, chips,
     h("h3", { class: "daily-title" }, fmtDate(sel)),
-    toggle,
+    o.mobileListOnly ? null : toggle,
     list.length ? (mode === "timeline" ? renderDailyTimeline(o, list, sel) : cards)
       : h("p", { class: "empty" }, "이 날은 등록된 상담 시간이 없습니다. 다른 날짜를 선택해 주세요."));
 }

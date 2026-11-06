@@ -256,3 +256,22 @@ def test_db_unavailable_returns_503(app, clients):
     r = clients["s1"].get("/api/me")
     assert r.status_code == 503 and r.json()["error"] == "db_unavailable"
     app.state.SessionLocal = app.state.SessionLocal_backup
+
+
+def test_staff_unbounded_bookings_include_distant_dates_and_filter_status(app, clients):
+    p, s1, s2 = clients["prof"], clients["s1"], clients["s2"]
+    ids = make_slots(p)
+    first = s1.post("/api/bookings", json={"slot_id": ids[0]}).json()["id"]
+    second = s2.post("/api/bookings", json={"slot_id": ids[1]}).json()["id"]
+    assert s2.post(f"/api/bookings/{second}/cancel", json={}).status_code == 200
+    with app.state.SessionLocal() as db:
+        slot = db.get(Slot, ids[0])
+        slot.start_at += timedelta(days=90)
+        slot.end_at += timedelta(days=90)
+        db.commit()
+    for staff in (p, clients["admin"]):
+        response = staff.get("/api/bookings?status=booked")
+        assert response.status_code == 200
+        assert [row["id"] for row in response.json()] == [first]
+        assert {row["id"] for row in staff.get("/api/bookings").json()} == {first, second}
+    assert s1.get("/api/bookings?status=booked").status_code == 403
