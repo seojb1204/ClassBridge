@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from tests.conftest import login, make_slots
 
-PUBLIC = {"/api/auth/config", "/api/public-surveys/{token}", "/api/public-surveys/{token}/responses"}
+PUBLIC = {"/api/site/qr.svg", "/api/auth/config", "/api/public-surveys/{token}", "/api/public-surveys/{token}/responses"}
 
 
 def _iter_api_routes(app):
@@ -150,3 +150,4 @@ def test_session_cookie_flags(app):
     r = c.post("/auth/dev/login", json={"email": "z@test.ac.kr"})
     cookie = r.headers["set-cookie"].lower()
     assert "httponly" in cookie and "samesite=lax" in cookie
+

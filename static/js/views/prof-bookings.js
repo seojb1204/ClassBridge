@@ -98,7 +98,7 @@ async function renderCalendarView(root) {
     viewSwitcher(root),
     h("p", { class: "muted" }, "상담 시간을 누르면 예약된 학생과 기록을 보고 바로 처리할 수 있습니다."),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
-    renderCalendar({ weekStart, selectedDay, slots: enhanced, countMode: "total", mobileView,
+    renderCalendar({ weekStart, selectedDay, slots: enhanced, mobileView,
       onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
       onSlot: (slot) => showStaffSlot(root, slot, bookings) }),

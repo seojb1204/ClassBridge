@@ -228,8 +228,9 @@ def browser():
 
 
 class Session:
-    def __init__(self, browser, base, email, viewport):
-        self.ctx = browser.new_context(viewport=viewport, locale="ko-KR", timezone_id="Asia/Seoul")
+    def __init__(self, browser, base, email, viewport, service_workers="allow"):
+        self.ctx = browser.new_context(viewport=viewport, locale="ko-KR", timezone_id="Asia/Seoul",
+                                       service_workers=service_workers)
         self.page = self.ctx.new_page()
         self.errors: list[str] = []
         self.page.on("pageerror", lambda e: self.errors.append(str(e)))
@@ -779,3 +780,51 @@ def test_developer_support_private_conversation_and_menu(server, browser):
     professor.close()
     dev.close()
     student.close()
+
+
+def test_mobile_available_slot_counts_in_staff_views(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE, service_workers="block")
+    day = today_kst(utcnow()).isoformat()
+    slots = [{"id": 9000 + i, "start_at": f"{day}T10:{i * 5:02d}:00+09:00",
+              "end_at": f"{day}T11:00:00+09:00", "kind": "individual", "capacity": 1,
+              "remaining": 1 if i < 2 or i > 3 else 0, "status": "cancelled" if i == 4 else "open",
+              "bookable": i < 2, "mine": False, "location": "m205", "note": "",
+              "reason": "" if i < 2 else "마감"} for i in range(6)]
+    prof.page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
+    prof.page.reload()
+    for path in ("/slots", "/bookings"):
+        prof.go(path)
+        if path == "/bookings":
+            prof.page.get_by_role("button", name="주간 예약 시간표").click()
+        chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
+        chip.wait_for()
+        assert chip.locator("em").inner_text() == "2"
+    # A cancellation releases one time; reloading must show the new count.
+    slots[2].update(bookable=True, remaining=1, reason="")
+    prof.go("/slots")
+    prof.page.get_by_role("tab", name=re.compile("예약 가능 3건")).wait_for()
+    prof.close()
+
+
+def test_site_qr_available_to_guests_students_and_staff(server, browser):
+    base, _ = server
+    sessions = [Session(browser, base, email, MOBILE) for email in
+                ("site-qr@test.ac.kr", "prof@test.ac.kr", "admin@test.ac.kr")]
+    for session in sessions:
+        session.go("/help")
+        session.page.get_by_role("button", name="사이트 접속 QR", exact=True).click()
+        image = session.page.get_by_alt_text("ClassBridge 사이트 접속 QR 코드")
+        image.evaluate("img => img.decode()")
+        with session.page.expect_download() as download:
+            session.page.get_by_role("link", name="QR 이미지 다운로드", exact=True).click()
+        assert download.value.suggested_filename == "classbridge-site-qr.svg"
+        assert session.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
+        session.shot("mobile_site_qr")
+        session.close()
+    context = browser.new_context(viewport=MOBILE)
+    page = context.new_page()
+    page.goto(base)
+    page.get_by_role("button", name="사이트 접속 QR", exact=True).click()
+    page.get_by_alt_text("ClassBridge 사이트 접속 QR 코드").evaluate("img => img.decode()")
+    context.close()
