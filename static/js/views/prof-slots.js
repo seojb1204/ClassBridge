@@ -1,5 +1,6 @@
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
 import { get, patch, post } from "../api.js";
+import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
 import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import { addDays, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, select, toast } from "../ui.js";
@@ -31,13 +32,16 @@ export async function render(root) {
 }
 
 async function draw(root) {
-  const slots = await get(`/api/slots?start=${weekStart}&days=7`);
+  const [slots, announcement] = await Promise.all([
+    get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(),
+  ]);
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
       h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
+    announcementPanel(announcement, () => draw(root)),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileView,
       onViewChange: (mode) => { mobileView = mode; draw(root); },

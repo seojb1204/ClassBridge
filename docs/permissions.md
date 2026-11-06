@@ -16,6 +16,7 @@
 | `suggestion:read` | 건의함 열람·상태 변경 | – | ✅ | ✅ |
 | `ai:analyze` | 의견 분석 | – | ✅ | ✅ |
 | `data:export` | 엑셀 다운로드 | – | ✅ | ✅ |
+| `announcement:manage` | 대표 공지 작성·수정·게시·숨김 | – | ✅ | ✅ |
 | `user:manage` | 계정 목록, 활성·비활성 | – | – | ✅ |
 | `role:manage` | 역할 부여·회수 | – | – | ✅ |
 | `settings:manage` | 운영 정책(예약 기간·마감 등) | – | – | ✅ |

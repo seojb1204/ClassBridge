@@ -27,6 +27,45 @@ PC = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
 
 
+def test_booking_announcement_mobile_lifecycle(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go("/slots")
+    prof.page.get_by_role("button", name="공지 작성", exact=True).click()
+    prof.page.get_by_label("공지 제목").fill("상담 전 준비 안내")
+    prof.page.get_by_label("공지 내용").fill("질문을 정리해 주세요.\n<script>window.noticeInjected=true</script>")
+    prof.page.get_by_role("button", name="공지 저장", exact=True).click()
+    prof.toast("숨김 상태")
+    student = Session(browser, base, "notice-student@test.ac.kr", MOBILE)
+    student.go("/booking")
+    assert student.page.locator(".announcement-panel").count() == 0
+    prof.page.get_by_role("button", name="공지 수정", exact=True).click()
+    prof.page.get_by_label("공개 상태").select_option("true")
+    prof.page.get_by_role("button", name="공지 저장", exact=True).click()
+    prof.toast("게시했습니다")
+    student.page.reload()
+    student.page.get_by_role("heading", name="상담 전 준비 안내").wait_for()
+    assert student.page.locator(".announcement-body").inner_text().endswith("</script>")
+    assert student.page.evaluate("window.noticeInjected === undefined")
+    assert student.page.get_by_role("button", name="공지 수정").count() == 0
+    assert student.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
+    student.shot("mobile_booking_announcement")
+    student.page.get_by_text("예약 방법·마감 시간", exact=True).click()
+    student.page.get_by_text("‘예약 가능’ 시간을 눌러 예약하세요.", exact=False).wait_for()
+    admin = Session(browser, base, "admin@test.ac.kr", PC)
+    admin.go("/slots")
+    admin.page.get_by_role("button", name="공지 수정", exact=True).click()
+    admin.page.get_by_label("공개 상태").select_option("false")
+    admin.page.get_by_role("button", name="공지 저장", exact=True).click()
+    admin.toast("숨김 상태")
+    student.page.reload()
+    student.page.wait_for_selector('body[data-ready="/booking"]')
+    assert student.page.locator(".announcement-panel").count() == 0
+    prof.close()
+    student.close()
+    admin.close()
+
+
 def _free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))

@@ -1,5 +1,6 @@
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { get, post } from "../api.js";
+import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
 import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
@@ -28,16 +29,18 @@ export async function render(root) {
 }
 
 async function draw(root) {
-  const [slots, mine, policy] = await Promise.all([
+  const [slots, mine, policy, announcement] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),
     get("/api/booking-policy"),
+    loadAnnouncement(),
   ]);
   const active = mine.find((b) => b.status === "booked");
   mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "상담 예약"),
-      h("p", { class: "muted" },
-        `진한 청록 테두리의 예약 가능 시간을 누르세요. 앞으로 ${policy.booking_window_days}일 이내의 상담을 ` +
+    h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
+    announcementPanel(announcement),
+    h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
+      h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
         `시작 ${policy.booking_deadline_hours}시간 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다.`)),
     active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
       h("strong", {}, fmtDateTime(active.slot.start_at)),

@@ -300,3 +300,12 @@ code { font-size: .78rem; word-break: break-all; }
   .userbox .desktop-help-link { display: none; }
 }
 .support-count[hidden] { display: none; }
+/* Representative booking notice: plain text, readable on narrow screens. */
+.announcement-panel { margin: 0 0 16px; padding: 16px; border: 1px solid #a8c6c0; border-left: 4px solid #166b59; border-radius: 10px; background: #f1f8f5; color: #183d35; min-width: 0; overflow-wrap: anywhere; }
+.announcement-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.announcement-head .btn { margin-left: auto; }
+.announcement-panel h2 { font-size: 1.05rem; margin: 12px 0 6px; }
+.announcement-body { white-space: pre-wrap; line-height: 1.65; margin: 6px 0 0; }
+.booking-guide { margin: 0 0 16px; color: #46536b; }
+.booking-guide summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.booking-guide p { line-height: 1.6; }
