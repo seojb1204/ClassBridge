@@ -61,3 +61,10 @@
 `PUT /api/announcement`: 교수자·관리자(announcement:manage), CSRF 필수. title(최대 100자), body(최대 2,000자), published, revision을 보냅니다. 게시 시 빈 제목·본문은 422, 오래된 버전으로 수정하면 409입니다. 일반 운영 설정 수정 권한은 부여하지 않습니다.
 
 기존 app_settings의 booking_announcement 항목에 대표 공지 1개를 저장합니다. 새 테이블·마이그레이션은 없습니다. 수정 시 이전 본문 이력을 별도 보관하지 않으며, 작업 이력에는 작업자·시각·버전·게시 여부만 남깁니다. 숨김은 삭제가 아닙니다.
+## 설문 참여 방식 및 QR
+
+설문 생성/초안 수정에 access_mode(login 또는 anonymous)를 지정합니다. 기본값은 login이며 게시 후 변경할 수 없습니다.
+`GET /api/surveys/{survey_id}/qr.svg`는 survey:manage 권한으로 게시된 설문의 참여 QR SVG를 반환합니다.
+`GET /api/public-surveys/{token}`은 공개 예외 경로이며 게시·종료된 익명형만 조회합니다. 초안·휴지통·잘못된 주소는 404입니다. 브라우저용 서명 쿠키와 설문별 CSRF 토큰을 제공합니다.
+`POST /api/public-surveys/{token}/responses`는 해당 쿠키와 X-Survey-CSRF 헤더를 요구합니다. 응답 기간·입력 검증·같은 브라우저 중복 방지·요청 제한을 적용합니다. 로그인 계정은 읽지 않으며 결과 조회 권한을 부여하지 않습니다.
+로그인형의 기존 응답 API는 익명형 제출을 받지 않습니다. 공개 API는 로그인형 설문을 노출하지 않습니다.

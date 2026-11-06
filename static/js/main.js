@@ -106,6 +106,14 @@ function renderChrome() {
 
 async function start() {
   const view = document.getElementById("view");
+  const publicSurvey = location.hash.match(/^#\/surveys\/public\/([A-Za-z0-9_-]{32})$/);
+  if (publicSurvey) {
+    document.getElementById("menu-btn").hidden = true;
+    document.getElementById("mobile-tabs").hidden = true;
+    await surveys.renderPublic(view, publicSurvey[1]);
+    window.addEventListener("hashchange", () => location.reload());
+    return;
+  }
   try {
     state.me = await get("/api/me");
   } catch (e) {

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import random
+import secrets
 import uuid
 from collections import Counter
 from dataclasses import dataclass
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import BadRequest, Conflict, NotFound
 from app.db import utcnow
-from app.models import Answer, Participation, Question, Response, Survey, User
+from app.models import Answer, GuestParticipation, Participation, Question, Response, Survey, User
 from app.models.survey import CHOICE_TYPES, QUESTION_TYPES
 from app.repositories import audit as audit_repo
 from app.repositories import surveys as repo
@@ -25,6 +26,7 @@ from app.services.settings_service import get_settings
 
 MAX_QUESTIONS = 50
 TEXT_LIMITS = {"short": 500, "long": 5000}
+AGREEMENT_SCALE = ["전혀 그렇지 않다", "그렇지 않다", "보통이다", "그렇다", "매우 그렇다"]
 
 
 @dataclass
@@ -53,6 +55,9 @@ def validate_questions(items: list[QuestionInput]) -> list[QuestionInput]:
                 raise BadRequest(f"{i}번 문항에 중복 선택지가 있습니다")
             if any(len(o) > 200 for o in opts):
                 raise BadRequest(f"{i}번 문항 선택지는 200자 이하여야 합니다")
+        elif q.qtype == "scale5" and opts:
+            if opts != AGREEMENT_SCALE:
+                raise BadRequest("5점 척도는 정해진 동의 척도를 사용하세요")
         else:
             opts = []
         out.append(QuestionInput(q.qtype, title, bool(q.required), opts))
@@ -78,14 +83,18 @@ def _build_questions(items: list[QuestionInput]) -> list[Question]:
 
 def create(db: Session, actor: User, title: str, description: str, questions: list[QuestionInput],
            opens_at: datetime | None, closes_at: datetime | None, min_results: int | None,
-           course_name: str = "", semester: str = "") -> Survey:
+           course_name: str = "", semester: str = "", access_mode: str = "login") -> Survey:
     title = title.strip()
     if not title:
         raise BadRequest("제목이 필요합니다")
     _check_window(opens_at, closes_at)
+    if access_mode not in ("login", "anonymous"):
+        raise BadRequest("참여 방식이 올바르지 않습니다")
     s = Survey(title=title[:200], description=description[:5000], opens_at=opens_at, closes_at=closes_at,
                min_results=min_results or get_settings(db)["survey_min_results"], created_by_id=actor.id,
                course_name=course_name.strip()[:120], semester=semester.strip()[:40])
+    s.access_mode = access_mode
+    s.public_token = secrets.token_urlsafe(24) if access_mode == "anonymous" else None
     s.questions = _build_questions(validate_questions(questions))
     db.add(s)
     db.flush()
@@ -103,11 +112,12 @@ def update(db: Session, actor: User, survey_id: int, *, title: str | None = None
            description: str | None = None, questions: list[QuestionInput] | None = None,
            opens_at: datetime | None = None, closes_at: datetime | None = None,
            min_results: int | None = None, course_name: str | None = None,
-           semester: str | None = None, fields_set: set[str] | None = None) -> Survey:
+           semester: str | None = None, fields_set: set[str] | None = None,
+           access_mode: str | None = None) -> Survey:
     fields_set = fields_set or set()
     s = _get(db, survey_id, lock=True)
     if s.status != "draft":
-        locked = {"questions", "opens_at", "min_results", "course_name", "semester"} & fields_set
+        locked = {"questions", "opens_at", "min_results", "course_name", "semester", "access_mode"} & fields_set
         if locked:
             raise Conflict("게시된 설문의 문항·시작일·최소 응답 수는 바꿀 수 없습니다. 복제해서 새 버전을 만드세요",
                            code="survey_locked")
@@ -117,6 +127,11 @@ def update(db: Session, actor: User, survey_id: int, *, title: str | None = None
         if not title.strip():
             raise BadRequest("제목이 필요합니다")
         s.title = title.strip()[:200]
+    if "access_mode" in fields_set:
+        if access_mode not in ("login", "anonymous"):
+            raise BadRequest("참여 방식이 올바르지 않습니다")
+        s.access_mode = access_mode
+        s.public_token = (s.public_token or secrets.token_urlsafe(24)) if access_mode == "anonymous" else None
     if description is not None:
         s.description = description[:5000]
     if course_name is not None:
@@ -173,6 +188,8 @@ def duplicate(db: Session, actor: User, survey_id: int) -> Survey:
     s = Survey(title=f"{src.title} (복제)"[:200], description=src.description, min_results=src.min_results,
                source_survey_id=src.id, created_by_id=actor.id,
                course_name=src.course_name, semester=src.semester)
+    s.access_mode = src.access_mode
+    s.public_token = secrets.token_urlsafe(24) if src.access_mode == "anonymous" else None
     s.questions = [Question(position=q.position, qtype=q.qtype, title=q.title, required=q.required,
                             options=list(q.options or [])) for q in src.questions]
     db.add(s)
@@ -196,13 +213,14 @@ def delete_draft(db: Session, actor: User, survey_id: int) -> None:
 def list_for_student(db: Session, student: User, now: datetime | None = None) -> list[tuple[Survey, bool, bool]]:
     now = now or utcnow()
     done = repo.participated_survey_ids(db, student.id)  # 본인 참여 여부는 본인에게만 보인다
-    return [(s, s.id in done, is_open(s, now)) for s in repo.list_by_status(db, ("published", "closed"))]
+    return [(s, s.id in done, is_open(s, now)) for s in repo.list_by_status(db, ("published", "closed"))
+            if s.access_mode == "login"]
 
 
 def get_for_student(db: Session, student: User, survey_id: int, now: datetime | None = None) -> tuple[Survey, bool]:
     now = now or utcnow()
     s = _get(db, survey_id)
-    if s.status == "draft":
+    if s.status == "draft" or s.access_mode != "login":
         raise NotFound("설문을 찾을 수 없습니다")
     return s, s.id in repo.participated_survey_ids(db, student.id)
 
@@ -239,11 +257,13 @@ def _validate_answer(q: Question, value: object) -> object | None:
     raise BadRequest("알 수 없는 문항 유형")
 
 
-def submit(db: Session, student: User, survey_id: int, answers: dict[str, object],
-           now: datetime | None = None) -> None:
+def submit(db: Session, student: User | None, survey_id: int, answers: dict[str, object],
+           now: datetime | None = None, *, browser_hash: str | None = None) -> None:
     """참여 기록과 응답을 한 트랜잭션에 넣되, 둘 사이에 어떤 연결 값도 저장하지 않는다."""
     now = now or utcnow()
     s = _get(db, survey_id, lock=True)
+    if (s.access_mode == "anonymous") != (browser_hash is not None):
+        raise NotFound("설문 참여 경로가 올바르지 않습니다")
     if not is_open(s, now):
         raise Conflict("응답 기간이 아닙니다", code="survey_closed")
     by_id = {str(q.id): q for q in s.questions}
@@ -252,7 +272,10 @@ def submit(db: Session, student: User, survey_id: int, answers: dict[str, object
         raise BadRequest("설문에 없는 문항이 포함되어 있습니다")
     cleaned = [(q, _validate_answer(q, answers.get(key))) for key, q in by_id.items()]
     try:
-        db.add(Participation(survey_id=s.id, user_id=student.id))
+        if browser_hash is not None:
+            db.add(GuestParticipation(survey_id=s.id, browser_hash=browser_hash))
+        else:
+            db.add(Participation(survey_id=s.id, user_id=student.id))
         db.flush()
         resp = Response(id=str(uuid.uuid4()), survey_id=s.id)
         db.add(resp)
@@ -293,7 +316,8 @@ def results(db: Session, survey_id: int, rng: random.Random | None = None) -> di
             item["counts"] = [{"option": o, "count": c.get(o, 0)} for o in q.options]
         elif q.qtype == "scale5":
             c = Counter(vals)
-            item["counts"] = [{"option": str(i), "count": c.get(i, 0)} for i in range(1, 6)]
+            item["counts"] = [{"option": f"{i} · {q.options[i - 1]}" if q.options else str(i),
+                               "count": c.get(i, 0)} for i in range(1, 6)]
             item["average"] = round(sum(vals) / len(vals), 2) if vals else None
         else:
             texts = list(vals)

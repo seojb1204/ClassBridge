@@ -28,6 +28,8 @@ class Survey(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
+    access_mode: Mapped[str] = mapped_column(String(20), default="login", server_default="login")
+    public_token: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, default="")
     course_name: Mapped[str] = mapped_column(String(120), default="")
     semester: Mapped[str] = mapped_column(String(40), default="")
@@ -76,6 +78,13 @@ class Response(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     survey_id: Mapped[int] = mapped_column(ForeignKey("surveys.id", ondelete="CASCADE"), index=True)
+
+
+class GuestParticipation(Base):
+    """Anonymous browser participation only; no response reference or timestamp."""
+    __tablename__ = "survey_guest_participations"
+    survey_id: Mapped[int] = mapped_column(ForeignKey("surveys.id", ondelete="CASCADE"), primary_key=True)
+    browser_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
 
 
 class Answer(Base):

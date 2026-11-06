@@ -72,6 +72,53 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+def test_anonymous_survey_qr_and_direct_response(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go("/surveys/edit/new")
+    prof.page.fill(".title-input", "QR 익명 소감")
+    prof.page.get_by_label("참여 방식").select_option("anonymous")
+    prof.page.get_by_role("button", name="+ 문항 추가", exact=True).click()
+    assert prof.page.locator(".q-card select option").evaluate_all("nodes => nodes.map(n => n.value)") == [
+        "long", "scale5", "single"]
+    prof.page.locator(".q-title").fill("이번 강의에서 개선할 점")
+    prof.page.get_by_role("button", name="초안 저장", exact=True).click()
+    prof.page.wait_for_url(re.compile(r".*/surveys/edit/\d+$"))
+    prof.page.locator(".toolbar").get_by_role("button", name="게시", exact=True).click()
+    prof.page.locator(".modal").get_by_role("button", name="게시", exact=True).click()
+    prof.toast("게시했습니다")
+    prof.page.get_by_role("button", name="QR 공유", exact=True).click()
+    assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
+    qr = prof.page.get_by_alt_text("학생 참여용 설문 QR 코드")
+    qr.wait_for()
+    qr.evaluate("img => img.decode()")
+    assert qr.evaluate("img => img.naturalWidth > 0")
+    prof.page.locator(".toast").last.wait_for(state="hidden")
+    qr.screenshot(path=str(SHOTS / "anonymous_survey_qr.png"))
+    prof.shot("mobile_survey_qr_share")
+    link = prof.page.locator(".survey-share-url").get_attribute("href")
+    assert "/#/surveys/public/" in link
+    with prof.page.expect_download() as download:
+        prof.page.get_by_role("link", name="QR 이미지 다운로드").click()
+    assert download.value.suggested_filename.endswith("-qr.svg")
+    ctx = browser.new_context(viewport=MOBILE)
+    page = ctx.new_page()
+    requests = []
+    page.on("request", lambda r: requests.append(r.url))
+    page.goto(link)
+    page.locator(".survey-form").wait_for()
+    assert not any("/api/me" in url for url in requests)
+    assert page.get_by_role("link", name="Google 계정으로 로그인").count() == 0
+    page.fill("textarea", "사례 설명을 더 듣고 싶어요")
+    page.get_by_role("button", name="제출", exact=True).click()
+    page.locator(".notice.success").wait_for()
+    page.reload()
+    page.get_by_text("이 브라우저에서는 이미 참여한 설문입니다.", exact=False).wait_for()
+    ctx.close()
+    prof.page.get_by_role("button", name="닫기", exact=True).click()
+    prof.close()
+
+
 def test_pwa_install_guide_today_and_private_offline(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
@@ -137,7 +184,7 @@ def test_pwa_standalone_staff_home(server, browser):
 def server(tmp_path_factory):
     db = tmp_path_factory.mktemp("e2e") / "e2e.db"
     port = _free_port()
-    env = {**os.environ, "APP_ENV": "development", "DATABASE_URL": f"sqlite:///{db}",
+    env = {**os.environ, "APP_ENV": "development", "DATABASE_URL": f"sqlite:///{db}", "BASE_URL": f"http://127.0.0.1:{port}",
            "ADMIN_EMAILS": "admin@test.ac.kr", "PROFESSOR_EMAILS": "prof@test.ac.kr"}
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True,
                    capture_output=True)
@@ -385,11 +432,13 @@ def test_survey_create_submit_results(server, browser):
     prof.page.locator("input[placeholder^='학기']").fill("2026-2")
     prof.page.locator("input[type=number]").fill("1")  # 결과 공개 최소 응답 수
     prof.page.click("text=+ 문항 추가")
-    prof.page.locator(".q-title").nth(0).fill("수업 만족도")
+    prof.page.locator(".q-title").nth(0).fill("강의 설명이 이해하기 쉬웠다")
     prof.page.locator(".q-card select").nth(0).select_option("scale5")
     prof.page.click("text=+ 문항 추가")
-    prof.page.locator(".q-title").nth(1).fill("좋았던 점")
-    prof.page.locator(".q-card select").nth(1).select_option("multi")
+    prof.page.locator(".q-title").nth(1).fill("내일 만날 장소")
+    prof.page.locator(".q-card select").nth(1).select_option("single")
+    prof.page.locator(".options input").nth(0).fill("서울")
+    prof.page.locator(".options input").nth(1).fill("강원")
     prof.page.click("text=+ 문항 추가")
     prof.page.locator(".q-title").nth(2).fill("하고 싶은 말")
     prof.page.locator(".q-card select").nth(2).select_option("long")
@@ -421,8 +470,8 @@ def test_survey_create_submit_results(server, browser):
     st.page.locator(".survey-form").wait_for(state="visible")
     assert st.page.get_by_text("참여는 선택입니다.", exact=False).is_visible()
     assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
-    st.page.locator(".scale-item").nth(3).click()
-    st.page.locator(".choices .check").nth(0).click()
+    st.page.locator(".scale-choices .check").nth(3).click()
+    st.page.get_by_label("서울", exact=True).check()
     st.page.fill("textarea", "실습이 좋았어요")
     st.page.click("button:has-text('제출')")
     st.page.wait_for_selector(".notice.success")

@@ -268,7 +268,7 @@ code { font-size: .78rem; word-break: break-all; }
   .page-head { gap: .35rem; }
   .mobile-tab-icon { font-size: 1.25rem; line-height: 1.15; }
   .inline-form input[type="date"] { flex: 0 0 auto !important; min-height: 42px; height: auto; }
-  .view { padding: .9rem; }
+  .view { padding: .9rem .9rem 88px; }
   .split { grid-template-columns: 1fr; }
   .q-row { grid-template-columns: 1fr; }
   .inline-form { flex-direction: column; }
@@ -309,3 +309,12 @@ code { font-size: .78rem; word-break: break-all; }
 .booking-guide { margin: 0 0 16px; color: #46536b; }
 .booking-guide summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .booking-guide p { line-height: 1.6; }
+.survey-qr { text-align: center; }
+.survey-qr img { display: block; width: min(100%, 280px); height: auto; margin: 12px auto; background: white; }
+.survey-share-url { display: block; overflow-wrap: anywhere; margin-top: 12px; }
+.scale-choices label { min-height: 44px; }
+.questions .add-q { scroll-margin-bottom: 100px; }
+#mobile-tabs[hidden] { display: none; }
+.survey-settings .field { min-width: 0; }
+.survey-settings input, .survey-settings select { min-width: 0; max-width: 100%; }
+@media (max-width: 720px) { .survey-settings .grid-form { grid-template-columns: minmax(0, 1fr); } }

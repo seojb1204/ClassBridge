@@ -6,6 +6,7 @@ import { fmtDateTime } from "../time.js";
 import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast, confirmAction, promptText } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
 import { renderForm } from "./survey-form.js";
+import { showSurveyQr } from "../components/survey-share.js";
 
 export async function renderList(root) {
   if (can("survey:manage")) return staffList(root);
@@ -42,6 +43,7 @@ async function staffList(root) {
         h("button", { class: "btn danger", onclick: () => manage(s, "purge") }, "영구 삭제"),
       ] : [
         h("a", { class: "btn small", href: `#/surveys/edit/${s.id}` }, s.status === "draft" ? "편집" : "설정"),
+        s.status === "published" ? h("button", { class: "btn small", onclick: () => showSurveyQr(s) }, "QR 공유") : null,
         s.status !== "draft" ? h("a", { class: "btn small", href: `#/surveys/results/${s.id}` }, "결과") : null,
         s.status !== "published" ? h("button", { class: "btn small danger", onclick: () => manage(s, "trash") }, "휴지통으로")
           : h("span", { class: "hint" }, "삭제하려면 설정에서 먼저 설문을 종료하세요."),
@@ -109,4 +111,22 @@ function questionResult(q) {
     return h("div", { class: "bar-row" }, h("span", { class: "bar-label" }, c.option), h("span", { class: "bar" }, bar),
       h("span", { class: "bar-n" }, String(c.count)));
   })) : h("ul", { class: "texts" }, (q.texts || []).map((t) => h("li", { class: "pre" }, t))));
+}
+
+export async function renderPublic(root, token) {
+  const endpoint = `/api/public-surveys/${token}`;
+  try {
+    const s = await get(endpoint);
+    if (s.participated) { mount(root, h("p", { class: "notice" }, "이 브라우저에서는 이미 참여한 설문입니다. 감사합니다.")); return; }
+    if (!s.is_open) { mount(root, h("p", { class: "notice" }, "응답 기간이 아니거나 종료된 설문입니다.")); return; }
+    mount(root, renderForm(s, async (answers) => {
+      try {
+        const response = await fetch(`${endpoint}/responses`, { method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-Survey-CSRF": s.csrf_token }, body: JSON.stringify({ answers }) });
+        const result = await response.json();
+        if (!response.ok) { toast(result.message || "제출하지 못했습니다. 다시 시도해 주세요.", "error"); return; }
+        mount(root, h("div", { class: "notice success" }, "응답이 제출되었습니다. 감사합니다. 창을 닫으셔도 됩니다."));
+      } catch { toast("인터넷 연결을 확인해 주세요. 제출 결과는 설문을 다시 열어 확인할 수 있습니다.", "error"); }
+    }));
+  } catch (error) { mount(root, h("p", { class: "notice" }, error.message || "설문을 열 수 없습니다.")); }
 }
