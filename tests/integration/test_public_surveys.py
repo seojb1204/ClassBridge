@@ -60,10 +60,14 @@ def test_anonymous_availability_share_and_mode_lock(app, clients):
     qr = p.get(f"/api/surveys/{s['id']}/qr.svg")
     assert qr.status_code == 200 and "<svg" in qr.text
     assert clients["s1"].get(f"/api/surveys/{s['id']}/qr.svg").status_code == 403
+    png = p.get(f"/api/surveys/{s['id']}/qr.png")
+    assert png.status_code == 200 and png.content.startswith(b"\x89PNG\r\n\x1a\n")
+    assert clients["s1"].get(f"/api/surveys/{s['id']}/qr.png").status_code == 403
     duplicate = p.post(f"/api/surveys/{s['id']}/duplicate").json()
     assert duplicate["access_mode"] == "anonymous" and duplicate["public_token"] != s["public_token"]
     data = guest.get(path).json()
     p.post(f"/api/surveys/{s['id']}/close")
+    assert p.get(f"/api/surveys/{s['id']}/qr.png").status_code == 409
     assert guest.get(path).json()["is_open"] is False
     assert guest.post(path + "/responses", headers={"X-Survey-CSRF": data["csrf_token"]},
                       json={"answers": {}}).status_code == 409

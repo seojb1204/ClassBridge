@@ -26,6 +26,8 @@ h3 { font-size: 1rem; margin: 0 0 .5rem; }
 .menu-btn { display: none; margin-left: auto; font-size: 1.3rem; background: none; border: 0; cursor: pointer; }
 
 .view { max-width: 1200px; margin: 0 auto; padding: 1.25rem; outline: none; }
+.reserved-day-count { display: block; color: var(--primary); font-size: .8rem; }
+.daily-title:focus { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 3px; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .page-head p { flex-basis: 100%; margin: .25rem 0 0; }
 .muted { color: var(--muted); }

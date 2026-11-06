@@ -15,6 +15,7 @@ from app.core.errors import FeatureDisabled
 from app.core.permissions import P
 from app.db import get_db
 from app.infra.excel import build_workbook
+from app.infra.qr import png_qr
 from app.repositories import surveys as repo
 from app.schemas.surveys import (
     SubmitIn,
@@ -37,15 +38,27 @@ def feature_on(request: Request) -> None:
         raise FeatureDisabled("설문 기능이 비활성화되어 있습니다 (운영 보안 검토 후 활성화)")
 
 
-@router.get("/{survey_id}/qr.svg", dependencies=[Depends(feature_on)])
-def survey_qr(survey_id: int, request: Request, p: Principal = Depends(require(P.SURVEY_MANAGE)),
-              db: Session = Depends(get_db)):
+@router.get("/{survey_id}/qr.png", dependencies=[Depends(feature_on)])
+def survey_qr_png(survey_id: int, request: Request, p: Principal = Depends(require(P.SURVEY_MANAGE)),
+                  db: Session = Depends(get_db)):
+    survey, url = _survey_share_url(db, survey_id, request)
+    return HttpResponse(png_qr(url), media_type="image/png",
+                        headers={"Content-Disposition": f'inline; filename="survey-{survey.id}-qr.png"'})
+
+
+def _survey_share_url(db, survey_id, request):
     survey = svc.get(db, survey_id)
     if survey.status != "published":
         from app.core.errors import Conflict
         raise Conflict("게시된 설문만 QR로 공유할 수 있습니다")
     target = f"public/{survey.public_token}" if survey.access_mode == "anonymous" else f"take/{survey.id}"
-    url = f"{request.app.state.settings.base_url}/#/surveys/{target}"
+    return survey, f"{request.app.state.settings.base_url}/#/surveys/{target}"
+
+
+@router.get("/{survey_id}/qr.svg", dependencies=[Depends(feature_on)])
+def survey_qr(survey_id: int, request: Request, p: Principal = Depends(require(P.SURVEY_MANAGE)),
+              db: Session = Depends(get_db)):
+    survey, url = _survey_share_url(db, survey_id, request)
     image = qrcode.make(url, image_factory=SvgPathFillImage, border=4)
     return HttpResponse(image.to_string(), media_type="image/svg+xml",
                         headers={"Content-Disposition": f'inline; filename="survey-{survey.id}-qr.svg"'})

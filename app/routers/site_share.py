@@ -4,7 +4,16 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from qrcode.image.svg import SvgPathFillImage
 
+from app.infra.qr import png_qr
+
 router = APIRouter(prefix="/api/site", tags=["site"])
+
+
+@router.get("/qr.png")
+def site_qr_png(request: Request):
+    url = request.app.state.settings.base_url.rstrip("/") + "/"
+    return Response(png_qr(url), media_type="image/png",
+                    headers={"Content-Disposition": 'inline; filename="classbridge-site-qr.png"'})
 
 
 @router.get("/qr.svg")

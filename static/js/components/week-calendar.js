@@ -8,6 +8,25 @@ const STEP = 15; // 분 단위 행 높이
 
 export function isMobile() { return MOBILE.matches; }
 
+export function revealSelectedDay(root) {
+  if (!isMobile()) return;
+  const title = root.querySelector(".daily-title"), path = location.hash;
+  if (!title) return;
+  requestAnimationFrame(() => {
+    if (!title.isConnected || location.hash !== path) return;
+    const headerHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
+    title.focus({ preventScroll: true });
+    window.scrollTo({ top: Math.max(0, window.scrollY + title.getBoundingClientRect().top - headerHeight - 12),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  });
+}
+
+function dayCount(o, slots) {
+  return o.dayCountMode === "booked"
+    ? slots.filter(s => s.status !== "cancelled").reduce((sum, s) => sum + (s.bookingCount || 0), 0)
+    : slots.filter(s => s.bookable === true).length;
+}
+
 export function onLayoutChange(cb) {
   const route = location.hash;
   const update = () => { if (location.hash === route) cb(); };
@@ -76,6 +95,7 @@ function renderWeekly(o, byDay) {
   for (let d = 0; d < 7; d++) {
     const day = addDays(o.weekStart, d);
     const head = h("div", { class: "day-head" }, h("strong", {}, DAYS[d]), " ", day.slice(5).replace("-", "/"));
+    if (o.dayCountMode === "booked") head.append(h("small", { class: "reserved-day-count" }, `예약 ${dayCount(o, byDay[day] || [])}명`));
     head.style.gridColumn = String(d + 2);
     grid.append(head);
   }
@@ -114,12 +134,13 @@ function renderDaily(o, byDay) {
   const chips = h("div", { class: "day-chips", role: "tablist" });
   for (let d = 0; d < 7; d++) {
     const day = addDays(o.weekStart, d);
-    const n = (byDay[day] || []).filter((s) => s.bookable === true).length;
-    const label = "예약 가능";
+    const n = dayCount(o, byDay[day] || []);
+    const reserved = o.dayCountMode === "booked";
+    const label = reserved ? "예약" : "예약 가능", unit = reserved ? "명" : "건";
     chips.append(h("button", { class: `chip ${day === sel ? "active" : ""}`, role: "tab",
-      "aria-label": `${fmtDate(day)}, ${label} ${n}건`,
+      "aria-label": `${fmtDate(day)}, ${label} ${n}${unit}`,
       "aria-selected": String(day === sel), onclick: () => o.onDay?.(day) },
-    h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), h("em", {}, String(n))));
+    h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), h("em", {}, reserved ? `${n}명` : String(n))));
   }
   const list = (byDay[sel] || []);
   const mode = !o.mobileListOnly && o.mobileView === "timeline" ? "timeline" : "list";
@@ -136,7 +157,7 @@ function renderDaily(o, byDay) {
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
       o.extra ? o.extra(s) : null)));
   return h("div", { class: "daily" }, chips,
-    h("h3", { class: "daily-title" }, fmtDate(sel)),
+    h("h3", { class: "daily-title", tabindex: "-1" }, `${fmtDate(sel)} · 상담 시간`),
     o.mobileListOnly ? null : toggle,
     list.length ? (mode === "timeline" ? renderDailyTimeline(o, list, sel) : cards)
       : h("p", { class: "empty" }, "이 날은 등록된 상담 시간이 없습니다. 다른 날짜를 선택해 주세요."));

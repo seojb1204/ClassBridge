@@ -1,8 +1,10 @@
 import { get } from "../api.js";
+import { can } from "../state.js";
 import { h, field, select, errorToast } from "../ui.js";
 import { addDays, todayKst } from "../time.js";
 
 export function exportPanel(staff = false) {
+  if (!can("data:export") || !can("booking:manage")) return null;
   const start = h("input", { type: "date", value: addDays(todayKst(), -90), required: true });
   const end = h("input", { type: "date", value: todayKst(), required: true });
   const student = select([["", "전체 학생"]], "");
