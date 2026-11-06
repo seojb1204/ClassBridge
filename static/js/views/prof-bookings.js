@@ -6,27 +6,15 @@ import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
 
-let filter = { start: null, days: 31, status: "booked" };
-let viewMode = "calendar";
+let filter = { status: "booked" };
+let viewMode = "list";
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "list";
 let detach = null;
 
-export async function renderToday(root) {
-  viewMode = "list";
-  filter = { start: todayKst(), days: 1, status: "" };
-  return render(root);
-}
-
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    ...[[0, "오늘 상담"], [1, "내일 상담"]].map(([offset, label]) => h("button", {
-      class: "btn", onclick: () => {
-        viewMode = "list"; filter = { start: addDays(todayKst(), offset), days: 1, status: "" };
-        render(root);
-      },
-    }, label)),
     ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { viewMode = value; render(root); } }, label)));
@@ -122,22 +110,19 @@ export async function render(root) {
   if (viewMode === "calendar") return renderCalendarView(root);
   detach?.();
   detach = null;
-  filter.start ||= addDays(todayKst(), -7);
-  const q = new URLSearchParams({ start: filter.start, days: filter.days });
+  const q = new URLSearchParams();
   if (filter.status) q.set("status", filter.status);
   const list = await get(`/api/bookings?${q}`);
-  const start = h("input", { type: "date", value: filter.start });
   const status = select([["", "전체"], ["booked", "예약됨"], ["completed", "완료"], ["no_show", "미참석"],
     ["cancelled", "취소됨"]], filter.status);
-  const apply = () => { filter = { ...filter, start: start.value, status: status.value }; render(root); };
-  start.addEventListener("change", apply);
+  const apply = () => { filter = { status: status.value }; render(root); };
   status.addEventListener("change", apply);
   const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
     viewSwitcher(root),
-    h("div", { class: "filters" }, field("시작일", start), field("상태", status)),
-    h("p", { class: "muted" }, `${filter.start}부터 ${filter.days}일 · ${list.length}건 (한국시간)`),
+    h("div", { class: "filters" }, field("상태", status)),
+    h("p", { class: "muted" }, `전체 기간 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
     list.length ? h("div", { class: "table-wrap" }, table(root, list)) : empty("해당 조건의 예약이 없습니다."));
 }
 

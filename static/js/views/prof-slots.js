@@ -8,7 +8,6 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let detach = null;
-let mobileView = "list";
 let showForm = null;
 const WD = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -43,8 +42,7 @@ async function draw(root) {
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileView,
-      onViewChange: (mode) => { mobileView = mode; draw(root); },
+    renderCalendar({ weekStart, slots, selectedDay, countMode: "total", mobileListOnly: true,
       onDay: (d) => { selectedDay = d; draw(root); },
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) : null) }),
@@ -67,7 +65,7 @@ function createForm(root) {
   });
   const weeks = h("input", { type: "number", min: 1, max: 26, value: 1 });
   const wdBoxes = WD.map((w, i) => h("label", { class: "check" }, h("input", { type: "checkbox", value: i }), w));
-  const loc = h("input", { type: "text", maxlength: 200, placeholder: "예: 공학관 512호" });
+  const loc = h("input", { type: "text", maxlength: 200, value: "m205", placeholder: "예: m205" });
   const btn = h("button", { class: "btn primary", type: "submit" }, "등록");
   const form = h("form", { class: "grid-form" },
     field("날짜(시작일)", date), field("시작", start), field("종료", end),

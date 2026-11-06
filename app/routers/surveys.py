@@ -138,6 +138,7 @@ def export(survey_id: int, p: Principal = Depends(require(P.EXPORT)),
 def student_list(p: Principal = Depends(require(P.SURVEY_RESPOND)),
                      db: Session = Depends(get_db)):
     return [SurveyStudentListOut(id=s.id, title=s.title, description=s.description,
+                                 access_mode=s.access_mode, public_token=s.public_token,
                                  course_name=s.course_name, semester=s.semester, status=s.status,
                                  closes_at=s.closes_at, is_open=opened, participated=done)
             for s, done, opened in svc.list_for_student(db, p.user)]
