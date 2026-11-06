@@ -138,3 +138,4 @@ async function openSlot(root, s, active, policy) {
     await draw(root);
   }
 }
+
