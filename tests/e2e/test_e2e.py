@@ -562,8 +562,7 @@ def test_survey_create_submit_results(server, browser):
     st.page.click("text=응답하기")
     st.page.locator(".survey-form").wait_for(state="visible")
     assert st.page.get_by_text("참여는 선택입니다.", exact=False).is_visible()
-    assert st.page.get_by_text("DB·서버 기록", exact=False).count() == 0
-    assert st.page.get_by_text("이름·학번·연락처나", exact=False).count() == 0
+    assert st.page.get_by_text("DB·서버 기록", exact=False).is_visible()
     st.page.locator(".scale-choices .check").nth(3).click()
     st.page.get_by_label("서울", exact=True).check()
     st.page.fill("textarea", "실습이 좋았어요")
