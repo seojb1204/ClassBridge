@@ -23,6 +23,32 @@ from tests.conftest import ADMIN, PG_URL, login, make_settings, make_slots
 pytestmark = pytest.mark.skipif(not PG_URL, reason="TEST_PG_URL 미설정")
 
 
+@pytest.mark.parametrize("revision", [0, 1])
+def test_announcement_concurrent_publish_has_one_winner(pg_app, revision):
+    from types import SimpleNamespace
+
+    from app.models import AppSetting, AuditLog
+    from app.routers.announcement import KEY, AnnouncementIn, put_announcement
+
+    client = login(pg_app, ADMIN)
+    actor = SimpleNamespace(id=client.me["id"])
+    if revision:
+        with pg_app.state.SessionLocal() as db:
+            put_announcement(AnnouncementIn(title="초기", body="내용", published=False, revision=0), actor, db)
+
+    def write(index):
+        with pg_app.state.SessionLocal() as db:
+            put_announcement(AnnouncementIn(title=f"공지 {index}", body="내용", published=True,
+                                            revision=revision), actor, db)
+
+    results = _race(2, write)
+    assert sorted(results) == ["conflict", "ok"], results
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(AppSetting, KEY).value["revision"] == revision + 1
+        assert db.scalar(select(func.count()).select_from(AuditLog).where(
+            AuditLog.action == "announcement.update")) == revision + 1
+
+
 def _alembic(url: str) -> Config:
     cfg = Config("alembic.ini")
     cfg.attributes["database_url"] = url

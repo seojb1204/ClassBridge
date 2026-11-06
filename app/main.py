@@ -18,7 +18,7 @@ from app.core.rate_limit import RateLimiter
 from app.db import make_engine, make_sessionmaker
 from app.infra.ai_client import build_ai_client
 from app.infra.google_oauth import verify_with_google
-from app.routers import admin, analysis, auth, bookings, exports, suggestions, support, surveys
+from app.routers import admin, analysis, announcement, auth, bookings, exports, suggestions, support, surveys
 
 log = logging.getLogger("classbridge")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -62,7 +62,7 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
                             status_code=503)
 
     for r in (auth.router, admin.router, bookings.router, exports.router, surveys.router,
-              suggestions.router, support.router, analysis.router):
+              suggestions.router, support.router, analysis.router, announcement.router):
         app.include_router(r)
 
     @app.get("/healthz", include_in_schema=False)
