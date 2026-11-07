@@ -27,6 +27,45 @@ PC = {"width": 1366, "height": 900}
 MOBILE = {"width": 390, "height": 844}
 
 
+def test_staff_booking_activity_mobile_filter_pagination_and_student_access(server, browser):
+    base, _ = server
+    for role in ('prof@test.ac.kr', 'admin@test.ac.kr'):
+        s = Session(browser, base, role, MOBILE, service_workers='block')
+        page = s.page
+        event = {'id': 30, 'booking_id': 7, 'action': 'cancel', 'actor_name': '학생 테스트',
+                 'student_name': '<script>테스트</script>', 'actor_is_student': True,
+                 'at': '2026-11-07T01:02:03Z', 'start_at': '2026-11-10T04:00:00Z',
+                 'status': 'cancelled', 'detail': ''}
+
+        def activity(route, request, event=event):
+            if 'before_id=' in route.request.url:
+                route.fulfill(json={'items': [{**event, 'id': 20}], 'next_before_id': None})
+            elif 'kind=change' in route.request.url:
+                route.fulfill(json={'items': [], 'next_before_id': None})
+            else:
+                route.fulfill(json={'items': [event], 'next_before_id': 30})
+
+        page.route('**/api/staff/booking-events?*', activity)
+        s.go('/bookings')
+        page.get_by_role('button', name='예약 활동 기록', exact=True).click()
+        panel = page.locator('.booking-activity')
+        panel.get_by_text('학생 예약 취소', exact=True).wait_for()
+        assert panel.get_by_text('처리자: 학생 테스트 (예약 학생 본인)').count() == 1
+        assert panel.locator('script').count() == 0
+        panel.get_by_role('button', name='이전 기록 더 보기').click()
+        panel.get_by_text('2건 표시 · 최신 기록부터', exact=True).wait_for()
+        s.shot('mobile_booking_activity_' + role.split('@')[0])
+        panel.get_by_label('활동 종류').select_option('change')
+        panel.get_by_text('해당 예약 활동 기록이 없습니다.').wait_for()
+        s.close()
+    student = Session(browser, base, 'activity-student@test.ac.kr', MOBILE)
+    student.page.goto(base + '/#/bookings')
+    student.page.get_by_text('접근 권한이 없는 화면입니다.').wait_for()
+    assert student.page.get_by_text('접근 권한이 없는 화면입니다.').count() == 1
+    assert student.page.locator('.booking-activity').count() == 0
+    student.close()
+
+
 def test_live_booking_refresh_preserves_dialog_and_stops_after_navigation(server, browser):
     base, _ = server
     s = Session(browser, base, "live-refresh@test.ac.kr", MOBILE, service_workers="block")
@@ -470,6 +509,10 @@ def test_student_booking_flow_pc(server, browser):
     prof.go("/bookings")
     prof.page.get_by_role("button", name="주간 예약 시간표").click()
     prof.page.locator(".week-grid").wait_for(state="visible")
+    # The fixture can fall in next week (e.g. when this test runs on Saturday).
+    today = today_kst(utcnow())
+    if SLOT_DAY - timedelta(days=SLOT_DAY.weekday()) > today - timedelta(days=today.weekday()):
+        prof.page.get_by_role('button', name='다음 주', exact=True).click()
     prof.page.locator(".slot.reserved").first.click()
     assert "김테스트" in prof.page.locator(".modal").inner_text()
     assert prof.page.get_by_text("건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.", exact=False).is_visible()

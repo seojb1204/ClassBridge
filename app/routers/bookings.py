@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -32,6 +33,14 @@ from app.services import staff_insights as insights_svc
 from app.services.settings_service import get_settings
 
 router = APIRouter(prefix="/api", tags=["bookings"])
+
+
+@router.get("/staff/booking-events")
+def booking_events(kind: Literal["all", "cancel", "change"] = "all",
+                   before_id: int | None = Query(None, ge=1), limit: int = Query(30, ge=1, le=100),
+                   p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session = Depends(get_db)):
+    from app.services.booking_activity import list_activity
+    return list_activity(db, kind, before_id, limit)
 
 
 def _staff_out(b, u) -> StaffBookingOut:

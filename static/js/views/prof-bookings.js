@@ -1,5 +1,6 @@
 import { professorNotifications } from "../components/professor-notifications.js";
 import { staffToday } from "../components/staff-today.js";
+import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { get, post, put } from "../api.js";
 import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
@@ -17,7 +18,7 @@ let detach = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"]].map(([value, label]) =>
+    ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { viewMode = value; render(root); } }, label)));
 }
@@ -111,6 +112,11 @@ async function renderCalendarView(root) {
 
 
 export async function render(root) {
+  if (viewMode === 'activity') {
+    detach?.(); detach = null;
+    mount(root, h('div', { class: 'page-head' }, h('h1', {}, '예약 관리')), viewSwitcher(root), bookingActivity());
+    return;
+  }
   if (viewMode === "calendar") return renderCalendarView(root);
   detach?.();
   detach = null;
@@ -181,7 +187,7 @@ function actions(root, b) {
   });
   act("이력", async () => {
     const ev = await get(`/api/bookings/${b.id}/history`);
-    await modal("변경 이력", h("ul", { class: "plain" }, ev.map((e) => h("li", {}, `${fmtDateTime(e.at)} · ${e.action} ${e.detail}`))),
+    await modal("변경 이력", h("ul", { class: "plain" }, ev.map((e) => h("li", {}, `${fmtDateTime(e.at)} · ${eventLabels[e.action] || e.action} ${e.detail}`))),
       [{ label: "닫기", value: null }]);
   });
   if (out.length <= 2) return out;
