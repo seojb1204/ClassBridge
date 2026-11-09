@@ -41,7 +41,12 @@ def test_mobile_public_notice_and_direct_login(tmp_path, notice_browser):  # noq
         page.goto(base)
         button = page.get_by_role("link", name="Google 계정으로 로그인")
         button.wait_for()
-        assert page.get_by_role("checkbox").count() == 0
+        remember = page.get_by_role("checkbox", name="이 기기에서 30일간 로그인 유지", exact=True)
+        assert page.get_by_role("checkbox").count() == 1
+        assert not remember.is_checked()
+        remember.check()
+        assert button.get_attribute("href") == "/auth/google/login?remember=true"
+        remember.uncheck()
         assert page.get_by_role("link", name="개인정보처리방침").is_visible()
         assert page.get_by_text("상담 예약에 필요한 계정 정보와 예약 정보를 처리합니다.").is_visible()
         assert "동의합니다" not in page.locator("body").inner_text()
