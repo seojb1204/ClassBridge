@@ -8,7 +8,22 @@ export async function render(root) {
   const survey = location.hash.match(/^#\/surveys\/take\/([1-9][0-9]{0,9})$/)?.[1];
   const parts = [h("h1", {}, "ClassBridge"), h("p", { class: "muted" }, "교수자와 학생을 위한 상담 예약")];
   if (survey) parts.push(h("p", { class: "notice" }, "이 설문은 로그인 후 참여할 수 있습니다. 로그인하면 해당 설문이 바로 열립니다."));
-  if (cfg.google) parts.push(h("a", { class: "btn primary big", href: `/auth/google/login${survey ? `?survey=${survey}` : ""}` }, "Google 계정으로 로그인"));
+  const remember = h("input", { type: "checkbox", name: "remember" });
+  if (cfg.google || cfg.dev_login) parts.push(h("label", {}, remember, " 이 기기에서 30일간 로그인 유지"));
+  if (cfg.google) {
+    const params = new URLSearchParams();
+    if (survey) params.set("survey", survey);
+    const link = h("a", { class: "btn primary big" }, "Google 계정으로 로그인");
+    const updateLink = () => {
+      if (remember.checked) params.set("remember", "true");
+      else params.delete("remember");
+      link.href = "/auth/google/login" + (params.size ? "?" + params : "");
+    };
+    updateLink();
+    remember.addEventListener("change", updateLink);
+    parts.push(link);
+  }
+  if (cfg.suggestions) parts.push(h("a", { class: "btn big", href: "/static/suggest.html" }, "로그인 없이 익명 건의하기"));
   if (cfg.notice) {
     parts.push(h("p", { class: "muted" }, "상담 예약에 필요한 계정 정보와 예약 정보를 처리합니다."),
       h("p", {}, h("a", { href: cfg.notice.url, target: "_blank", rel: "noopener" }, "개인정보처리방침")));
@@ -21,7 +36,7 @@ export async function render(root) {
       field("이메일", email), btn);
     form.addEventListener("submit", busy(btn, async (e) => {
       e.preventDefault();
-      try { await post("/auth/dev/login", { email: email.value }); location.hash = survey ? `#/surveys/take/${survey}` : "#/"; location.reload(); }
+      try { await post("/auth/dev/login", { email: email.value, remember: remember.checked }); location.hash = survey ? `#/surveys/take/${survey}` : "#/"; location.reload(); }
       catch (err) { errorToast(err); }
     }));
     parts.push(form);

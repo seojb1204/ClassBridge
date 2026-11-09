@@ -64,6 +64,7 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
     app.state.identity_verifier = identity_verifier or verify_with_google
     # 건의함: 제출 '횟수'는 무제한이지만 자동화된 폭주는 차단 (분당 5회, 시간당 30회)
     app.state.suggestion_limiter = RateLimiter([(5, 60), (30, 3600)])
+    app.state.guest_suggestion_limiter = RateLimiter([(10, 60)])
     app.state.support_limiter = RateLimiter([(10, 60), (60, 3600)])
     app.state.public_survey_limiter = RateLimiter([(5, 60), (30, 3600)])
     app.state.ai_limiter = RateLimiter([(10, 3600)])

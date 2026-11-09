@@ -19,11 +19,16 @@ class RateLimiter:
         self.clock = clock
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._last_cleanup = clock()
         self._max_window = max(w for _, w in rules)
 
     def hit(self, key: str) -> None:
         now = self.clock()
         with self._lock:
+            if now - self._last_cleanup >= self._max_window:
+                for expired in [k for k, v in self._hits.items() if not v or now - v[-1] > self._max_window]:
+                    del self._hits[expired]
+                self._last_cleanup = now
             q = self._hits[key]
             while q and now - q[0] > self._max_window:
                 q.popleft()
@@ -32,9 +37,6 @@ class RateLimiter:
                 if recent >= limit:
                     raise TooManyRequests("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요")
             q.append(now)
-            if len(self._hits) > 10000:  # 메모리 보호
-                for k in [k for k, v in self._hits.items() if not v]:
-                    del self._hits[k]
 
     def reset(self) -> None:
         with self._lock:

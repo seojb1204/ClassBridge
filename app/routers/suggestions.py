@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import date
 from typing import Literal
 
@@ -8,10 +10,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import Principal, require
-from app.core.errors import FeatureDisabled
+from app.core.auth import SESSION_COOKIE, Principal, require
+from app.core.errors import FeatureDisabled, Forbidden
 from app.core.permissions import P
-from app.db import get_db
+from app.db import get_db, utcnow
 from app.models.suggestion import SuggestionReply
 from app.repositories import suggestions as repo
 from app.services import feedback_management as management
@@ -63,6 +65,18 @@ def submit(body: SuggestionIn, request: Request, p: Principal = Depends(require(
     st = request.app.state
     svc.submit(db, st.suggestion_limiter, st.settings.secret_key, p.user, body.category, body.content,
                is_public=body.is_public)
+    return {"ok": True, "message": "건의가 익명으로 접수되었습니다"}
+
+
+@router.post("/anonymous", status_code=201, dependencies=[Depends(feature_on)])
+def submit_anonymous(body: SuggestionIn, request: Request, db: Session = Depends(get_db)):
+    if SESSION_COOKIE in request.cookies or request.headers.get("X-Anonymous-Submit") != "1":
+        raise Forbidden("익명 건의 화면을 다시 열어 주세요")
+    state = request.app.state
+    address = request.client.host if request.client else "unknown"
+    key = hmac.new(state.settings.secret_key.encode(), address.encode(), hashlib.sha256).hexdigest()
+    state.guest_suggestion_limiter.hit(key)
+    svc.save(db, body.category, svc.clean_content(body.content), body.is_public, utcnow())
     return {"ok": True, "message": "건의가 익명으로 접수되었습니다"}
 
 

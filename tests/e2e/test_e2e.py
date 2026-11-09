@@ -688,13 +688,17 @@ def test_suggestion_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "student4@test.ac.kr", PC)
     st.go("/suggestions")
-    assert st.page.get_by_text("제출은 선택입니다.", exact=False).is_visible()
+    st.page.get_by_role("link", name="익명 건의하기", exact=True).click()
+    st.page.get_by_text("이 건의는 Google 계정과 연결되지 않습니다.", exact=True).wait_for()
     assert st.page.get_by_text("DB·서버 기록", exact=False).count() == 0
     assert st.page.get_by_text("이름·학번·연락처나", exact=False).count() == 0
     st.shot("pc_student_suggestion_notice")
     st.page.get_by_label("유형", exact=False).select_option("assignment")
     st.page.fill("textarea", "<b>과제 마감</b>을 조금 늦춰 주세요")
-    st.page.click("text=익명으로 제출")
+    with st.page.expect_request("**/api/suggestions/anonymous") as sent:
+        st.page.click("text=익명으로 제출")
+    assert "cookie" not in sent.value.all_headers()
+    assert "x-csrf-token" not in sent.value.all_headers()
     st.toast("익명으로 접수")
     st.close()
     prof = Session(browser, base, "prof@test.ac.kr", PC)
@@ -749,6 +753,7 @@ def test_mobile_student_flow(server, browser):
     assert btn and btn["height"] >= 40  # 터치하기 쉬운 크기
     st.shot("mobile_03_my_bookings")
     st.go("/suggestions")
+    st.page.get_by_role("link", name="익명 건의하기", exact=True).click()
     st.page.fill("textarea", "모바일에서 제출")
     st.page.click("text=익명으로 제출")
     st.toast("익명으로 접수")
@@ -830,9 +835,12 @@ def test_public_suggestion_reply_trash_and_restore(server, browser):
     base, _ = server
     student = Session(browser, base, "public-board@test.ac.kr", MOBILE)
     student.go("/suggestions")
+    student.page.get_by_role("link", name="익명 건의하기", exact=True).click()
     student.page.get_by_label("공개 범위", exact=False).select_option("public")
     student.page.locator("textarea").fill("공개 게시판 회귀 검증 의견")
     student.page.get_by_role("button", name="익명으로 제출").click()
+    student.toast("익명으로 접수")
+    student.page.get_by_role("link", name="공개 건의 게시판 (로그인 필요)").click()
     student.page.locator(".public-board .card").filter(has_text="공개 게시판 회귀 검증 의견").wait_for()
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/suggestions")
@@ -1161,3 +1169,17 @@ def test_preview_month_boundary_and_professor_notification_summary(server, brows
     preview.get_by_role("button", name="이전 달").click()
     assert preview.get_by_role("button", name="2030-12-31 · 1개 예정").get_attribute("aria-pressed") == "true"
     session.close()
+
+
+def test_guest_opens_writer_from_login(server, browser):
+    base, _ = server
+    ctx = browser.new_context(viewport=MOBILE)
+    page = ctx.new_page()
+    page.goto(base)
+    assert not page.get_by_label("이 기기에서 30일간 로그인 유지").is_checked()
+    page.get_by_role("link", name="로그인 없이 익명 건의하기").click()
+    assert page.get_by_label("공개 범위").input_value() == "private"
+    page.locator("textarea").fill("로그인 없는 접수 확인")
+    page.get_by_role("button", name="익명으로 제출").click()
+    page.get_by_text("건의가 익명으로 접수되었습니다").wait_for()
+    ctx.close()

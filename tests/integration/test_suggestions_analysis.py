@@ -125,3 +125,23 @@ def test_external_ai_hallucinated_refs_dropped_and_failure_fallback(app, clients
 def test_ai_disabled(app, clients):
     app.state.settings.ai_mode = "disabled"
     assert clients["prof"].post("/api/analysis", json={"source": "suggestions"}).status_code == 503
+
+
+def test_anonymous_writer_and_protected_board(app, clients):
+    from fastapi.testclient import TestClient
+
+    guest = TestClient(app)
+    path = "/api/suggestions/anonymous"
+    headers = {"X-Anonymous-Submit": "1"}
+    body = {"category": "other", "content": "private guest suggestion"}
+    assert guest.post(path, json=body).status_code == 403
+    assert clients["s1"].post(path, json=body, headers=headers).status_code == 403
+    assert guest.post(path, json=body, headers=headers).status_code == 201
+    assert guest.get("/api/suggestions/public").status_code == 401
+    assert clients["s1"].get("/api/suggestions/public").json() == []
+    assert clients["prof"].get("/api/suggestions").json()[0]["content"] == body["content"]
+    for _ in range(9):
+        assert guest.post(path, json=body, headers=headers).status_code == 201
+    assert guest.post(path, json=body, headers=headers).status_code == 429
+    app.state.settings.feature_suggestions = False
+    assert guest.post(path, json=body, headers=headers).status_code == 503
