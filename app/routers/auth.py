@@ -35,21 +35,22 @@ def _signer(request: Request) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(request.app.state.settings.secret_key, salt="oauth-state")
 
 
-def _start_session(request: Request, db: Session, user, response) -> None:
+def _start_session(request: Request, db: Session, user, response, *, remember: bool = False) -> None:
     s = request.app.state.settings
-    raw, _ = create_session(db, user, s.session_ttl_hours)
+    ttl_hours = 30 * 24 if remember else s.session_ttl_hours
+    raw, _ = create_session(db, user, ttl_hours)
     db.commit()
-    set_session_cookie(response, raw, s.cookie_secure, s.session_ttl_hours)
+    set_session_cookie(response, raw, s.cookie_secure, ttl_hours)
 
 
 @router.get("/auth/google/login", include_in_schema=False)
-def google_login(request: Request, survey: str = ""):
+def google_login(request: Request, survey: str = "", remember: bool = False):
     s = request.app.state.settings
     if not s.google_client_id:
         raise NotFound("Google 로그인이 설정되지 않았습니다")
     state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
     resp = RedirectResponse(google_oauth.build_auth_url(s, state, nonce), status_code=302)
-    payload = {"state": state, "nonce": nonce}
+    payload = {"state": state, "nonce": nonce, "remember": remember}
     if re.fullmatch(r"[1-9][0-9]{0,9}", survey):
         payload["survey"] = survey
     resp.set_cookie(OAUTH_COOKIE, _signer(request).dumps(payload),
@@ -73,7 +74,7 @@ def google_callback(request: Request, code: str = "", state: str = "", db: Sessi
     target = f"/#/surveys/take/{survey}" if re.fullmatch(r"[1-9][0-9]{0,9}", survey) else "/"
     resp = RedirectResponse(target, status_code=302)
     resp.delete_cookie(OAUTH_COOKIE, path="/auth")
-    _start_session(request, db, user, resp)
+    _start_session(request, db, user, resp, remember=data.get("remember") is True)
     return resp
 
 
@@ -89,7 +90,7 @@ def dev_login(body: DevLoginIn, request: Request, db: Session = Depends(get_db))
                                           name=body.name or email.split("@")[0])
     user = user_service.login_or_register(db, s, ident)
     resp = JSONResponse({"ok": True})
-    _start_session(request, db, user, resp)
+    _start_session(request, db, user, resp, remember=body.remember)
     return resp
 
 
@@ -118,6 +119,7 @@ def auth_config(request: Request):
     """로그인 화면용 공개 정보 (비밀 없음)."""
     s = request.app.state.settings
     result = {"google": bool(s.google_client_id), "dev_login": s.dev_login_enabled and not s.is_production}
+    result["suggestions"] = s.feature_suggestions
     if s.public_notice_enabled:
         result["notice"] = {"version": NOTICE_VERSION, "url": "/privacy", "support_email": s.support_email}
     return result

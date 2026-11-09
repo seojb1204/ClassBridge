@@ -2,10 +2,10 @@
 import { get, post, put } from "../api.js";
 import { can, feature } from "../state.js";
 import { fmtDate } from "../time.js";
-import { STATUS_LABEL, badge, busy, empty, errorToast, field, h, mount, select, toast, confirmAction, promptText } from "../ui.js";
+import { STATUS_LABEL, badge, busy, empty, errorToast, h, mount, select, confirmAction, promptText } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
 
-const CATS = [["lecture", "강의"], ["assignment", "과제"], ["exam", "시험"], ["facility", "시설·환경"], ["other", "기타"]];
+import { CATS } from "../suggestion-categories.js";
 const CAT_LABEL = Object.fromEntries(CATS);
 let filter = { status: "", category: "" };
 let trash = false;
@@ -14,36 +14,10 @@ const PAGE_SIZE = 50;
 
 export async function render(root) {
   if (can("suggestion:read")) return inbox(root);
-  submitForm(root);
+  mount(root, h("a", { class: "btn primary", href: "/static/suggest.html" }, "익명 건의하기"));
   const board = h("section", { class: "public-board" });
   root.append(board);
   await loadPublic(board);
-}
-
-function submitForm(root) {
-  const cat = select(CATS, "lecture");
-  const content = h("textarea", { rows: 6, maxlength: 2000, required: true, placeholder: "자유롭게 의견을 남겨 주세요." });
-  const visibility = select([["private", "교수자에게만 전달"], ["public", "로그인한 이용자에게 공개"]], "private");
-  const counter = h("small", { class: "hint" }, "0 / 2000");
-  content.addEventListener("input", () => { counter.textContent = `${content.value.length} / 2000`; });
-  const btn = h("button", { class: "btn primary", type: "submit" }, "익명으로 제출");
-  const form = h("form", { class: "panel" },
-    h("p", { class: "muted" }, "제출은 선택입니다. 건의 내용에는 계정 정보와 정확한 제출 시각을 저장하지 않으며, 날짜만 저장합니다. 교수자·관리자 화면에는 작성자 정보가 표시되지 않습니다."),
-    h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
-    field("공개 범위", visibility),
-    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 교수자 검토용이며 학생 게시판에 나타나지 않습니다."),
-    field("유형", cat), field("내용", content), counter, btn);
-  form.addEventListener("submit", busy(btn, async (e) => {
-    e.preventDefault();
-    try {
-      const r = await post("/api/suggestions", { category: cat.value, content: content.value, is_public: visibility.value === "public" });
-      toast(r.message, "success");
-      content.value = "";
-      counter.textContent = "0 / 2000";
-      await render(root);
-    } catch (err) { errorToast(err); }
-  }));
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "익명 건의함")), form);
 }
 
 async function inbox(root) {

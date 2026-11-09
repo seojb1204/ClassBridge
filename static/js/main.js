@@ -84,7 +84,7 @@ function renderMobileTabs() {
 
 function renderChrome() {
   const nav = document.getElementById("nav");
-  mount(nav, navItems().map((r) => h("a", { href: `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, navIcon(r.pattern), h("span", {}, r.navLabel))));
+  mount(nav, navItems().map((r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, navIcon(r.pattern), h("span", {}, r.navLabel))));
   const mobileHelp = support.helpLink("mobile-help-link");
   mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
   nav.append(mobileHelp);

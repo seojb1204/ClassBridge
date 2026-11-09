@@ -47,6 +47,10 @@ def submit(db: Session, limiter: RateLimiter, secret: str, user: User, category:
         raise BadRequest("건의 유형이 올바르지 않습니다")
     text = clean_content(content)
     limiter.hit(limiter_key(secret, user.id))
+    save(db, category, text, is_public, now)
+
+
+def save(db: Session, category: str, text: str, is_public: bool, now: datetime) -> None:
     repo.add(db, Suggestion(id=str(uuid.uuid4()), category=category, content=text,
                             submitted_on=kst_date(now), is_public=is_public))
     db.commit()

@@ -3,12 +3,15 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.errors import Unauthorized
 from app.core.identity import VerifiedIdentity
-from app.db import Base
+from app.db import Base, utcnow
 from app.main import create_app
+from app.models import AuthSession
 from tests.conftest import make_settings
 
 
@@ -82,3 +85,24 @@ def test_verifier_failure_is_401(tmp_path):
     c = TestClient(app, follow_redirects=False)
     q = parse_qs(urlparse(c.get("/auth/google/login").headers["location"]).query)
     assert c.get(f"/auth/google/callback?code=abc&state={q['state'][0]}").status_code == 401
+
+
+@pytest.mark.parametrize("remember", [False, True])
+def test_remember_duration_is_signed_and_logout_revokes_session(tmp_path, remember):
+    app = _app(tmp_path, lambda s, c, n: VerifiedIdentity("guest", "guest@test.ac.kr", True))
+    client = TestClient(app, follow_redirects=False)
+    login = client.get("/auth/google/login", params={"remember": remember, "survey": "42"})
+    state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+    callback = client.get("/auth/google/callback", params={"state": state, "code": "ok", "remember": not remember})
+    ttl = (30 * 24 if remember else app.state.settings.session_ttl_hours) * 3600
+    assert callback.headers["location"] == "/#/surveys/take/42"
+    assert f"Max-Age={ttl}" in callback.headers["set-cookie"]
+    from sqlalchemy.orm import Session
+    with Session(app.state.engine) as db:
+        remaining = (db.scalar(select(AuthSession)).expires_at - utcnow()).total_seconds()
+        assert ttl - 10 < remaining <= ttl
+    token = client.cookies.get("cb_session")
+    csrf = client.get("/api/me").json()["csrf_token"]
+    assert client.post("/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
+    client.cookies.set("cb_session", token)
+    assert client.get("/api/me").status_code == 401

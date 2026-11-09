@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from tests.conftest import login, make_slots
 
-PUBLIC = {"/api/site/qr.svg", "/api/site/qr.png", "/api/auth/config",
+PUBLIC = {"/api/suggestions/anonymous", "/api/site/qr.svg", "/api/site/qr.png", "/api/auth/config",
           "/api/public-surveys/{token}", "/api/public-surveys/{token}/responses"}
 
 
