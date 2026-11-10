@@ -1,4 +1,5 @@
 import { get, post, put } from "./api.js";
+import { professorNotifications } from "./components/professor-notifications.js";
 import { can } from "./state.js";
 import { busy, errorToast, field, h, mount, toast } from "./ui.js";
 
@@ -31,7 +32,7 @@ export async function personalAlerts(root) {
     catch (err) { errorToast(err); }
   }));
   const box = h("section", { class: "panel" });
-  mount(root, h("h1", {}, "개인 설정"), h("h2", {}, "내 알림"), form, box);
+  mount(root, h("h1", {}, "개인 설정"), h("h2", {}, "내 알림"), form, box, professorNotifications());
   async function device() {
     mount(box, h("h2", {}, "이 기기의 알림"));
     if (!config.enabled || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {

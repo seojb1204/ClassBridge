@@ -20,7 +20,7 @@ class Spec:
 
 SPECS: dict[str, Spec] = {
     "booking_window_days": Spec(30, 1, 180, "예약 가능 범위(일)"),
-    "booking_deadline_hours": Spec(3, 0, 72, "예약 신청 마감(상담 시작 N시간 전)"),
+    "booking_deadline_minutes": Spec(30, 0, 4320, "예약 신청 마감(상담 시작 N분 전)"),
     "cancel_deadline_hours": Spec(3, 0, 72, "학생 취소 마감(상담 시작 N시간 전)"),
     "default_break_minutes": Spec(0, 0, 120, "상담 간 기본 휴식(분)"),
     "survey_min_results": Spec(5, 1, 50, "설문 결과 공개 최소 응답 수"),
@@ -29,6 +29,9 @@ SPECS: dict[str, Spec] = {
 
 def get_settings(db: Session) -> dict[str, int]:
     stored = settings_repo.get_all(db)
+    legacy = stored.get("booking_deadline_hours")
+    if type(legacy) is int and 0 <= legacy <= 72 and legacy != 3:
+        stored.setdefault("booking_deadline_minutes", legacy * 60)
     out: dict[str, int] = {}
     for key, spec in SPECS.items():
         val = stored.get(key, spec.default)
@@ -41,6 +44,12 @@ def describe() -> list[dict]:
 
 
 def update_settings(db: Session, actor_id: int, changes: dict[str, object]) -> dict[str, int]:
+    changes = changes.copy()
+    if "booking_deadline_hours" in changes:
+        legacy = changes.pop("booking_deadline_hours")
+        if type(legacy) is not int or not 0 <= legacy <= 72 or "booking_deadline_minutes" in changes:
+            raise BadRequest("예약 신청 마감 시간을 확인해 주세요")
+        changes["booking_deadline_minutes"] = legacy * 60
     before = get_settings(db)
     for key, value in changes.items():
         spec = SPECS.get(key)

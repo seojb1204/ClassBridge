@@ -20,12 +20,12 @@ TRANSITIONS: dict[str, set[str]] = {
 @dataclass(frozen=True)
 class Policy:
     booking_window_days: int
-    booking_deadline_hours: int
+    booking_deadline_minutes: int
     cancel_deadline_hours: int
 
     @classmethod
     def from_settings(cls, s: dict[str, int]) -> "Policy":
-        return cls(s["booking_window_days"], s["booking_deadline_hours"], s["cancel_deadline_hours"])
+        return cls(s["booking_window_days"], s["booking_deadline_minutes"], s["cancel_deadline_hours"])
 
 
 def generate_blocks(days: list[date], start: time, end: time, duration_min: int,
@@ -67,8 +67,8 @@ def expand_days(start_date: date, weekdays: list[int] | None, repeat_weeks: int)
 def check_student_booking_time(slot_start: datetime, now: datetime, policy: Policy) -> None:
     if slot_start <= now:
         raise Conflict("이미 지난 상담 시간입니다", code="slot_past")
-    if slot_start - now < timedelta(hours=policy.booking_deadline_hours):
-        raise Conflict(f"상담 시작 {policy.booking_deadline_hours}시간 전까지만 예약할 수 있습니다",
+    if slot_start - now < timedelta(minutes=policy.booking_deadline_minutes):
+        raise Conflict(f"상담 시작 {policy.booking_deadline_minutes}분 전까지만 예약할 수 있습니다",
                        code="booking_deadline")
     if slot_start - now > timedelta(days=policy.booking_window_days):
         raise Conflict(f"{policy.booking_window_days}일 이내의 상담만 예약할 수 있습니다",
