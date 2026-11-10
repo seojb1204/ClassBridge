@@ -1183,3 +1183,27 @@ def test_guest_opens_writer_from_login(server, browser):
     page.get_by_role("button", name="익명으로 제출").click()
     page.get_by_text("건의가 익명으로 접수되었습니다").wait_for()
     ctx.close()
+
+
+def test_mobile_booking_summary(server, browser):
+    base, _ = server
+    staff = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    page = staff.page
+    page.clock.install(time="2026-11-10T09:00:00+09:00")
+    booking = {"id": 214, "slot": {"id": 7, "start_at": "2026-11-10T10:00:00+09:00", "kind": "individual"},
+               "applicant_name": "예약 학생", "student_number": "20260001", "student_email": "example@test.ac.kr",
+               "status": "booked", "topic": "상담 주제"}
+    page.route("**/api/bookings?*", lambda r: r.fulfill(json=[booking]))
+    staff.go("/bookings")
+    card = page.locator("details[data-booking-id='214']")
+    summary = card.locator(":scope > summary")
+    assert "예약 학생 · 20260001" in summary.inner_text()
+    assert "1시간 후" in summary.inner_text()
+    assert "상담 주제" not in card.inner_text()
+    summary.click()
+    assert card.get_by_text("상담 주제", exact=True).is_visible()
+    assert card.get_by_role("button", name="일정 조정").is_visible()
+    summary.click()
+    page.clock.fast_forward(3600000)
+    assert " 후" not in summary.inner_text()
+    staff.close()

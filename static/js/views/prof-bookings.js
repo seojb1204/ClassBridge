@@ -4,7 +4,7 @@ import { bookingActivity, eventLabels } from "../components/booking-activity.js"
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { get, post, put } from "../api.js";
 import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
-import { onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
+import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
@@ -128,6 +128,12 @@ export async function render(root) {
   const apply = () => { filter = { status: status.value }; render(root); };
   status.addEventListener("change", apply);
   const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
+  const results = h("div", { class: "table-wrap" });
+  const showList = () => mount(results, isMobile() ? mobileList(root, list) : table(root, list));
+  if (list.length) {
+    showList();
+    detach = onLayoutChange(showList);
+  }
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
     professorNotifications(),
@@ -135,7 +141,51 @@ export async function render(root) {
     viewSwitcher(root),
     h("div", { class: "filters" }, field("상태", status)),
     h("p", { class: "muted" }, `전체 기간 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
-    list.length ? h("div", { class: "table-wrap" }, table(root, list)) : empty("해당 조건의 예약이 없습니다."));
+    list.length ? results : empty("해당 조건의 예약이 없습니다."));
+}
+
+function mobileList(root, list) {
+  const cards = h("div", { class: "cards mobile-bookings" });
+  const clocks = [];
+  for (const b of list) {
+    const time = h("small", { class: "muted" });
+    if (b.status === "booked") clocks.push({ start: b.slot.start_at, time });
+    const summary = h("summary", {},
+      h("strong", {}, b.applicant_name || b.student_name, " · ", b.student_number || "학번 미입력"),
+      h("span", {}, fmtDateTime(b.slot.start_at), time));
+    cards.append(h("details", { class: "card", dataset: { bookingId: b.id } }, summary,
+      h("p", {}, badge(STATUS_LABEL[b.status], b.status), " ", bookingType(b)),
+      h("p", { class: "muted" }, [b.grade && b.grade + "학년", b.student_email].filter(Boolean).join(" · ")),
+      h("p", {}, b.topic || "상담 내용 미입력"),
+      h("div", { class: "actions" }, actions(root, b))));
+  }
+  const update = () => {
+    const today = todayKst();
+    for (const { start, time } of clocks) {
+      const minutes = Math.ceil((Date.parse(start) - Date.now()) / 60000);
+      const hours = Math.floor(minutes / 60);
+      let label = "";
+      if (minutes > 0 && kstParts(start).date === today) {
+        const parts = [hours && hours + "시간", minutes % 60 && minutes % 60 + "분"];
+        label = " · " + parts.filter(Boolean).join(" ") + " 후";
+      }
+      time.textContent = label;
+    }
+  };
+  update();
+  if (clocks.length) {
+    const timer = setInterval(() => {
+      if (cards.isConnected) update();
+      else clearInterval(timer);
+    }, 30000);
+  }
+  return cards;
+}
+
+function bookingType(b) {
+  const topic = { career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타" };
+  return [b.slot.kind === "group" ? "단체" : "개인", topic[b.consultation_type] || "기타",
+    b.consultation_mode === "online" ? "온라인" : "대면"].join(" · ");
 }
 
 function table(root, list) {
@@ -146,10 +196,7 @@ function table(root, list) {
       h("td", { "data-label": "학생" }, `${b.applicant_name || b.student_name} `,
         h("small", { class: "muted" }, [b.student_number, b.grade ? `${b.grade}학년` : "", b.student_email]
           .filter(Boolean).join(" · "))),
-      h("td", { "data-label": "유형" },
-        `${b.slot.kind === "group" ? "단체" : "개인"} · ` +
-        `${({career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타"})[b.consultation_type] || "기타"}` +
-        ` · ${b.consultation_mode === "online" ? "온라인" : "대면"}`),
+      h("td", { "data-label": "유형" }, bookingType(b)),
       h("td", { "data-label": "상담 내용" }, b.topic || "-"),
       h("td", { "data-label": "상태" }, badge(STATUS_LABEL[b.status], b.status)),
       h("td", { "data-label": "작업", class: "actions" }, actions(root, b))))));
@@ -198,14 +245,14 @@ function actions(root, b) {
   return [main, more];
 }
 
-async function pickSlot(title) {
+async function pickSlot(title, noteLabel = "사유 (선택)") {
   const from = todayKst();
   const slots = (await get(`/api/slots?start=${from}&days=31`)).filter((s) => s.status === "open" && s.remaining > 0
     && new Date(s.start_at) > new Date());
   if (!slots.length) { toast("남은 자리가 있는 상담 시간이 없습니다", "error"); return null; }
   const sel = select(slots.map((s) => [s.id, `${kstParts(s.start_at).date} ${kstParts(s.start_at).time} (${s.kind === "group" ? `단체 ${s.remaining}석` : "개인"})`]));
-  const reason = h("input", { type: "text", maxlength: 500, placeholder: "사유" });
-  const r = await modal(title, h("div", {}, field("상담 시간", sel), field("사유", reason)), [
+  const reason = h("input", { type: "text", maxlength: 500 });
+  const r = await modal(title, h("div", {}, field("상담 시간", sel), field(noteLabel, reason)), [
     { label: "취소", value: null }, { label: "확인", primary: true, handler: () => ({ slot: +sel.value, reason: reason.value }) },
   ]);
   return r;
@@ -214,7 +261,6 @@ async function pickSlot(title) {
 async function reschedule(b) {
   const r = await pickSlot("일정 조정");
   if (!r) return;
-  if (!r.reason.trim()) { toast("사유를 입력하세요", "error"); return; }
   await post(`/api/bookings/${b.id}/reschedule`, { new_slot_id: r.slot, reason: r.reason });
   toast("일정을 조정했습니다", "success");
 }
@@ -226,7 +272,7 @@ async function bookForStudent(root) {
     const who = select(students.map((s) => [s.id, `${s.name} (${s.email})`]));
     const r1 = await modal("학생 선택", field("학생", who), [{ label: "취소", value: null }, { label: "다음", primary: true, handler: () => +who.value }]);
     if (!r1) return;
-    const r2 = await pickSlot("상담 시간 선택");
+    const r2 = await pickSlot("상담 시간 선택", "상담 주제 (선택)");
     if (!r2) return;
     await post("/api/bookings", { slot_id: r2.slot, student_id: r1, topic: r2.reason });
     toast("예약했습니다", "success");

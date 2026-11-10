@@ -343,3 +343,6 @@ code { font-size: .78rem; word-break: break-all; }
 
 .schedule-preview-body>p{margin:6px 0}.schedule-preview-body .row{justify-content:space-between}.schedule-preview-body h3{margin:6px 0}
 .staff-today .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.mobile-bookings > details > summary { cursor: pointer; padding: .4rem 0; overflow-wrap: anywhere; }
+.mobile-bookings > details > summary > span { display: block; margin-top: .25rem; }
