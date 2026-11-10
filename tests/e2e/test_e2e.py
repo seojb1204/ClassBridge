@@ -112,6 +112,8 @@ def test_staff_today_and_actionable_notification_error(server, browser):
     p.route('**/api/surveys', lambda r: r.fulfill(json=[{"status": "published"}, {"status": "draft"}]))
     p.reload()
     s.go('/slots')
+    assert p.locator('.staff-today').count() == 0
+    s.go('/bookings')
     panel = p.locator('.staff-today')
     panel.get_by_role('link', name='오늘 예약 2건').wait_for()
     panel.get_by_role('link', name='새 건의 3건').wait_for()
@@ -320,7 +322,7 @@ def test_pwa_install_guide_all_bookings_and_private_offline(server, browser):
     prof.page.get_by_role("button", name="확인", exact=True).click()
     prof.page.goto(base + "/#/staff/today")
     prof.page.wait_for_selector('body[data-ready="/bookings"]')
-    prof.page.get_by_text("전체 기간 · 현재 예약", exact=False).wait_for()
+    prof.page.get_by_text("오늘 이후 · 현재 예약", exact=False).wait_for()
     assert prof.page.get_by_role("button", name="오늘 상담", exact=True).count() == 0
     assert prof.page.get_by_role("button", name="내일 상담", exact=True).count() == 0
     assert prof.page.locator("input[type=date]").count() == 0
@@ -1136,15 +1138,18 @@ def test_late_calendar_response_does_not_overwrite_new_page(server, browser):
     student.close()
 
 
-def test_preview_month_boundary_and_professor_notification_summary(server, browser):
+@pytest.mark.parametrize("viewport", [MOBILE, PC], ids=["mobile", "pc"])
+def test_preview_month_boundary_and_professor_notification_summary(server, browser, viewport):
     base, _ = server
-    session = Session(browser, base, "prof@test.ac.kr", MOBILE, service_workers="block")
+    session = Session(browser, base, "prof@test.ac.kr", viewport, service_workers="block")
     page = session.page
     page.route("**/api/admin/notification-summary", lambda route: route.fulfill(json={
         "gmail": {"enabled": True, "recipient": True, "attention": 2, "pending": 1, "last_success": None},
         "push": {"enabled": False, "recipient": True, "attention": 0, "pending": 0,
                  "last_success": None, "session_registered": False}}))
     session.go("/bookings")
+    assert page.get_by_role("region", name="내 예약 알림 상태").count() == 0
+    session.go("/personal")
     panel = page.get_by_role("region", name="내 예약 알림 상태")
     panel.get_by_text("확인 필요 2건", exact=False).wait_for()
     assert "미설정" in panel.inner_text()

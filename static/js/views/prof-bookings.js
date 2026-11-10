@@ -1,4 +1,3 @@
-import { professorNotifications } from "../components/professor-notifications.js";
 import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
@@ -92,13 +91,12 @@ async function renderCalendarView(root) {
   ]);
   const enhanced = slots.map((slot) => {
     const count = bookings.filter((b) => b.slot.id === slot.id && b.status === "booked").length;
-    return { ...slot, managerState: slot.status === "cancelled" ? null : count ? "reserved" : "free",
+    return { ...slot, managerState: slot.status === "cancelled" ? null : count ? "reserved" : slot.bookable ? "free" : null,
       bookingCount: count };
   });
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
       h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약")),
-    professorNotifications(),
     staffToday(),
     viewSwitcher(root),
     h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 상담 시간을 누르면 학생과 기록을 확인할 수 있습니다."),
@@ -120,7 +118,7 @@ export async function render(root) {
   if (viewMode === "calendar") return renderCalendarView(root);
   detach?.();
   detach = null;
-  const q = new URLSearchParams();
+  const q = new URLSearchParams({ from_date: todayKst() });
   if (filter.status) q.set("status", filter.status);
   const list = await get(`/api/bookings?${q}`);
   const status = select([["", "전체"], ["booked", "예약됨"], ["completed", "완료"], ["no_show", "미참석"],
@@ -136,11 +134,10 @@ export async function render(root) {
   }
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
-    professorNotifications(),
     staffToday(),
     viewSwitcher(root),
     h("div", { class: "filters" }, field("상태", status)),
-    h("p", { class: "muted" }, `전체 기간 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
+    h("p", { class: "muted" }, `오늘 이후 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
     list.length ? results : empty("해당 조건의 예약이 없습니다."));
 }
 

@@ -63,8 +63,10 @@ def _out(p: Principal, db: Session, b):
 @router.get("/booking-policy")
 def booking_policy(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
     settings = get_settings(db)
-    return {k: settings[k] for k in ("booking_window_days", "booking_deadline_hours",
-                                     "cancel_deadline_hours")}
+    return {"booking_window_days": settings["booking_window_days"],
+            "booking_deadline_minutes": settings["booking_deadline_minutes"],
+            "booking_deadline_hours": settings["booking_deadline_minutes"] / 60,
+            "cancel_deadline_hours": settings["cancel_deadline_hours"]}
 
 
 # ── 상담 시간 ──
@@ -160,9 +162,12 @@ def staff_notes(q: str = Query("", max_length=80),
 # ── 예약 관리 (교수자·관리자) ──
 @router.get("/bookings", response_model=list[StaffBookingOut])
 def search_bookings(start: date | None = None, days: int = Query(31, ge=1, le=370),
-                    status: str | None = None,
+                    status: str | None = None, from_date: date | None = None,
                     p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session = Depends(get_db)):
     s, e = svc.kst_range(start, days) if start else (None, None)
+    if from_date:
+        lower, _ = svc.kst_range(from_date, 1)
+        s = max(s, lower) if s else lower
     return [_staff_out(b, u) for b, u in svc.search_bookings(db, s, e, status)]
 
 

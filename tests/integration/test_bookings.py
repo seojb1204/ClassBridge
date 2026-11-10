@@ -98,6 +98,21 @@ def test_booking_deadline_and_window(app, clients):
     assert s1.post("/api/bookings", json={"slot_id": far[0]}).status_code == 201
 
 
+def test_half_hour_availability_matches_booking_and_date_filter(app, clients, monkeypatch):
+    prof, student = clients["prof"], clients["s1"]
+    day = future_day()
+    first, second = make_slots(prof, day=day)
+    with app.state.SessionLocal() as db:
+        start = db.get(Slot, first).start_at
+    monkeypatch.setattr("app.services.booking_service.utcnow", lambda: start - timedelta(seconds=1))
+    slots = student.get(f"/api/slots?start={day}&days=1").json()
+    assert [(s["id"], s["bookable"]) for s in slots] == [(first, False), (second, True)]
+    assert student.post("/api/bookings", json={"slot_id": first}).json()["error"] == "booking_deadline"
+    bid = student.post("/api/bookings", json={"slot_id": second}).json()["id"]
+    assert [b["id"] for b in prof.get(f"/api/bookings?from_date={day}").json()] == [bid]
+    assert prof.get(f"/api/bookings?from_date={day + timedelta(days=1)}").json() == []
+
+
 def test_reschedule_success_and_atomic_failure(app, clients):
     p, s1, s2 = clients["prof"], clients["s1"], clients["s2"]
     ids = make_slots(p)  # 10:00, 10:30

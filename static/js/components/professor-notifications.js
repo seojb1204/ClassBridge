@@ -1,7 +1,6 @@
 import { get } from "../api.js";
 import { fmtDateTime } from "../time.js";
 import { h } from "../ui.js";
-import { pushButton } from "../push.js";
 
 export function professorNotifications() {
   const box = h("section", { class: "panel notification-summary", "aria-label": "내 예약 알림 상태" });
@@ -22,7 +21,7 @@ export function professorNotifications() {
           h("small", { class: "muted" }, status.last_success ? `최근 발송 처리 ${fmtDateTime(status.last_success)}` : "발송 성공 기록 없음"));
       });
       box.replaceChildren(h("h2", {}, "내 예약 알림 상태"), ...rows,
-        h("p", { class: "hint" }, "발송 처리는 실제 수신·읽음 확인과 다릅니다. 로그인 만료 후에는 휴대폰 알림을 다시 등록해 주세요."), pushButton(), refresh);
+        h("p", { class: "hint" }, "발송 처리는 실제 수신·읽음 확인과 다릅니다. 로그인 만료 후에는 휴대폰 알림을 다시 등록해 주세요."), refresh);
     } catch {
       box.replaceChildren(h("h2", {}, "내 예약 알림 상태"), h("p", {}, "상태를 불러오지 못했습니다. 예약 기능은 계속 사용할 수 있습니다."), refresh);
     }
