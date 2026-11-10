@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base, UTCDateTime, utcnow
@@ -24,6 +24,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="student")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    alert_preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 

@@ -1171,6 +1171,25 @@ def test_preview_month_boundary_and_professor_notification_summary(server, brows
     session.close()
 
 
+def test_staff_personal_alerts_mobile(server, browser):
+    base, _ = server
+    staff = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    staff.page.get_by_role("button", name="더보기 메뉴").click()
+    staff.page.locator("#nav").get_by_role("link", name="개인 설정").click()
+    staff.page.get_by_role("heading", name="내 알림", exact=True).wait_for()
+    daily = staff.page.get_by_label("평일 상담 요약 받기")
+    reminder = staff.page.get_by_label("상담 30분 전 알림")
+    at = staff.page.get_by_label("받을 시각 (한국시간)")
+    assert daily.is_checked() and not reminder.is_checked() and at.input_value() == "10:00"
+    reminder.check()
+    at.fill("09:15")
+    staff.page.get_by_role("button", name="저장", exact=True).click()
+    staff.toast("저장했습니다")
+    staff.page.reload()
+    assert at.input_value() == "09:15" and reminder.is_checked()
+    staff.close()
+
+
 def test_guest_opens_writer_from_login(server, browser):
     base, _ = server
     ctx = browser.new_context(viewport=MOBILE)

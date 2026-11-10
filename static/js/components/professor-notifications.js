@@ -10,7 +10,7 @@ export function professorNotifications() {
     try {
       const data = await get("/api/admin/notification-summary");
       const rows = Object.entries(data).map(([channel, status]) => {
-        let label = !status.enabled ? "미설정 · 관리자 설정 필요" : !status.recipient ? "이 계정은 알림 수신 대상으로 지정되지 않았습니다" : "발송 사용 중";
+        let label = status.paused ? "일시 중지" : !status.enabled ? "미설정 · 관리자 설정 필요" : !status.recipient ? "이 계정은 알림 수신 대상으로 지정되지 않았습니다" : "발송 사용 중";
         if (status.enabled && status.recipient && channel === "push") {
           label = !status.session_registered ? "이 로그인에서 알림 등록 필요" : "이 로그인에서 수신 등록됨";
           if (!("Notification" in window)) label = "이 브라우저는 휴대폰 알림을 지원하지 않습니다";

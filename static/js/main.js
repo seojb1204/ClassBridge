@@ -1,5 +1,5 @@
 import { navIcon } from "./components/nav-icon.js";
-import { pushButton } from "./push.js";
+import { personalAlerts, pushButton } from "./push.js";
 import { initializePwa, installButton, isStandalone } from "./pwa.js";
 // 앱 시작점: 로그인 확인 → 메뉴 구성 → 라우터 시작
 import { ApiError, get, post, setCsrf } from "./api.js";
@@ -29,6 +29,8 @@ function registerRoutes() {
   // 학생
   route("/booking", "booking:self", studentBooking.render, "상담 예약");
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
+  route("/personal", "booking:manage", personalAlerts);
+  route("/bookings/today", "booking:manage", profBookings.todayBookings);
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
   route("/slots", "slot:manage", profSlots.render, "상담 시간");
@@ -88,6 +90,11 @@ function renderChrome() {
   const mobileHelp = support.helpLink("mobile-help-link");
   mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
   nav.append(mobileHelp);
+  const personal = pushButton('mobile-help-link');
+  if (personal) {
+    personal.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
+    nav.append(personal);
+  }
   const install = installButton("btn mobile-help-link");
   if (install) {
     install.addEventListener("click", () => {
@@ -99,7 +106,7 @@ function renderChrome() {
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
   mount(document.getElementById("userbox"),
     support.helpLink("btn small desktop-help-link"),
-      pushButton(),
+      pushButton('desktop-help-link'),
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
   const menu = document.getElementById("menu-btn");

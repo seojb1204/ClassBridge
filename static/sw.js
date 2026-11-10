@@ -8,19 +8,22 @@ self.addEventListener("push", (event) => {
     try { payload = event.data.json(); } catch { return; }
     try {
       const response = await fetch("/api/admin/push-config", { credentials: "same-origin", cache: "no-store" });
-      if (!response.ok || !(await response.json()).enabled) return;
+      if (!response.ok) return;
+      const config = await response.json();
+      if (!config.enabled || config.session !== payload.session) return;
     } catch { return; }
     // Ignore provider-supplied links; always open the authenticated booking page.
-    await self.registration.showNotification("ClassBridge 상담 예약 알림", {
-      body: String(payload.body || "상담 예약이 변경되었습니다").slice(0, 120),
+    const url = ["/#/bookings/today", "/#/personal"].includes(payload.url) ? payload.url : "/#/bookings";
+    await self.registration.showNotification(String(payload.title || "ClassBridge 상담 예약 알림"), {
+      body: String(payload.body || "상담 예약이 변경되었습니다").slice(0, 2400),
       tag: String(payload.tag || "classbridge-booking"),
-      data: { url: "/#/bookings" },
+      data: { url },
     });
   })());
 });
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow("/#/bookings"));
+  event.waitUntil(self.clients.openWindow(event.notification.data?.url || "/#/bookings"));
 });
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.add(OFFLINE)));

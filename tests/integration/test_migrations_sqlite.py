@@ -41,22 +41,20 @@ def test_feedback_migration_preserves_legacy_private_suggestions(tmp_path):
 
 
 def test_survey_access_migration_keeps_existing_survey_login_only(tmp_path):
-    from app.main import create_app
-    from tests.conftest import ADMIN, login, make_settings
-
     url = f"sqlite:///{tmp_path}/old-survey.db"
     cfg = Config("alembic.ini")
     cfg.attributes["database_url"] = url
     command.upgrade(cfg, "0006")
-    app = create_app(make_settings(url))
-    admin = login(app, ADMIN)
-    with app.state.engine.begin() as conn:
+    eng = make_engine(url)
+    with eng.begin() as conn:
+        conn.execute(text("INSERT INTO users (id,google_sub,email,name,role,is_active,created_at) "
+                          "VALUES (1,'legacy','admin@example.test','legacy','admin',1,'2026-11-01')"))
         conn.execute(text("INSERT INTO surveys (id,title,description,status,min_results,created_by_id,"
                           "created_at,updated_at,course_name,semester) VALUES "
                           "(1,'legacy','existing','published',5,:actor,'2026-11-01','2026-11-01','','')"),
-                     {"actor": admin.me["id"]})
+                     {"actor": 1})
     command.upgrade(cfg, "head")
-    with app.state.engine.connect() as conn:
+    with eng.connect() as conn:
         assert conn.execute(text("SELECT title,access_mode,public_token FROM surveys WHERE id=1")).one() == (
             "legacy", "login", None)
-    app.state.engine.dispose()
+    eng.dispose()

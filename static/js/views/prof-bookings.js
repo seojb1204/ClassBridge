@@ -144,6 +144,12 @@ export async function render(root) {
     list.length ? results : empty("해당 조건의 예약이 없습니다."));
 }
 
+export async function todayBookings(root) {
+  const list = await get(`/api/bookings?start=${todayKst()}&days=1&status=booked`);
+  mount(root, h("h1", {}, "오늘 상담 일정"), h("a", {class: "btn", href: "#/bookings"}, "전체 예약 관리"),
+    list.length ? mobileList(root, list) : empty("오늘 예약이 없습니다."));
+}
+
 function mobileList(root, list) {
   const cards = h("div", { class: "cards mobile-bookings" });
   const clocks = [];
