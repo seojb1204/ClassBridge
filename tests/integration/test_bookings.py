@@ -275,3 +275,15 @@ def test_staff_unbounded_bookings_include_distant_dates_and_filter_status(app, c
         assert [row["id"] for row in response.json()] == [first]
         assert {row["id"] for row in staff.get("/api/bookings").json()} == {first, second}
     assert s1.get("/api/bookings?status=booked").status_code == 403
+
+
+def test_staff_can_move_student_without_reason(clients):
+    professor, student = clients["prof"], clients["s1"]
+    first, second = make_slots(professor)
+    original = student.post("/api/bookings", json={"slot_id": first}).json()["id"]
+    result = professor.post(f"/api/bookings/{original}/reschedule", json={"new_slot_id": second})
+    assert result.status_code == 200
+    moved = result.json()
+    assert moved["slot"]["id"] == second and moved["student_id"] == student.me["id"]
+    history = professor.get(f"/api/bookings/{moved['id']}/history").json()
+    assert history[0]["action"] == "rescheduled_to"

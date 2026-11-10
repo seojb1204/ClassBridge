@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 @router.get("/users", response_model=list[UserOut])
 def list_users(role: str | None = None, q: str | None = None,
                p: Principal = Depends(require(P.USER_MANAGE)), db: Session = Depends(get_db)):
-    return users_repo.list_users(db, role, q)
+    return users_repo.list_users(db, role, q, recent_first=True)
 
 
 @router.put("/users/{user_id}/role", response_model=UserOut)

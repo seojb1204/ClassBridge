@@ -152,3 +152,18 @@ def test_session_cookie_flags(app):
     cookie = r.headers["set-cookie"].lower()
     assert "httponly" in cookie and "samesite=lax" in cookie
 
+
+
+def test_account_list_orders_recent_logins_then_name(app, clients):
+    from datetime import datetime, timezone
+
+    from app.models import User
+
+    with app.state.SessionLocal() as db:
+        for person, day, name in [("s1", 5, "Z"), ("s2", 5, "A"), ("s3", 0, "B")]:
+            user = db.get(User, clients[person].me["id"])
+            user.last_login_at = datetime(2026, 1, day, tzinfo=timezone.utc) if day else None
+            user.name = name
+        db.commit()
+    users = clients["admin"].get("/api/admin/users").json()
+    assert [u["name"] for u in users[-3:]] == ["A", "Z", "B"]

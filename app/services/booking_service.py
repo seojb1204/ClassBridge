@@ -444,8 +444,6 @@ def reschedule(db: Session, actor: User, booking_id: int, new_slot_id: int, reas
             raise Conflict("진행 중인 예약만 변경할 수 있습니다")
         if old.slot_id == new_slot_id:
             raise BadRequest("같은 상담 시간입니다")
-        if staff and not reason.strip() and old.student_id != actor.id:
-            raise BadRequest("교수자·관리자 변경에는 사유가 필요합니다")
         if not staff:
             policy_mod.check_student_cancel_time(old.slot.start_at, now, pol)
         new_slot = _check_slot_for(db, actor, repo.get_slot(db, new_slot_id), now, pol)
@@ -463,7 +461,10 @@ def reschedule(db: Session, actor: User, booking_id: int, new_slot_id: int, reas
         db.add(nb)
         db.flush()
         repo.add_event(db, old.id, actor.id, "rescheduled_from", f"→ booking {nb.id}")
-        ev = repo.add_event(db, nb.id, actor.id, "rescheduled_to", f"← booking {old.id}; {reason}")
+        detail = f"← booking {old.id}"
+        if reason.strip():
+            detail += f"; {reason.strip()}"
+        ev = repo.add_event(db, nb.id, actor.id, "rescheduled_to", detail)
         enqueue(db, nb, ev, "changed", old=old)
         if staff:
             audit_repo.add(db, actor.id, "booking.reschedule_by_staff", "booking", nb.id,

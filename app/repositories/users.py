@@ -22,8 +22,10 @@ def get_by_email(db: Session, email: str) -> User | None:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
 
-def list_users(db: Session, role: str | None = None, q: str | None = None) -> list[User]:
-    stmt = select(User).order_by(User.role.desc(), User.name, User.id)
+def list_users(db: Session, role: str | None = None, q: str | None = None,
+               *, recent_first: bool = False) -> list[User]:
+    first = User.last_login_at.desc().nulls_last() if recent_first else User.role.desc()
+    stmt = select(User).order_by(first, User.name, User.id)
     if role:
         stmt = stmt.where(User.role == role)
     if q:
