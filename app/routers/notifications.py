@@ -14,6 +14,7 @@ from app.core.permissions import P
 from app.db import get_db, utcnow
 from app.models import Notification
 from app.repositories import audit as audit_repo
+from app.services.personal_alerts import EMAIL_PAUSED, Preferences, devices, email_paused, preferences
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -28,11 +29,13 @@ def notification_summary(request: Request, p: Principal = Depends(require(P.BOOK
         ("gmail", settings.gmail_notifications_enabled, settings.gmail_professor_email),
         ("push", settings.push_enabled, settings.push_professor_email),
     ):
-        own = recipient == p.user.email
+        own = recipient == p.user.email if channel == 'gmail' else True
+        if channel == 'gmail' and email_paused(db):
+            enabled = False
         scope = (Notification.channel == channel, Notification.recipient == p.user.email)
         counts = dict(db.execute(select(Notification.status, func.count())
                                 .where(*scope).group_by(Notification.status)).all())
-        channels[channel] = {"enabled": enabled, "recipient": own,
+        channels[channel] = {"enabled": enabled, "paused": channel == "gmail" and email_paused(db), "recipient": own,
                              "attention": sum(counts.get(s, 0) for s in ("failed", "reauth", "uncertain")),
                              "pending": sum(counts.get(s, 0) for s in ("pending", "sending")),
                              "last_success": db.scalar(select(func.max(Notification.sent_at)).where(*scope))}
@@ -44,7 +47,7 @@ def notification_summary(request: Request, p: Principal = Depends(require(P.BOOK
 @router.get("/push-config")
 def push_config(request: Request, p: Principal = Depends(require(P.BOOKING_MANAGE))):
     s = request.app.state.settings
-    return {"enabled": s.push_enabled and p.user.email == s.push_professor_email,
+    return {"enabled": s.push_enabled, "session": p.session.id,
             "public_key": s.push_public_key if s.push_enabled else ""}
 
 
@@ -59,8 +62,8 @@ def subscribe(request: Request, body: dict = Body(...),
     from app.infra.push import validate_subscription
     from app.models import AuthSession, PushSubscription
     s = request.app.state.settings
-    if not s.push_enabled or p.user.email != s.push_professor_email:
-        raise Forbidden("지정된 교수자만 휴대폰 알림을 설정할 수 있습니다")
+    if not s.push_enabled:
+        raise Forbidden("휴대폰 알림 발송이 비활성화되어 있습니다")
     subscription = validate_subscription(body)
     digest = hashlib.sha256(subscription["endpoint"].encode()).hexdigest()
     # Serialise device registration per user; never return the endpoint or encryption keys.
@@ -96,19 +99,98 @@ def unsubscribe(p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session =
     return {"ok": True}
 
 
+@router.get("/personal-alerts")
+def read_preferences(p: Principal = Depends(require(P.BOOKING_MANAGE))):
+    return preferences(p.user)
+
+
+@router.put("/personal-alerts")
+def save_preferences(body: Preferences, p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session = Depends(get_db)):
+    p.user.alert_preferences = body.model_dump()
+    db.commit()
+    return body
+
+
+class DeviceIn(BaseModel):
+    endpoint: str
+
+
+def current_device(db, session_id, endpoint):
+    import hashlib
+
+    from app.models import PushSubscription
+    digest = hashlib.sha256(endpoint.encode()).hexdigest()
+    return db.scalar(select(PushSubscription).where(PushSubscription.session_id == session_id,
+                                                   PushSubscription.endpoint_hash == digest))
+
+
+@router.post("/push-device-state")
+def device_state(body: DeviceIn, p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session = Depends(get_db)):
+    return {"registered": current_device(db, p.session.id, body.endpoint) is not None}
+
+
+@router.post("/push-device-remove")
+def remove_device(body: DeviceIn, p: Principal = Depends(require(P.BOOKING_MANAGE)), db: Session = Depends(get_db)):
+    device = current_device(db, p.session.id, body.endpoint)
+    if device:
+        db.delete(device)
+        db.commit()
+    return {"ok": True}
+
+
+@router.post("/push-test")
+def test_device(request: Request, body: DeviceIn, p: Principal = Depends(require(P.BOOKING_MANAGE)),
+                db: Session = Depends(get_db)):
+    from types import SimpleNamespace
+
+    from app.infra.gmail import MailFailure
+    from app.infra.push import PushSender
+
+    if not request.app.state.settings.push_enabled:
+        raise Conflict("휴대폰 알림이 비활성화되어 있습니다")
+    # Match the browser's endpoint rather than sending to every device on a shared session.
+    device = current_device(db, p.session.id, body.endpoint)
+    if not device:
+        raise Conflict("먼저 이 기기를 등록해 주세요")
+    row = SimpleNamespace(subscription_id=device.id, recipient=p.user.email, payload={"kind": "test"},
+                          event_key="device-test")
+    db.rollback()
+    try:
+        PushSender(request.app.state.settings, request.app.state.SessionLocal).send(row)
+    except MailFailure as exc:
+        raise Conflict("테스트 발송에 실패했습니다. 기기 등록과 발송 설정을 확인해 주세요") from exc
+    return {"accepted": True}
+
+
+class EmailDelivery(BaseModel):
+    paused: bool
+
+
+@router.put("/email-delivery")
+def email_delivery(body: EmailDelivery, p: Principal = Depends(require(P.SETTINGS_MANAGE)), db: Session = Depends(get_db)):
+    from sqlalchemy import update
+
+    from app.repositories.settings import put
+    put(db, EMAIL_PAUSED, body.paused)
+    if body.paused:
+        db.execute(update(Notification).where(Notification.channel == "gmail", Notification.status == "pending")
+                   .values(status="skipped", error_code="email_paused"))
+    audit_repo.add(db, p.id, "email.pause" if body.paused else "email.resume", "settings", EMAIL_PAUSED)
+    db.commit()
+    return body
+
+
 @router.get("/notifications")
 def notifications(request: Request, p: Principal = Depends(require(P.SETTINGS_MANAGE)),
                   db: Session = Depends(get_db)):
-    from app.models import AuthSession, PushSubscription, User
     counts = dict(db.execute(select(Notification.status, func.count()).group_by(Notification.status)).all())
     rows = db.scalars(select(Notification).where(Notification.status.not_in(("sent", "skipped")))
                       .order_by(Notification.id).limit(50)).all()
     settings = request.app.state.settings
-    devices = db.scalar(select(func.count()).select_from(PushSubscription).join(AuthSession).join(User).where(
-        AuthSession.expires_at > utcnow(), User.is_active.is_(True), User.role.in_(("professor", "admin")),
-        User.email == settings.push_professor_email))
+    device_count = db.scalar(select(func.count()).select_from(devices(utcnow()).subquery()))
+    paused = email_paused(db)
     return {"enabled": settings.gmail_notifications_enabled, "push_enabled": settings.push_enabled,
-            "push_devices": devices,
+            "push_devices": device_count, "email_paused": paused,
             "sender": settings.gmail_sender_email, "recipient": settings.gmail_professor_email,
             "counts": counts,
             "last_success": db.scalar(select(func.max(Notification.sent_at))),

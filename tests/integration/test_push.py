@@ -38,7 +38,7 @@ def test_push_restricted_and_minimal_payload_and_logout(app, clients, monkeypatc
     body = subscription()
     path = "/api/admin/push-subscription"
     assert s.post(path, json=body).status_code == 403
-    assert clients["admin"].post(path, json=body).status_code == 403
+    assert clients["admin"].post(path, json=subscription("admin-device")).status_code == 200
     assert p.post(path, json=body).status_code == 200
     assert p.post(path, json=body).status_code == 200
     slot = make_slots(p)[0]
@@ -55,7 +55,8 @@ def test_push_restricted_and_minimal_payload_and_logout(app, clients, monkeypatc
     assert "PRIVATE" not in str(data) and data["url"] == "/#/bookings"
     p.post("/auth/logout")
     with app.state.SessionLocal() as db:
-        assert not list(db.scalars(select(PushSubscription)))
+        remaining = db.scalars(select(PushSubscription)).all()
+        assert len(remaining) == 1 and remaining[0].subscription["endpoint"].endswith("/admin-device")
 
 
 @pytest.mark.parametrize("url", ["http://fcm.googleapis.com/fcm/send/x", "https://127.0.0.1/fcm/send/x",

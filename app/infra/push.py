@@ -59,23 +59,31 @@ class PushSender:
 
     def send(self, row):
         from pywebpush import WebPushException, webpush
-        from sqlalchemy import select
 
         from app.db import utcnow
-        from app.models import AuthSession, PushSubscription, User
+        from app.models import PushSubscription, User
+        from app.services.personal_alerts import devices, preferences, scheduled_message
         with self.session_factory() as db:
-            item = db.execute(select(PushSubscription, User).join(
-                AuthSession, AuthSession.id == PushSubscription.session_id).join(User).where(
-                PushSubscription.id == row.subscription_id, AuthSession.expires_at > utcnow(),
-                User.is_active.is_(True), User.role.in_(("professor", "admin")),
-                User.email == self.settings.push_professor_email)).first()
-            if not item or row.recipient != self.settings.push_professor_email:
+            item = db.execute(devices(utcnow()).where(PushSubscription.id == row.subscription_id,
+                                                    User.email == row.recipient)).first()
+            if not item:
                 raise MailFailure("skipped", "device_or_permission_revoked")
             subscription = validate_subscription(item[0].subscription)
-        # Never include student name, notes, topic, or arbitrary URLs on the lock screen.
-        payload = json.dumps({"title": "ClassBridge 상담 예약 알림",
-                              "body": f"상담 예약이 변경되었습니다 · {format_time(row.payload['start'])}",
-                              "tag": row.event_key, "url": "/#/bookings"}, ensure_ascii=False)
+            pref = preferences(item[1])
+            kind = row.payload["kind"]
+            if kind in ("daily", "reminder"):
+                message = scheduled_message(db, row.payload, pref, utcnow())
+                if not message:
+                    raise MailFailure("skipped", "schedule_changed")
+            elif kind == "test":
+                message = {"title": "ClassBridge 테스트 알림", "body": "이 기기의 알림 수신을 확인했습니다.",
+                           "url": "/#/personal"}
+            else:
+                if not pref.instant:
+                    raise MailFailure("skipped", "preference_disabled")
+                message = {"title": "ClassBridge 상담 예약 알림", "url": "/#/bookings",
+                           "body": f"상담 예약이 변경되었습니다 · {format_time(row.payload['start'])}"}
+            payload = json.dumps({**message, "tag": row.event_key, "session": item[0].session_id}, ensure_ascii=False)
         try:
             with NoRedirectSession() as session:
                 response = webpush(subscription_info=subscription, data=payload,

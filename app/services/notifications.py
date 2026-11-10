@@ -2,14 +2,16 @@
 import logging
 from datetime import timedelta
 from threading import Event, Thread
+from time import monotonic
 
 from sqlalchemy import exists, select, update
 from sqlalchemy.orm import aliased
 
 from app.db import utcnow
 from app.infra.gmail import GmailSender, MailFailure
-from app.models import AuthSession, User
-from app.models.notification import Notification, PushSubscription
+from app.models import User
+from app.models.notification import Notification
+from app.services.personal_alerts import devices, email_paused, enqueue_due, preferences
 
 log = logging.getLogger("classbridge.notifications")
 
@@ -28,24 +30,26 @@ def enqueue(db, booking, event, kind, *, old=None):
     chain = previous.chain_id if previous else (old.id if old else booking.id)
     if old:
         payload.update(old_id=old.id, old_start=old.slot.start_at.isoformat(), old_end=old.slot.end_at.isoformat())
-    if settings.gmail_notifications_enabled:
+    if settings.gmail_notifications_enabled and not email_paused(db):
         db.add(Notification(event_key=f"booking-event-{event.id}", chain_id=chain,
                             booking_id=booking.id, payload=payload,
                             sender=settings.gmail_sender_email, recipient=settings.gmail_professor_email))
     if settings.push_enabled:
-        subscriptions = db.scalars(select(PushSubscription).join(AuthSession).join(User).where(
-            User.email == settings.push_professor_email, User.is_active.is_(True),
-            User.role.in_(("professor", "admin")), AuthSession.expires_at > utcnow()))
+        subscriptions = db.execute(devices(utcnow()))
         minimal = {k: v for k, v in payload.items() if k != "student_name"}
-        for sub in subscriptions:
+        for sub, user in subscriptions:
+            if not preferences(user).instant:
+                continue
             db.add(Notification(event_key=f"booking-event-{event.id}-push-{sub.id}", chain_id=chain,
-                booking_id=booking.id, payload=minimal, sender="", recipient=settings.push_professor_email,
+                booking_id=booking.id, payload=minimal, sender="", recipient=user.email,
                 channel="push", subscription_id=sub.id))
 
 
 def claim(session_factory, now=None, channel="gmail"):
     now = now or utcnow()
     with session_factory() as db:
+        if channel == 'gmail' and email_paused(db):
+            return None
         # Never blindly resend an abandoned delivery: Gmail may already have accepted it.
         db.execute(update(Notification).where(Notification.status == "sending", Notification.lease_until < now)
                    .values(status="uncertain", error_code="delivery_interrupted", lease_until=None))
@@ -112,15 +116,20 @@ class NotificationWorker:
         from app.infra.push import PushSender
         sender = GmailSender(self.settings)
         push_sender = PushSender(self.settings, self.session_factory)
+        next_scan = 0.0
         try:
             while not self.stop_event.is_set():
                 try:
+                    if self.settings.push_enabled and monotonic() >= next_scan:
+                        with self.session_factory() as db:
+                            enqueue_due(db, utcnow())
+                        next_scan = monotonic() + 20
                     did_work = deliver_one(self.session_factory, sender, self.settings)
                     did_work = deliver_one(self.session_factory, push_sender, self.settings, channel="push") or did_work
                 except Exception:
                     log.error("notification worker unavailable; pending records retained")
                     did_work = False
-                self.stop_event.wait(1 if did_work else 60)
+                self.stop_event.wait(1 if did_work else 20)
         finally:
             sender.close()
 
