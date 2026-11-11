@@ -1,4 +1,4 @@
-import { siteQrButton } from "../components/site-share.js";
+import { copySiteLink, siteQrButton } from "../components/site-share.js";
 import { get, post, put } from "../api.js";
 import { can } from "../state.js";
 import { go } from "../router.js";
@@ -39,7 +39,7 @@ export async function renderHome(root) {
     h("p", { class: "muted" }, "ClassBridge 사용 중 불편한 점이나 개선 아이디어를 개발자에게 알려 주세요."),
     h("div", { class: "cards" },
       h("section", { class: "card" }, h("h2", {}, "사이트 공유"),
-        h("p", {}, "ClassBridge 접속 QR을 다시 보거나 내려받아 공유하세요."), siteQrButton()),
+        h("p", {}, "ClassBridge 접속 QR을 다시 보거나 내려받아 공유하세요."), h("div", { class: "actions" }, siteQrButton(), copySiteLink())),
       h("section", { class: "card" }, h("h2", {}, "개발자에게 문의"),
         h("p", {}, "오류 신고 · 기능 제안 · 사용 방법. 작성자와 개발자(관리자)만 확인하는 비공개 문의입니다."),
         h("a", { class: "btn primary", href: "#/help/new" }, "문의 작성"),

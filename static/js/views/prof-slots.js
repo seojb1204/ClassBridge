@@ -15,6 +15,12 @@ let drawVersion = 0;
 let showForm = null;
 let showCancelled = false;
 
+let revealCreated = false;
+
+export function renderRegistration(root) {
+  mount(root, h("h1", {}, "상담 시간 등록"), h("section", { class: "panel", id: "slot-create-panel" }, createForm(root)));
+}
+
 export async function render(root) {
   weekStart ||= mondayOf(todayKst());
   selectedDay ||= todayKst();
@@ -31,7 +37,9 @@ export async function render(root) {
   }
   detach?.();
   detach = onLayoutChange(() => draw(root));
-  await draw(root);
+  const reveal = revealCreated;
+  revealCreated = false;
+  await draw(root, reveal);
 }
 
 async function draw(root, revealDay = false) {
@@ -43,7 +51,7 @@ async function draw(root, revealDay = false) {
   if (version !== drawVersion || location.hash !== path) return;
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
-      h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
+      isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
@@ -57,7 +65,7 @@ async function draw(root, revealDay = false) {
       onSlot: (s) => editSlot(root, s),
       extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`)
         : s.can_delete ? h("span", { class: "slot-count" }, "눌러서 빈 시간 삭제") : null) }),
-    showForm ? h("section", { class: "panel", id: "slot-create-panel" },
+    showForm && !isMobile() ? h("section", { class: "panel", id: "slot-create-panel" },
       h("h2", {}, "상담 시간 등록"), createForm(root)) : null,
   );
   if (revealDay) revealSelectedDay(root);
@@ -143,6 +151,11 @@ function createForm(root) {
       weekStart = mondayOf(parsed.date);
       selectedDay = parsed.date;
       showForm = false;
+      if (location.hash === "#/slots/new") {
+        revealCreated = true;
+        location.hash = "#/slots";
+        return;
+      }
       await draw(root, true);
       if (!isMobile()) {
         const calendar = root.querySelector(".week-grid");
@@ -204,5 +217,7 @@ async function editSlot(root, s) {
       toast(`취소했습니다${res.cancelled_bookings ? ` (예약 ${res.cancelled_bookings}건 취소)` : ""}`, "success");
     } catch (e) { errorToast(e); }
   }
-  await draw(root);
+  const reveal = revealCreated;
+  revealCreated = false;
+  await draw(root, reveal);
 }

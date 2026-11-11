@@ -442,7 +442,9 @@ SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
 
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
-    if s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).count():
+    if s.page.locator("#mobile-tabs").is_visible():
+        s.page.get_by_role("link", name="상담 등록", exact=True).click()
+    elif s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).count():
         s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
     form = s.page.locator("form.grid-form")
     form.get_by_label("날짜(시작일)", exact=True).fill(SLOT_DAY.isoformat())
@@ -522,6 +524,7 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.locator(".modal button:text-is('기록 저장')").click()
     prof.toast("상담 기록을 저장")
     prof.go("/staff/insights")
+    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보").is_visible()
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     note_card = prof.page.locator(".consult-note-card:has-text('학생 상담 테스트 기록')")
     note_card.wait_for(state="visible")
@@ -766,6 +769,11 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/staff/insights")
+    tabs = prof.page.locator("#mobile-tabs")
+    assert tabs.get_by_role("link", name="상담 정보").count() == 0
+    assert prof.page.locator(".topbar button[aria-expanded]").count() == 0
+    tabs.get_by_role("button", name="더보기 메뉴").click()
+    prof.page.locator("#nav").get_by_role("link", name="상담 정보").click()
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     assert prof.page.get_by_text("전체 상담 기록", exact=True).is_visible()
     assert prof.page.locator(".consult-note-card").count() >= 1
@@ -802,7 +810,7 @@ def test_mobile_professor_views(server, browser):
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
-            prof.page.get_by_role("button", name="+ 상담 시간 등록").click()
+            prof.page.get_by_role("link", name="상담 등록", exact=True).click()
             assert prof.page.get_by_label("장소", exact=True).input_value() == "m205"
             datebox = prof.page.get_by_label("날짜(시작일)", exact=True).bounding_box()
             assert datebox and datebox["height"] < 70
@@ -823,9 +831,9 @@ def test_mobile_optional_sections_do_not_render_null(server, browser):
             assert "null" not in text.split()
             assert "undefined" not in text.split()
             if path == "/slots":
-                session.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
+                session.page.get_by_role("link", name="상담 등록", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="visible")
-                session.page.get_by_role("button", name="등록 양식 접기", exact=True).click()
+                session.page.locator("#mobile-tabs").get_by_role("link", name="상담 시간", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="hidden")
                 assert "null" not in session.page.locator("#view").inner_text().split()
             session.shot("optional_student" if path == "/booking" else "optional_professor")
@@ -1017,6 +1025,9 @@ def test_site_qr_available_to_guests_students_and_staff(server, browser):
                 ("site-qr@test.ac.kr", "prof@test.ac.kr", "admin@test.ac.kr")]
     for session in sessions:
         session.go("/help")
+        session.ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
+        session.page.get_by_role("button", name="사이트 링크 복사").click()
+        assert session.page.evaluate("navigator.clipboard.readText()") == base + "/"
         session.page.get_by_role("button", name="사이트 접속 QR", exact=True).click()
         image = session.page.get_by_alt_text("ClassBridge 사이트 접속 QR 코드")
         image.evaluate("img => img.decode()")
@@ -1062,7 +1073,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go('/slots')
     assert prof.page.locator('#nav a .nav-icon').count() >= 5
-    prof.page.get_by_role('button', name='+ 상담 시간 등록', exact=True).click()
+    prof.page.get_by_role('link', name='상담 등록', exact=True).click()
     day = today_kst(utcnow()) + timedelta(days=10)
     prof.page.get_by_label('한 문장으로 입력', exact=True).fill(f'{day.isoformat()} 3시~6시')
     prof.page.get_by_role('button', name='입력 내용 적용', exact=True).click()

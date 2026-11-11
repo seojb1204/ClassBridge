@@ -1,4 +1,4 @@
-import { siteQrButton } from "../components/site-share.js";
+import { copySiteLink, siteQrButton } from "../components/site-share.js";
 // 로그인 화면. 개발 환경에서만 이메일 개발용 로그인이 표시된다.
 import { get, post } from "../api.js";
 import { busy, errorToast, field, h, mount } from "../ui.js";
@@ -43,6 +43,6 @@ export async function render(root) {
   }
   if (!cfg.google && !cfg.dev_login) parts.push(h("p", { class: "error-box" }, "로그인 방식이 설정되지 않았습니다. 관리자에게 문의하세요."));
   parts.push(h("p", {}, h("a", { href: "/static/about.html" }, "서비스 소개"), " · ", h("a", { href: "/static/terms.html" }, "이용약관")));
-  parts.push(siteQrButton());
+  parts.push(h("div", { class: "actions" }, siteQrButton(), copySiteLink()));
   mount(root, h("div", { class: "login-box panel" }, parts));
 }

@@ -33,6 +33,7 @@ from app.routers import (
     support,
     surveys,
 )
+from app.services import auto_complete
 from app.services.notifications import NotificationWorker
 
 log = logging.getLogger("classbridge")
@@ -48,9 +49,13 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
         if settings.gmail_notifications_enabled or settings.push_enabled:
             worker = NotificationWorker(app.state.SessionLocal, settings)
             worker.start()
+        stop = asyncio.Event()
+        completion = asyncio.create_task(auto_complete.run(app.state.SessionLocal, stop))
         try:
             yield
         finally:
+            stop.set()
+            await completion
             if worker:
                 await asyncio.to_thread(worker.stop)
 

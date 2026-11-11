@@ -1,5 +1,6 @@
 const paths = {
   "/slots": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",
+  "/slots/new": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4 M12 12v6 M9 15h6",
   "/booking": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",
   "/bookings": "M5 3h14v18H5z M8 12l3 3 5-6",
   "/my-bookings": "M5 3h14v18H5z M8 12l3 3 5-6",

@@ -1,5 +1,15 @@
-import { h, modal } from "../ui.js";
+import { h, modal, toast } from "../ui.js";
 import { qrActions } from "./qr-actions.js";
+
+export function copySiteLink() {
+  const url = location.origin + "/";
+  return h("button", { type: "button", class: "btn", onclick: async () => {
+    try { await navigator.clipboard.writeText(url); toast("사이트 링크를 복사했습니다", "success"); }
+    catch {
+      await modal("사이트 링크 복사", h("a", { href: url }, url), [{ label: "닫기", value: true }]);
+    }
+  } }, "사이트 링크 복사");
+}
 
 export function siteQrButton(className = "btn") {
   return h("button", { type: "button", class: className, onclick: showSiteQr }, "사이트 접속 QR");
