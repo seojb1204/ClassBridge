@@ -70,6 +70,13 @@ async function showStaffSlot(root, slot, bookings) {
       },
     });
   }
+  if (related.some(x => x.status === "completed")) actions.push({
+    label: "미참석으로 정정", handler: async () => {
+      if (b.status !== "completed") { toast("완료된 상담을 선택해 주세요.", "error"); return false; }
+      try { await post(`/api/bookings/${b.id}/outcome`, { outcome: "no_show" }); toast("미참석으로 정정했습니다.", "success"); return true; }
+      catch (e) { errorToast(e); return false; }
+    },
+  });
   const result = await modal("예약·상담 상세", h("div", { class: "booking-detail" },
     h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), ` · 예약 ${related.length}/${slot.capacity}명`),
     picker ? field("학생 선택", picker) : null, info,

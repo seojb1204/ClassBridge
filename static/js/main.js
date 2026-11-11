@@ -34,6 +34,7 @@ function registerRoutes() {
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
   route("/slots", "slot:manage", profSlots.render, "상담 시간");
+  route("/slots/new", "slot:manage", profSlots.renderRegistration);
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
   route("/staff/insights", "booking:manage", staffInsights.render, "상담 정보");
   if (feature("surveys")) {
@@ -62,19 +63,20 @@ function registerRoutes() {
 
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
-  const items = isStandalone() && can("booking:manage")
+  const items = can("slot:manage")
     ? [{ pattern: "/slots", navLabel: "상담 시간" }, { pattern: "/bookings", navLabel: "예약 관리" },
-       { pattern: "/staff/insights", navLabel: "상담 정보" }]
+       { pattern: "/slots/new", navLabel: "상담 등록" }]
     : navItems().slice(0, 3);
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
-      navIcon(r.pattern),
-      h("span", {}, navIcon(r.pattern), h("span", {}, r.navLabel)))),
-    h("button", { type: "button", onclick: () => {
-      const menu = document.getElementById("menu-btn");
-      menu.click();
-      if (menu.getAttribute("aria-expanded") === "true") menu.focus();
-    }, "aria-label": "더보기 메뉴" },
+      navIcon(r.pattern), h("span", {}, r.navLabel))),
+    h("button", { id: "menu-btn", type: "button", "aria-controls": "nav", "aria-expanded": "false",
+      "aria-label": "더보기 메뉴", onclick: (event) => {
+        const nav = document.getElementById("nav");
+        const open = nav.classList.toggle("open");
+        event.currentTarget.setAttribute("aria-expanded", String(open));
+        if (open) nav.querySelector("a")?.focus();
+      } },
     h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, "☰"), h("span", {}, "더보기")));
   const active = location.hash;
   tabs.querySelectorAll("a").forEach((a) => {
@@ -86,35 +88,26 @@ function renderMobileTabs() {
 
 function renderChrome() {
   const nav = document.getElementById("nav");
-  mount(nav, navItems().map((r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}`, onclick: () => nav.classList.remove("open") }, navIcon(r.pattern), h("span", {}, r.navLabel))));
-  const mobileHelp = support.helpLink("mobile-help-link");
-  mobileHelp.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
-  nav.append(mobileHelp);
-  const personal = pushButton('mobile-help-link');
-  if (personal) {
-    personal.onclick = () => { nav.classList.remove("open"); document.getElementById("menu-btn").setAttribute("aria-expanded", "false"); };
-    nav.append(personal);
-  }
+  mount(nav, navItems().map((r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel))));
+  nav.append(support.helpLink("mobile-help-link"));
+  const personal = pushButton("mobile-help-link");
+  if (personal) nav.append(personal);
   const install = installButton("btn mobile-help-link");
-  if (install) {
-    install.addEventListener("click", () => {
-      nav.classList.remove("open");
-      document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
-    });
-    nav.append(install);
-  }
+  if (install) nav.append(install);
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
   mount(document.getElementById("userbox"),
     support.helpLink("btn small desktop-help-link"),
       pushButton('desktop-help-link'),
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
-  const menu = document.getElementById("menu-btn");
-  menu.onclick = () => { const o = nav.classList.toggle("open"); menu.setAttribute("aria-expanded", String(o)); };
+  nav.addEventListener("click", () => {
+    nav.classList.remove("open");
+    document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
+  });
   renderMobileTabs();
   support.rememberSource();
   support.refreshCounts();
-  window.addEventListener("hashchange", () => { renderMobileTabs(); support.rememberSource(); support.refreshCounts(); });
+  window.addEventListener("hashchange", () => { nav.classList.remove("open"); renderMobileTabs(); support.rememberSource(); support.refreshCounts(); });
   window.addEventListener("focus", support.refreshCounts);
 }
 
@@ -122,7 +115,6 @@ async function start() {
   const view = document.getElementById("view");
   const publicSurvey = location.hash.match(/^#\/surveys\/public\/([A-Za-z0-9_-]{32})$/);
   if (publicSurvey) {
-    document.getElementById("menu-btn").hidden = true;
     document.getElementById("mobile-tabs").hidden = true;
     await surveys.renderPublic(view, publicSurvey[1]);
     window.addEventListener("hashchange", () => location.reload());
@@ -132,7 +124,7 @@ async function start() {
     state.me = await get("/api/me");
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
-      document.getElementById("menu-btn").hidden = true;
+      document.getElementById("mobile-tabs").hidden = true;
       await login.render(view);
       return;
     }
