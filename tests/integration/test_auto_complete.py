@@ -15,14 +15,14 @@ def test_completion_boundaries_restart_and_manual_correction(app, clients):
     cancelled = clients["s3"].post("/api/bookings", json={"slot_id": slots[3]}).json()["id"]
     assert clients["s3"].post(f"/api/bookings/{cancelled}/cancel", json={}).status_code == 200
     ids = []
-    for slot, student in zip(slots, ["s1", "s2", "s3"]):
+    for slot, student in zip(slots[:3], ["s1", "s2", "s3"], strict=True):
         response = clients[student].post("/api/bookings", json={"slot_id": slot})
         assert response.status_code == 201
         ids.append(response.json()["id"])
     start = utcnow() - timedelta(minutes=15)
     now = utcnow()
     with factory.begin() as db:
-        for sid, end in zip(slots, [start, now, now + timedelta(seconds=1), now, now]):
+        for sid, end in zip(slots, [start, now, now + timedelta(seconds=1), now, now], strict=True):
             slot = db.get(Slot, sid)
             slot.start_at, slot.end_at = end - timedelta(minutes=30), end
     assert complete_elapsed(factory, start, now) == 1
