@@ -11,14 +11,15 @@ import sqlite3
 import subprocess
 import sys
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import time as daytime
 from pathlib import Path
 
 import httpx
 import pytest
 
 from app.db import utcnow
-from app.timeutil import today_kst
+from app.timeutil import KST, today_kst
 
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E 미설정")
 ROOT = Path(__file__).resolve().parents[2]
@@ -585,13 +586,17 @@ def test_professor_completes_consultation(server, browser):
     row = prof.page.locator("tr:has-text('student2@test.ac.kr')")
     row.wait_for(state="visible")
     assert row.count() == 1
-    # 상담 시작 시각을 과거로 옮겨 '완료' 처리 상황 재현 (E2E 전용 DB 직접 수정)
-    past = (utcnow() - timedelta(minutes=30)).replace(tzinfo=None).isoformat(" ")
+    # Keep the manual-completion fixture in today's list even just after KST
+    # midnight. Leave its end in the future so automatic completion cannot race
+    # this test of the professor's manual action (covered separately).
+    now = utcnow()
+    day_start = datetime.combine(today_kst(now), daytime.min, tzinfo=KST).astimezone(now.tzinfo)
+    past = max(now - timedelta(minutes=30), day_start).replace(tzinfo=None).isoformat(" ", timespec="microseconds")
     with sqlite3.connect(db) as c:
         bid = c.execute("select b.id from bookings b join users u on u.id=b.student_id "
                         "where u.email='student2@test.ac.kr' and b.status='booked'").fetchone()[0]
         c.execute("update slots set start_at=?, end_at=? where id=(select slot_id from bookings where id=?)",
-                  (past, (utcnow() - timedelta(minutes=1)).replace(tzinfo=None).isoformat(" "), bid))
+                  (past, (now + timedelta(minutes=5)).replace(tzinfo=None).isoformat(" ", timespec="microseconds"), bid))
     prof.go("/bookings")
     prof.page.locator("select").nth(0).select_option("")  # 전체 상태
     prof.page.wait_for_timeout(400)

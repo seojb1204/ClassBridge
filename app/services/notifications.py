@@ -2,16 +2,15 @@
 import logging
 from datetime import timedelta
 from threading import Event, Thread
-from time import monotonic
 
 from sqlalchemy import exists, select, update
 from sqlalchemy.orm import aliased
 
 from app.db import utcnow
 from app.infra.gmail import GmailSender, MailFailure
-from app.models import User
+from app.models import Booking, Slot, User
 from app.models.notification import Notification
-from app.services.personal_alerts import devices, email_paused, enqueue_due, preferences
+from app.services.personal_alerts import daily_due, devices, email_paused, enqueue_due, preferences
 
 log = logging.getLogger("classbridge.notifications")
 
@@ -106,36 +105,93 @@ def deliver_one(session_factory, sender, settings, now=None, channel="gmail"):
     return True
 
 
+def next_worker_delay(session_factory, settings, now):
+    """Plan the next real outbox retry/reminder without idle DB polling.
+
+    All app writes signal the local worker. Six-hour reconciliation handles
+    out-of-band edits; the application supports a single server instance.
+    """
+    due_times = []
+    with session_factory() as db:
+        channels = []
+        if settings.gmail_notifications_enabled and not email_paused(db):
+            channels.append("gmail")
+        if settings.push_enabled:
+            channels.append("push")
+        for channel in channels:
+            # A paused/reauth/blocked chain must not cause a busy loop.
+            if db.scalar(select(Notification.id).where(Notification.status == "reauth",
+                         Notification.channel == channel).limit(1)):
+                continue
+            earlier = aliased(Notification)
+            blocked = exists(select(earlier.id).where(earlier.chain_id == Notification.chain_id,
+                earlier.channel == Notification.channel, earlier.recipient == Notification.recipient,
+                earlier.subscription_id.is_not_distinct_from(Notification.subscription_id),
+                earlier.id < Notification.id, earlier.status.not_in(("sent", "skipped"))))
+            pending = db.scalar(select(Notification.next_attempt_at).where(
+                Notification.status == "pending", Notification.channel == channel, ~blocked)
+                .order_by(Notification.next_attempt_at).limit(1))
+            if pending:
+                due_times.append(pending)
+        leases = db.scalars(select(Notification.lease_until).where(
+            Notification.status == "sending", Notification.channel.in_(channels),
+            Notification.lease_until.is_not(None))).all()
+        due_times.extend(leases)
+        if settings.push_enabled:
+            active = list(db.execute(devices(now)))
+            for _, user in active:
+                pref = preferences(user)
+                if pref.daily:
+                    for offset in range(8):
+                        due = daily_due(pref, now + timedelta(days=offset))
+                        if due and due > now:
+                            due_times.append(due)
+                            break
+            if any(preferences(user).reminder for _, user in active):
+                upcoming = db.scalars(select(Slot.start_at).join(Booking, Booking.slot_id == Slot.id)
+                    .where(Booking.status == "booked", Slot.status == "open",
+                           Slot.start_at > now + timedelta(minutes=30))).all()
+                due_times.extend(start - timedelta(minutes=30) for start in upcoming)
+    return min(21600, max(0.1, (min(due_times) - now).total_seconds())) if due_times else 21600
+
+
 class NotificationWorker:
     def __init__(self, session_factory, settings):
         self.session_factory, self.settings = session_factory, settings
         self.stop_event = Event()
+        self.wake_event = Event()
         self.thread = Thread(target=self.run, name="gmail-outbox", daemon=True)
 
     def run(self):
         from app.infra.push import PushSender
         sender = GmailSender(self.settings)
         push_sender = PushSender(self.settings, self.session_factory)
-        next_scan = 0.0
         try:
             while not self.stop_event.is_set():
+                self.wake_event.clear()
+                delay = 20  # Retry transient failures inside the three-minute alert grace.
                 try:
-                    if self.settings.push_enabled and monotonic() >= next_scan:
+                    scanned_at = utcnow()
+                    if self.settings.push_enabled:
                         with self.session_factory() as db:
-                            enqueue_due(db, utcnow())
-                        next_scan = monotonic() + 20
+                            enqueue_due(db, scanned_at)
                     did_work = deliver_one(self.session_factory, sender, self.settings)
                     did_work = deliver_one(self.session_factory, push_sender, self.settings, channel="push") or did_work
+                    delay = 0 if did_work else next_worker_delay(self.session_factory, self.settings, scanned_at)
+                    delay = max(0, delay - (utcnow() - scanned_at).total_seconds())
                 except Exception:
                     log.error("notification worker unavailable; pending records retained")
-                    did_work = False
-                self.stop_event.wait(1 if did_work else 20)
+                self.wake_event.wait(delay)
         finally:
             sender.close()
 
     def start(self):
         self.thread.start()
 
+    def wake(self):
+        self.wake_event.set()
+
     def stop(self):
         self.stop_event.set()
+        self.wake_event.set()
         self.thread.join(timeout=35)
