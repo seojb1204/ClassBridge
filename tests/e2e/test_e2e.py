@@ -591,12 +591,12 @@ def test_professor_completes_consultation(server, browser):
     # this test of the professor's manual action (covered separately).
     now = utcnow()
     day_start = datetime.combine(today_kst(now), daytime.min, tzinfo=KST).astimezone(now.tzinfo)
-    past = max(now - timedelta(minutes=30), day_start).replace(tzinfo=None).isoformat(" ")
+    past = max(now - timedelta(minutes=30), day_start).replace(tzinfo=None).isoformat(" ", timespec="microseconds")
     with sqlite3.connect(db) as c:
         bid = c.execute("select b.id from bookings b join users u on u.id=b.student_id "
                         "where u.email='student2@test.ac.kr' and b.status='booked'").fetchone()[0]
         c.execute("update slots set start_at=?, end_at=? where id=(select slot_id from bookings where id=?)",
-                  (past, (now + timedelta(minutes=5)).replace(tzinfo=None).isoformat(" "), bid))
+                  (past, (now + timedelta(minutes=5)).replace(tzinfo=None).isoformat(" ", timespec="microseconds"), bid))
     prof.go("/bookings")
     prof.page.locator("select").nth(0).select_option("")  # 전체 상태
     prof.page.wait_for_timeout(400)
