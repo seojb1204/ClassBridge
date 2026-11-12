@@ -48,9 +48,12 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
         worker = None
         if settings.gmail_notifications_enabled or settings.push_enabled:
             worker = NotificationWorker(app.state.SessionLocal, settings)
+            app.state.notification_worker = worker
             worker.start()
         stop = asyncio.Event()
-        completion = asyncio.create_task(auto_complete.run(app.state.SessionLocal, stop))
+        wake = asyncio.Event()
+        app.state.completion_wake = wake
+        completion = asyncio.create_task(auto_complete.run(app.state.SessionLocal, stop, wake))
         try:
             yield
         finally:
@@ -103,8 +106,26 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
     from app.routers import notifications
     app.include_router(notifications.router)
 
+    @app.middleware("http")
+    async def wake_completion_after_write(request, call_next):
+        response = await call_next(request)
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            wake = getattr(app.state, "completion_wake", None)
+            if wake is not None:
+                wake.set()
+            worker = getattr(app.state, "notification_worker", None)
+            if worker is not None:
+                worker.wake()
+        return response
+
     @app.get("/healthz", include_in_schema=False)
     def healthz():
+        # Render calls this frequently. Liveness must not keep Neon awake.
+        return {"status": "ok"}
+
+    @app.get("/readyz", include_in_schema=False)
+    def readyz():
+        # Explicit dependency check for deployment smoke tests, not polling.
         try:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
