@@ -11,6 +11,8 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 
 let weekStart = null;
 let selectedDay = null;
+let mobileView = "week";
+let supportOpen = false;
 let detach = null;
 let drawVersion = 0;
 let showForm = null;
@@ -75,12 +77,16 @@ async function draw(root, revealDay = false) {
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼이나 상담 등록 메뉴에서 할 수 있습니다."),
-    announcementPanel(announcement, () => draw(root)),
-    availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
+    h("details", { class: "calendar-support", open: supportOpen,
+      ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
+      h("summary", {}, "공지 · 예약 가능한 날짜"),
+      announcementPanel(announcement, () => draw(root)),
+      availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,
       onchange: (e) => { showCancelled = e.target.checked; draw(root); } }), "취소된 상담 시간 보기"),
-    renderCalendar({ weekStart, slots: [...(showCancelled ? slots : slots.filter(s => s.status !== "cancelled")), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileListOnly: true,
+    renderCalendar({ weekStart, slots: [...(showCancelled ? slots : slots.filter(s => s.status !== "cancelled")), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+      onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : editSlot(root, s),
       extra: (s) => s.event_type === "lecture" ? null : (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`)

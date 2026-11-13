@@ -67,3 +67,87 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     assert manifest["theme_color"] == manifest["background_color"] == "#f7f3ec"
     staff.shot("registration_mobile_" + email.split("@")[0] + "_" + str(viewport["width"]))
     staff.close()
+
+
+@pytest.mark.parametrize("email,path", [
+    ("prof@test.ac.kr", "/slots"), ("admin@test.ac.kr", "/slots"),
+    ("grid-student@test.ac.kr", "/booking"),
+])
+@pytest.mark.parametrize("viewport", [MOBILE, {"width": 360, "height": 640}])
+def test_mobile_calendar_week_three_list_and_details(server, browser, email, path, viewport):  # noqa: F811
+    from datetime import date, timedelta
+    from urllib.parse import parse_qs, urlparse
+
+    from playwright.sync_api import expect
+
+    base, _ = server
+    session = Session(browser, base, email, viewport, service_workers="block")
+    p = session.page
+
+    def events(route, lecture=False):
+        start = date.fromisoformat(parse_qs(urlparse(route.request.url).query)["start"][0])
+        start -= timedelta(days=start.weekday())
+        rows = []
+        for i in range(7):
+            day = (start + timedelta(days=i)).isoformat()
+            row = {"id": (98000 if lecture else 97000) + i,
+                   "start_at": f"{day}T{'12:05' if lecture else '10:00'}:00+09:00",
+                   "end_at": f"{day}T{'12:50' if lecture else '10:30'}:00+09:00",
+                   "kind": "individual", "capacity": 1, "remaining": 1, "status": "open",
+                   "bookable": True, "mine": False, "location": "시험 강의실", "note": "", "reason": ""}
+            if lecture:
+                row.update(event_type="lecture", title=f"격자 강의 {i}")
+            rows.append(row)
+        route.fulfill(json=rows)
+
+    p.route("**/api/slots?*", lambda route: events(route))
+    p.route("**/api/lectures?*", lambda route: events(route, lecture=True))
+    p.reload()
+    session.go(path)
+    p.locator(".calendar-week .week-grid").wait_for()
+    assert p.get_by_role("button", name="주간", exact=True).get_attribute("aria-pressed") == "true"
+    assert p.locator(".week-grid .day-head").count() == 7
+    expect(p.locator(".week-grid .slot.open")).to_have_count(7)
+    assert p.locator(".week-grid .slot.open").first.bounding_box()["height"] >= 44
+    if path == "/slots":
+        expect(p.locator(".week-grid .slot.lecture")).to_have_count(7)
+        lecture = p.locator('.week-grid [data-slot-id="98000"]')
+        assert lecture.evaluate("el => el.style.marginTop") == "9px"
+        lecture.click()
+        assert p.locator(".modal").get_by_label("강의명", exact=True).input_value() == "격자 강의 0"
+        p.keyboard.press("Escape")
+    else:
+        p.locator(".week-grid .slot.open").last.click()
+        p.locator(".modal").wait_for()
+        p.keyboard.press("Escape")
+    assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    session.shot(f"calendar_week_{email.split('@')[0]}_{viewport['width']}")
+    before = p.locator(".week-grid .day-head").first.inner_text()
+    p.get_by_role("button", name="다음 주", exact=True).click()
+    expect(p.locator(".week-grid .day-head").first).not_to_have_text(before)
+    assert p.locator(".week-grid .day-head").count() == 7
+    p.get_by_role("button", name="3일", exact=True).click()
+    p.locator(".calendar-three").wait_for()
+    assert p.locator(".week-grid .day-head").count() == 3
+    assert p.locator(".week-grid .slot.open").count() == 3
+    p.get_by_role("button", name="다음 3일", exact=True).click()
+    p.get_by_role("button", name="이전 3일", exact=True).wait_for(state="visible")
+    expect(p.get_by_role("button", name="이전 3일", exact=True)).to_be_enabled()
+    assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    session.shot(f"calendar_three_{email.split('@')[0]}_{viewport['width']}")
+    p.get_by_role("button", name="목록", exact=True).click()
+    p.locator(".day-chips").wait_for()
+    assert p.locator(".day-chips .chip").count() == 7
+    p.locator(".day-chips .chip").last.click()
+    expect(p.locator(".day-chips .chip").last).to_have_attribute("aria-selected", "true")
+    expect(p.locator(".daily .card.slot.open").first).to_be_visible()
+    assert p.locator(".daily .card.slot.open").count() == 1
+    if path == "/slots":
+        assert p.locator(".daily .card.slot.lecture").count() == 1
+    assert p.locator(".daily .card.slot.open").first.bounding_box()["height"] >= 44
+    assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    session.shot(f"calendar_list_{email.split('@')[0]}_{viewport['width']}")
+    p.get_by_role("button", name="주간", exact=True).click()
+    p.locator(".calendar-week").wait_for()
+    assert p.locator(".week-grid .day-head").count() == 7
+    session.close()

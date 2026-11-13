@@ -13,7 +13,7 @@ let filter = { status: "booked" };
 let viewMode = "list";
 let weekStart = null;
 let selectedDay = null;
-let mobileView = "list";
+let mobileView = "week";
 let detach = null;
 
 function viewSwitcher(root) {

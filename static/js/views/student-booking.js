@@ -12,7 +12,7 @@ let weekStart = null;
 let selectedDay = null;
 let detach = null;
 let drawVersion = 0;
-let mobileView = "list";
+let mobileView = "week";
 
 export async function render(root) {
   if (!weekStart) {
