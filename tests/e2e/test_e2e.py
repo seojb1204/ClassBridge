@@ -780,7 +780,8 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     prof.go("/staff/insights")
     tabs = prof.page.locator("#mobile-tabs")
     assert tabs.get_by_role("link", name="상담 정보").count() == 0
-    assert prof.page.locator(".topbar button[aria-expanded]").count() == 0
+    assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
+    assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
     prof.page.locator("#nav").get_by_role("link", name="상담 정보").click()
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
