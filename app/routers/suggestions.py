@@ -144,6 +144,22 @@ class PurgeIn(BaseModel):
     confirmation: str
 
 
+
+class EmptyTrashIn(BaseModel):
+    confirmation: Literal["영구 삭제"]
+    ids: list[str] = Field(max_length=10000)
+
+
+@router.get("/trash/preview", dependencies=[Depends(feature_on)])
+def preview_trash(p: Principal = Depends(require(P.SUGGESTION_READ)), db: Session = Depends(get_db)):
+    return management.trash_snapshot(db)
+
+
+@router.post("/trash/empty", dependencies=[Depends(feature_on)])
+def empty_trash(body: EmptyTrashIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                db: Session = Depends(get_db)):
+    return management.empty_suggestion_trash(db, p.user, body.ids, body.confirmation)
+
 @router.post("/{sid}/replies", response_model=ReplyOut, status_code=201, dependencies=[Depends(feature_on)])
 def add_reply(sid: str, body: ReplyIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
                      db: Session = Depends(get_db)):

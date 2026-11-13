@@ -71,3 +71,55 @@ def test_late_suggestion_filter_cannot_replace_latest_results(server, browser): 
     assert staff.page.get_by_text('STALE FILTER RESULT', exact=True).count() == 0
     assert staff.page.get_by_label('건의 유형', exact=True).input_value() == 'other'
     staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+@pytest.mark.parametrize('email', ['prof@test.ac.kr', 'admin@test.ac.kr'])
+def test_trash_yes_no_and_empty_all_ignore_filters(server, browser, viewport, email):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, email, viewport, service_workers='block')
+    rows = [{'id': f'trash-{i}', 'category': 'other', 'content': f'가상 휴지통 {i}',
+             'submitted_on': '2026-11-13', 'status': 'new', 'is_public': False,
+             'deleted_on': '2026-11-13', 'replies': []} for i in range(3)]
+    writes = []
+    def handle(route):
+        url = route.request.url
+        if url.endswith('/stats'):
+            route.fulfill(json={'total': 0, 'by_status': {}, 'by_category': {}})
+        elif url.endswith('/trash/preview'):
+            route.fulfill(json={'ids': [r['id'] for r in rows], 'count': len(rows)})
+        elif url.endswith('/trash/empty'):
+            writes.append(route.request)
+            count = len(rows)
+            rows.clear()
+            route.fulfill(json={'deleted': count})
+        elif url.endswith('/purge'):
+            writes.append(route.request)
+            rows[:] = [r for r in rows if f"/{r['id']}/purge" not in url]
+            route.fulfill(status=204)
+        else:
+            # Current page/filter displays one row, but bulk scope is full trash.
+            route.fulfill(json=rows[:1] if 'trash=true' in url or url.endswith('/search') else [])
+    staff.page.route('**/api/suggestions**', handle)
+    staff.go('/suggestions')
+    staff.page.get_by_role('button', name='휴지통', exact=True).click()
+    staff.page.get_by_role('button', name='영구 삭제', exact=True).click()
+    dialog = staff.page.get_by_role('dialog')
+    assert dialog.locator('input').count() == 0
+    dialog.get_by_role('button', name='아니요', exact=True).click()
+    assert writes == []
+    staff.page.get_by_role('button', name='영구 삭제', exact=True).click()
+    dialog.get_by_role('button', name='예, 영구 삭제', exact=True).click()
+    staff.page.get_by_text('가상 휴지통 1', exact=True).wait_for()
+    assert len(writes) == 1 and writes[0].post_data_json == {'confirmation': '영구 삭제'}
+    staff.page.get_by_role('button', name='휴지통 비우기', exact=True).click()
+    dialog.get_by_text('현재 휴지통 전체 2건', exact=False).wait_for()
+    staff.page.keyboard.press('Escape')
+    assert len(writes) == 1
+    staff.page.get_by_role('button', name='휴지통 비우기', exact=True).click()
+    dialog.get_by_role('button', name='예, 영구 삭제', exact=True).click()
+    staff.page.get_by_text('휴지통이 비어 있습니다.', exact=True).wait_for()
+    assert len(writes) == 2
+    assert writes[-1].post_data_json == {'confirmation': '영구 삭제', 'ids': ['trash-1', 'trash-2']}
+    assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
+    staff.ctx.close()

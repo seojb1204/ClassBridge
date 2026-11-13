@@ -35,6 +35,32 @@ def manage_suggestion(db, actor, sid, action, confirmation=""):
     db.commit()
 
 
+
+def trash_snapshot(db):
+    # The confirmed set, not a later query, defines the scope of a bulk purge.
+    ids = list(db.scalars(select(Suggestion.id).where(Suggestion.deleted_on.is_not(None))
+                         .order_by(Suggestion.id).limit(10001)))
+    if len(ids) > 10000:
+        raise BadRequest("휴지통이 너무 큽니다. 일부를 정리한 뒤 다시 시도해 주세요")
+    return {"ids": ids, "count": len(ids)}
+
+
+def empty_suggestion_trash(db, actor, ids, confirmation):
+    if confirmation != "영구 삭제" or len(set(ids)) != len(ids):
+        raise BadRequest("휴지통 비우기 확인이 필요합니다")
+    rows = list(db.scalars(select(Suggestion).where(Suggestion.id.in_(ids))
+                          .order_by(Suggestion.id).with_for_update()))
+    if len(rows) != len(ids) or any(row.deleted_on is None for row in rows):
+        raise Conflict("휴지통 내용이 변경되었습니다. 다시 확인해 주세요")
+    if not rows:
+        return {"deleted": 0}
+    db.execute(delete(SuggestionReply).where(SuggestionReply.suggestion_id.in_(ids)))
+    db.execute(delete(Suggestion).where(Suggestion.id.in_(ids)))
+    # No contents or anonymous-author data are retained in the audit log.
+    audit_repo.add(db, actor.id, "suggestion.empty_trash", "suggestion", detail={"count": len(rows)})
+    db.commit()
+    return {"deleted": len(rows)}
+
 def reply(db, actor, sid, content):
     item = suggestion(db, sid)
     result = SuggestionReply(id=str(uuid4()), suggestion_id=sid,
