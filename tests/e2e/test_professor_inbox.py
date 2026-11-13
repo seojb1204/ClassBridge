@@ -135,10 +135,12 @@ def test_content_open_marks_read_and_read_all_survives_reload(server, browser, v
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 5건', exact=True).click()
     panel = staff.page.locator('#inbox-popover')
     panel.get_by_role('link', name='내용 확인').first.click()
+    staff.page.wait_for_url('**/#/bookings')
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 4건', exact=True).wait_for()
     assert items[0]['read'] and len(writes) == 1
     staff.go('/inbox')
     staff.page.locator('[data-notification-id="2"]').get_by_role('link', name='내용 확인').click()
+    staff.page.wait_for_url('**/#/bookings')
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 3건', exact=True).wait_for()
     staff.go('/inbox')
     staff.page.get_by_role('button', name='모두 읽음', exact=True).click()
