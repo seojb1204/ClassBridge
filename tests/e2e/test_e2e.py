@@ -150,6 +150,7 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
         page.reload()
         session.go(path)
         page.get_by_role("button", name="목록", exact=True).click()
+        page.locator(".daily").wait_for()
         if path == "/slots":
             page.locator(".calendar-support > summary").click()
         page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
@@ -1017,6 +1018,7 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
     prof.page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
     prof.page.reload()
     prof.go("/slots")
+    prof.page.get_by_role("button", name="목록", exact=True).click()
     chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
     chip.wait_for()
     assert chip.locator("em").inner_text() == "2"
@@ -1029,6 +1031,7 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
     prof.go("/bookings")
     prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.get_by_role("button", name="목록", exact=True).click()
     chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
     chip.wait_for()
     assert chip.locator("em").inner_text() == "4명"
@@ -1039,6 +1042,7 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
     # A cancellation releases one time; reloading must show the new count.
     slots[2].update(bookable=True, remaining=1, reason="")
     prof.go("/slots")
+    prof.page.get_by_role("button", name="목록", exact=True).click()
     prof.page.get_by_role("tab", name=re.compile("예약 가능 3건")).wait_for()
     prof.close()
 

@@ -12,6 +12,7 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
+let supportOpen = false;
 let detach = null;
 let drawVersion = 0;
 let showForm = null;
@@ -76,7 +77,8 @@ async function draw(root, revealDay = false) {
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼이나 상담 등록 메뉴에서 할 수 있습니다."),
-    h("details", { class: "calendar-support" },
+    h("details", { class: "calendar-support", open: supportOpen,
+      ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
       h("summary", {}, "공지 · 예약 가능한 날짜"),
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),

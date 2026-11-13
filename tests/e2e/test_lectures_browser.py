@@ -102,14 +102,15 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
 
     p.route("**/api/slots?*", lambda route: events(route))
     p.route("**/api/lectures?*", lambda route: events(route, lecture=True))
+    p.reload()
     session.go(path)
     p.locator(".calendar-week .week-grid").wait_for()
     assert p.get_by_role("button", name="주간", exact=True).get_attribute("aria-pressed") == "true"
     assert p.locator(".week-grid .day-head").count() == 7
-    assert p.locator(".week-grid .slot.open").count() == 7
+    expect(p.locator(".week-grid .slot.open")).to_have_count(7)
     assert p.locator(".week-grid .slot.open").first.bounding_box()["height"] >= 44
     if path == "/slots":
-        assert p.locator(".week-grid .slot.lecture").count() == 7
+        expect(p.locator(".week-grid .slot.lecture")).to_have_count(7)
         lecture = p.locator('.week-grid [data-slot-id="98000"]')
         assert lecture.evaluate("el => el.style.marginTop") == "9px"
         lecture.click()
