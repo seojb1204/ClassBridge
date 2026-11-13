@@ -1,4 +1,5 @@
 // Explicit refresh only. Never keep the database awake with background polling.
+import { navIcon } from "./nav-icon.js";
 import { get } from "../api.js";
 import { h, mount, toast } from "../ui.js";
 
@@ -7,7 +8,7 @@ import { inboxVersion, markInboxRead, publishInboxCount } from "../inbox-state.j
 export function inboxBell() {
   const badge = h("span", { class: "inbox-badge", "aria-hidden": "true", hidden: true });
   const button = h("button", { class: "btn inbox-bell", type: "button", "aria-label": "알림 열기",
-    "aria-expanded": "false", "aria-controls": "inbox-popover" }, h("span", { "aria-hidden": "true" }, "🔔"), " 알림", badge);
+    "aria-expanded": "false", "aria-controls": "inbox-popover" }, navIcon("/inbox"), " 알림", badge);
   const panel = h("section", { id: "inbox-popover", class: "inbox-popover", hidden: true,
     "aria-label": "알림 모아보기" }, h("p", { role: "status" }, "알림을 불러오는 중…"));
   const wrap = h("div", { class: "inbox-header" }, button, panel);
@@ -56,7 +57,9 @@ export function inboxBell() {
             } catch (err) { toast(err.message, "error"); }
             finally { opening = false; }
           };
-          return h("article", { class: "inbox-preview" }, h("h3", {}, item.title), h("p", {}, item.body),
+          return h("article", { class: `inbox-preview ${item.read ? "is-read" : "is-unread"}` },
+            h("div", { class: "inbox-item-heading" }, h("h3", {}, item.title),
+              h("span", { class: "inbox-read-state" }, item.read ? "읽음" : "읽지 않음")), h("p", {}, item.body),
             h("small", {}, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`), h("div", { class: "actions" },
               link, read));
         }),
