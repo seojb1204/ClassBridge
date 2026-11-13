@@ -1,4 +1,5 @@
 const paths = {
+  "/inbox": "M6 8a6 6 0 0 1 12 0v6l2 3H4l2-3z M10 21h4",
   "/slots": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",
   "/slots/new": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4 M12 12v6 M9 15h6",
   "/booking": "M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4",

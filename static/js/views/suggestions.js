@@ -103,10 +103,10 @@ function card(root, s) {
     try { await put(`/api/suggestions/${s.id}/status`, { status }); if (location.hash === path) await inbox(root); } catch (e) { errorToast(e); }
   };
   return h("div", { class: "card" },
-    h("div", { class: "row" }, h("span", {}, badge(CAT_LABEL[s.category]), " ", h("span", { class: "muted" }, fmtDate(s.submitted_on))),
+    h("div", { class: "row" }, h("span", {}, h("span", { class: "suggestion-meta" }, CAT_LABEL[s.category]), " ", h("span", { class: "muted" }, fmtDate(s.submitted_on))),
       badge(s.status === "reviewed" ? "검토 중" : STATUS_LABEL[s.status], s.status)),
-    badge(s.replies.length ? `${s.is_public ? "답변" : "내부 메모"} ${s.replies.length}개` : s.is_public ? "미답변" : "내부 메모 없음"),
-    h("span", { class: "badge" }, s.is_public ? "로그인 이용자 공개" : "비공개"),
+    h("span", { class: "suggestion-meta" }, s.replies.length ? `${s.is_public ? "답변" : "내부 메모"} ${s.replies.length}개` : s.is_public ? "미답변" : "내부 메모 없음"),
+    h("span", { class: "suggestion-meta" }, s.is_public ? "로그인 이용자 공개" : "비공개"),
     s.content.length > 160 ? h("div", {}, h("p", { class: "pre" }, s.content.slice(0, 160) + "…"),
       h("details", {}, h("summary", {}, "건의 내용 전체 보기"), h("p", { class: "pre" }, s.content)))
       : h("p", { class: "pre" }, s.content), replyList(s),
@@ -168,7 +168,7 @@ async function loadPublic(root) {
     const list = await get(`/api/suggestions/public?limit=${PAGE_SIZE}&offset=${pageOffset}`);
     mount(root, h("h2", {}, "공개 건의 게시판"), h("p", { class: "muted" }, "작성자가 공개를 선택한 건의입니다. 모든 로그인 이용자가 볼 수 있으며 교수자·관리자만 답변합니다."),
       list.length ? h("div", { class: "cards" }, list.map((s) => h("article", { class: "card" },
-        h("div", { class: "row" }, badge(CAT_LABEL[s.category]), badge(s.replies.length ? "답변 완료" : "접수")),
+        h("div", { class: "row" }, h("span", { class: "suggestion-meta" }, CAT_LABEL[s.category]), badge(s.replies.length ? "답변 완료" : "접수")),
         h("p", { class: "pre" }, s.content), replyList(s)))) : empty("공개된 건의가 없습니다."),
       pager(() => loadPublic(root), list.length));
   } catch (e) { mount(root, h("p", { class: "error-box" }, e.message)); }

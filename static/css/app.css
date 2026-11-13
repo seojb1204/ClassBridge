@@ -365,3 +365,25 @@ code { font-size: .78rem; word-break: break-all; }
 }
 
 .inbox-more[hidden] { display: none; }
+
+/* Readability polish: retain existing brand and semantic status colours. */
+.login-box { gap: 16px; }
+.login-box > p { margin: 0; }
+.login-box > .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.suggestion-writer { max-width: 740px; margin: 0 auto; }
+.privacy-summary { font-size: .95rem; line-height: 1.65; margin: 0 0 12px; }
+.help-details { margin: 0 0 16px; color: var(--muted); font-size: .9rem; }
+.help-details > summary { cursor: pointer; padding: 8px 0; color: var(--text); }
+.help-details > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.help-details p { margin: 8px 0; line-height: 1.65; }
+.writer-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.inbox-intro { margin: 8px 0 12px; color: var(--muted); }
+.inbox-item-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.inbox-item-heading h2, .inbox-item-heading h3 { margin: 0; overflow-wrap: anywhere; }
+.inbox-read-state { flex-shrink: 0; color: var(--muted); font-size: .8rem; }
+.is-unread .inbox-read-state { color: var(--primary); font-weight: 600; }
+.is-unread .inbox-read-state::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.is-read .inbox-item-heading h2, .is-read .inbox-item-heading h3 { font-weight: 400; }
+.suggestion-meta { color: var(--muted); font-size: .85rem; }
+.inbox-item > .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.inbox-item small, .inbox-preview small { font-variant-numeric: tabular-nums; }

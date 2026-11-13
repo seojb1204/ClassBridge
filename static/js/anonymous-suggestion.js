@@ -12,8 +12,8 @@ async function submitForm(root) {
     h("p", { class: "muted" }, "이 건의는 Google 계정과 연결되지 않습니다."),
     h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
     field("공개 범위", visibility),
-    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 교수자 검토용이며 학생 게시판에 나타나지 않습니다."),
-    field("유형", cat), field("내용", content), counter, btn);
+    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 교수자·관리자에게만 전달되며 학생 게시판에 나타나지 않습니다."),
+    field("유형", cat), field("내용", content), h("div", { class: "writer-actions" }, counter, btn));
   form.addEventListener("submit", busy(btn, async (e) => {
     e.preventDefault();
     try {
@@ -30,7 +30,15 @@ async function submitForm(root) {
       visibility.value = "private";
     } catch (err) { errorToast(err); }
   }));
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "익명 건의함")), h("p", { class: "hint" }, "새 건의 접수 즉시 교수자·관리자 알림을 생성합니다. 알림에 작성자나 건의 내용은 포함하지 않지만, 알림 시각이 저장·표시되므로 제출 시점을 추정할 수 있습니다. 시간대나 상황에 따라 작성자가 추측될 수 있으니 민감한 내용 작성에 유의하세요. 실제 확인·휴대폰 수신은 앱 접속·기기 연결 상태에 따라 늦어질 수 있습니다."), form, h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
+  mount(root, h("section", { class: "suggestion-writer", "aria-label": "익명 건의 작성" },
+    h("div", { class: "page-head" }, h("h1", {}, "익명 건의함")),
+    h("p", { class: "privacy-summary" },
+      "계정과 연결되지 않지만, 제출 시각이나 상황으로 작성자가 추측될 수 있습니다. 민감한 내용 작성에 유의하세요."),
+    h("details", { class: "help-details" }, h("summary", {}, "익명성·알림 안내 자세히"),
+      h("p", {}, "새 건의 접수 즉시 교수자·관리자 알림을 생성합니다. 알림에 작성자나 건의 내용은 포함하지 않지만, 알림 시각이 저장·표시되므로 제출 시점을 추정할 수 있습니다."),
+      h("p", {}, "실제 확인·휴대폰 수신은 앱 접속·기기 연결 상태에 따라 늦어질 수 있습니다.")),
+    form, h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)")));
+
 }
 
 const root = document.getElementById("view");
