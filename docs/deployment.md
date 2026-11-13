@@ -202,3 +202,22 @@ release expands only the app inbox and never registers devices or changes opt-in
 No migration or historical backfill is performed. Notification UI fetches on boot,
 explicit opening/refresh and read changes, not on an interval. Delayed suggestion
 availability remains 5–10 minutes and unread counts exclude not-yet-due records.
+
+## Inbox order and suggestion organization
+
+Notifications sort by availability/delivery eligibility (descending), not insertion
+ID. Delayed suggestions can therefore arrive in a different order from submission.
+Equal availability uses ID descending as deterministic tie-breaker. Own-visible
+`before_id` cursors permit browsing past 100 notices without exposing timestamps;
+unread is a separate filter, not an implicit prioritization that disrupts recency.
+Existing rows are not rewritten and paused email settings are untouched.
+
+Workflow references reviewed: Canny Board filters
+(https://help.canny.io/en/articles/3827588-board-filters), Slack Activity
+(https://slack.com/help/articles/46751260742035-Introducing-the-new-Activity-view-in-Slack),
+and Slido moderation
+(https://community.slido.com/q-a-settings-222/use-moderation-and-manage-audience-questions-477).
+Relevant patterns are explicit filters/order, unread versus state separation,
+compact detail expansion and reversible archiving. No user content is sent to
+those services. Precise anonymous suggestion submission times, author tracking,
+automatic publication and external AI classification are deliberately excluded.

@@ -15,9 +15,12 @@ def get(db: Session, sid: str) -> Suggestion | None:
 
 
 def search(db: Session, status: str | None, category: str | None, limit: int, offset: int,
-           *, trash: bool = False, public_only: bool = False) -> list[Suggestion]:
+           *, trash: bool = False, public_only: bool = False, query: str = "", order: str = "newest") -> list[Suggestion]:
     # 같은 날짜 안에서는 정렬 기준이 없으므로 id(UUID) 순 → 제출 순서가 드러나지 않는다
-    stmt = select(Suggestion).order_by(Suggestion.submitted_on.desc(), Suggestion.id).limit(limit).offset(offset)
+    date_order = Suggestion.submitted_on.asc() if order == "oldest" else Suggestion.submitted_on.desc()
+    stmt = select(Suggestion).order_by(date_order, Suggestion.id).limit(limit).offset(offset)
+    if query.strip():
+        stmt = stmt.where(Suggestion.content.contains(query.strip(), autoescape=True))
     stmt = stmt.where(Suggestion.deleted_on.is_not(None) if trash else Suggestion.deleted_on.is_(None))
     if public_only:
         stmt = stmt.where(Suggestion.is_public.is_(True))

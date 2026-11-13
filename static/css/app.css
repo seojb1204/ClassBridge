@@ -363,3 +363,5 @@ code { font-size: .78rem; word-break: break-all; }
   .inbox-header { margin-left: auto; order: 1; }
   .inbox-popover { position: fixed; right: 12px; top: 62px; }
 }
+
+.inbox-more[hidden] { display: none; }

@@ -85,3 +85,26 @@ def test_student_has_no_staff_bell_or_inbox_requests(server, browser, viewport):
     assert student.page.locator('#nav a[href="#/inbox"]').count() == 0
     assert calls == []
     student.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_inbox_can_reach_older_unread_notifications(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, 'prof@test.ac.kr', viewport, service_workers='block')
+    def inbox(route):
+        older = 'before_id=20' in route.request.url
+        nid = 10 if older else 20
+        route.fulfill(json={'items': [{'id': nid, 'kind': 'created', 'title': f'가상 알림 {nid}',
+            'body': '예약 관리에서 확인하세요.', 'url': '#/bookings', 'created_on': '2026-11-13', 'read': False}],
+            'unread': 2, 'has_more': not older, 'next_before_id': None if older else 20})
+    staff.page.route('**/api/inbox**', inbox)
+    staff.go('/inbox')
+    staff.page.get_by_role('heading', name='가상 알림 20', exact=True).wait_for()
+    staff.page.get_by_role('button', name='이전 알림 더 보기').click()
+    staff.page.get_by_role('heading', name='가상 알림 10', exact=True).wait_for()
+    assert staff.page.locator('[data-notification-id]').count() == 2
+    assert staff.page.get_by_role('button', name='이전 알림 더 보기').is_hidden()
+    staff.page.get_by_role('button', name='미읽음만', exact=True).click()
+    assert staff.page.get_by_role('button', name='미읽음만', exact=True).get_attribute('aria-pressed') == 'true'
+    assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
+    staff.ctx.close()

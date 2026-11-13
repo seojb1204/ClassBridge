@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import select
 
 from app.models import InboxNotification, User
@@ -40,7 +41,7 @@ def test_scoped_deduplicated_and_transactional(app, clients):
         user.role = 'professor'
         db.commit()
     other = login(app, 's2@test.ac.kr')
-    assert other.get('/api/inbox').json() == {'items': [], 'unread': 0}
+    assert other.get('/api/inbox').json() == {'items': [], 'unread': 0, 'has_more': False, 'next_before_id': None}
     assert other.put(f'/api/inbox/{first_id}/read').status_code == 404
     with app.state.SessionLocal() as db:
         enqueue(db, 'new-event', 'changed')
@@ -98,7 +99,7 @@ def test_delayed_suggestion_not_visible_or_markable(app, clients):
         row = db.scalar(select(InboxNotification).where(
             InboxNotification.recipient_id == clients['prof'].me['id']))
         nid = row.id
-    assert clients['prof'].get('/api/inbox').json() == {'items': [], 'unread': 0}
+    assert clients['prof'].get('/api/inbox').json() == {'items': [], 'unread': 0, 'has_more': False, 'next_before_id': None}
     assert clients['prof'].put(f'/api/inbox/{nid}/read').status_code == 404
     with app.state.SessionLocal() as db:
         db.get(InboxNotification, nid).available_at = utcnow() - timedelta(seconds=1)
@@ -134,7 +135,7 @@ def test_admin_suggestion_delay_and_permission_revocation(app, clients):
             InboxNotification.recipient_id == clients['admin'].me['id']))
         nid = row.id
         assert 300 <= (row.available_at - now).total_seconds() <= 600
-    assert clients['admin'].get('/api/inbox').json() == {'items': [], 'unread': 0}
+    assert clients['admin'].get('/api/inbox').json() == {'items': [], 'unread': 0, 'has_more': False, 'next_before_id': None}
     assert clients['admin'].put(f'/api/inbox/{nid}/read').status_code == 404
     with app.state.SessionLocal.begin() as db:
         db.get(InboxNotification, nid).available_at = utcnow() - timedelta(seconds=1)
@@ -157,3 +158,72 @@ def test_inactive_admin_gets_no_new_notices_or_access(app, clients):
         assert not db.scalars(select(InboxNotification).where(
             InboxNotification.recipient_id == admin.id)).all()
     assert clients['admin'].get('/api/inbox').status_code == 401
+
+
+@pytest.mark.parametrize("role", ["prof", "admin"])
+def test_arrival_order_ties_and_future_boundary(app, clients, monkeypatch, role):
+    from datetime import timedelta
+
+    from app.db import utcnow
+    now = utcnow()
+    monkeypatch.setattr('app.routers.inbox.utcnow', lambda: now)
+    with app.state.SessionLocal.begin() as db:
+        enqueue(db, 'delayed-created-first', 'suggestion', available_at=now)
+        enqueue(db, 'later-id-earlier-arrival', 'created', available_at=now - timedelta(minutes=2))
+        enqueue(db, 'tied-arrival', 'changed', available_at=now)
+        enqueue(db, 'not-due', 'suggestion', available_at=now + timedelta(microseconds=1))
+        rows = list(db.scalars(select(InboxNotification).where(
+            InboxNotification.recipient_id == clients[role].me['id']).order_by(InboxNotification.id)))
+        ids = [r.id for r in rows]
+    result = clients[role].get('/api/inbox').json()
+    assert [r['id'] for r in result['items']] == [ids[2], ids[0], ids[1]]
+    assert result['unread'] == 3
+    assert all('available_at' not in r and 'event_key' not in r for r in result['items'])
+    assert clients[role].get(f'/api/inbox?before_id={ids[3]}').status_code == 404
+    assert clients[role].put(f'/api/inbox/{ids[3]}/read').status_code == 404
+    assert clients['admin' if role == 'prof' else 'prof'].get(f'/api/inbox?before_id={ids[0]}').status_code == 404
+
+
+@pytest.mark.parametrize("role", ["prof", "admin"])
+def test_cursor_reaches_old_unread_and_stays_stable_after_new_arrival(app, clients, role):
+    from datetime import timedelta
+
+    from app.db import utcnow
+    now = utcnow()
+    with app.state.SessionLocal.begin() as db:
+        for i in range(105):
+            enqueue(db, f'pagination-{i}', 'created', available_at=now - timedelta(seconds=i + 1))
+        expected = [r.id for r in db.scalars(select(InboxNotification).where(
+            InboxNotification.recipient_id == clients[role].me['id']).order_by(
+                InboxNotification.available_at.desc(), InboxNotification.id.desc()))]
+    first = clients[role].get('/api/inbox').json()
+    assert len(first['items']) == 100 and first['has_more']
+    cursor = first['next_before_id']
+    with app.state.SessionLocal.begin() as db:
+        enqueue(db, 'new-arrival-between-pages', 'changed', available_at=now)
+    rest = clients[role].get(f'/api/inbox?before_id={cursor}').json()
+    assert [r['id'] for r in first['items'] + rest['items']] == expected
+    assert rest['has_more'] is False and rest['next_before_id'] is None
+    oldest = rest['items'][-1]['id']
+    assert clients[role].put(f'/api/inbox/{oldest}/read').status_code == 200
+    unread = clients[role].get(f'/api/inbox?before_id={cursor}&unread_only=true').json()
+    assert oldest not in [r['id'] for r in unread['items']]
+    assert unread['unread'] == 105  # Includes the newer arrival, excludes only the read row.
+    assert clients[role].get('/api/inbox?limit=0').status_code == 422
+    assert clients[role].get('/api/inbox?limit=101').status_code == 422
+    assert clients[role].get('/api/inbox?before_id=0').status_code == 422
+
+
+def test_midnight_arrival_date_is_not_enqueue_day(app, clients, monkeypatch):
+    from datetime import date, datetime, timezone
+
+    now = datetime(2026, 11, 14, 15, 5, tzinfo=timezone.utc)  # KST Nov 15, 00:05.
+    monkeypatch.setattr('app.routers.inbox.utcnow', lambda: now)
+    with app.state.SessionLocal.begin() as db:
+        db.add(InboxNotification(recipient_id=clients['prof'].me['id'],
+            event_key='midnight-arrival', kind='suggestion', created_on=date(2026, 11, 14),
+            available_at=now))
+    item = clients['prof'].get('/api/inbox').json()['items'][0]
+    assert item['created_on'] == '2026-11-14'
+    assert item['arrived_on'] == '2026-11-15'
+    assert 'available_at' not in item
