@@ -86,11 +86,14 @@ def test_survey_required_summary_labels_optional_clear(server, browser, viewport
 
     page.route('**/api/surveys/909091/responses', submit)
     user.go('/surveys/take/909091')
+    assert page.locator('.survey-form [aria-describedby]').count() == 0
     page.get_by_role('button', name='제출', exact=True).click()
     assert not writes
     summary = page.locator('.survey-form > .error-box')
     assert summary.evaluate('e => e === document.activeElement')
     assert '필수 문항 4개' in summary.inner_text()
+    assert page.get_by_role('group', name='선택 단일').locator('[aria-describedby]').count() == 0
+    assert page.get_by_role('textbox', name='필수 한줄').get_attribute('aria-describedby') == 'question-1-error'
     summary.get_by_role('button', name='필수 한줄').click()
     assert page.get_by_role('textbox', name='필수 한줄').evaluate('e => e === document.activeElement')
     page.get_by_role('textbox', name='필수 한줄').fill('답변 보존')

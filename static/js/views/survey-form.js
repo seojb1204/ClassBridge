@@ -19,7 +19,6 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
       const controls = node.matches("input, textarea, select") ? [node] : [...node.querySelectorAll("input")];
       if (node.matches("input, textarea, select")) node.setAttribute("aria-labelledby", legendId);
       const error = h("p", { id: errorId, class: "error-box", hidden: true }, "이 필수 문항에 답해 주세요.");
-      controls.forEach(control => control.setAttribute("aria-describedby", errorId));
       getters.push([q, value, controls, error]);
       const clear = !q.required && ["single", "scale5"].includes(q.qtype)
         ? h("button", { class: "btn small", type: "button", disabled, onclick: () => {
@@ -41,7 +40,11 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
       const invalid = q.required && (answer == null || (typeof answer === "string" && !answer.trim())
         || (Array.isArray(answer) && !answer.length));
       error.hidden = !invalid;
-      controls.forEach(control => control.setAttribute("aria-invalid", String(Boolean(invalid))));
+      controls.forEach(control => {
+        control.setAttribute("aria-invalid", String(Boolean(invalid)));
+        if (invalid) control.setAttribute("aria-describedby", error.id);
+        else control.removeAttribute("aria-describedby");
+      });
       if (invalid) missing.push([q, controls[0]]);
     }
     summary.hidden = !missing.length;
