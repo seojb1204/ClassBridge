@@ -19,6 +19,8 @@ def upgrade():
         sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("recipient_id", "event_key", name="uq_inbox_recipient_event"))
     op.create_index("ix_inbox_recipient_id", "inbox_notifications", ["recipient_id", "id"])
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("ALTER TABLE public.inbox_notifications ENABLE ROW LEVEL SECURITY")
 
 
 def downgrade():

@@ -554,6 +554,8 @@ def test_historical_expiry_upgrade_preserves_refs_and_unique_seat_rule(pg_app):
         slot.start_at = now - timedelta(days=2)
         slot.end_at = slot.start_at + timedelta(minutes=30)
         db.get(Booking, bid).professor_note = "fixture note"
+        # This fixture exercises migration 0010, before the additive inbox existed.
+        db.execute(text("DELETE FROM inbox_notifications"))
     command.downgrade(_alembic(PG_URL), "0009")
     command.upgrade(_alembic(PG_URL), "head")
     assert complete_elapsed(pg_app.state.SessionLocal, now - timedelta(days=1), now) == 0
@@ -562,7 +564,9 @@ def test_historical_expiry_upgrade_preserves_refs_and_unique_seat_rule(pg_app):
         assert db.get(Booking, bid).professor_note == "fixture note"
         assert db.scalar(select(func.count()).select_from(BookingEvent).where(BookingEvent.booking_id == bid)) == 1
     assert student.post("/api/bookings", json={"slot_id": slots[1]}).status_code == 201
-    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+    with pg_app.state.engine.begin() as conn:
+        conn.execute(text("DELETE FROM inbox_notifications"))
+    with pytest.raises(RuntimeError, match="Cannot downgrade.*expired"):
         command.downgrade(_alembic(PG_URL), "0009")
 
 
@@ -600,3 +604,15 @@ def test_concurrent_moves_to_last_seat_keep_losing_booking(pg_app):
         assert db.scalar(select(func.count()).select_from(Booking)) == 2
         assert all(db.get(Booking, bid).status == "booked" for bid in bids)
         assert sum(db.get(Booking, bid).slot_id == slots[i] for i, bid in enumerate(bids)) == 1
+
+
+def test_populated_inbox_migration_refuses_data_loss(pg_app):
+    from app.services.inbox import enqueue
+    login(pg_app, "prof@test.ac.kr")
+    with pg_app.state.SessionLocal.begin() as db:
+        enqueue(db, "migration-guard-fixture", "created")
+    with pytest.raises(RuntimeError, match="preserve existing inbox"):
+        command.downgrade(_alembic(PG_URL), "0010")
+    with pg_app.state.engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0011"
+        assert conn.execute(text("SELECT count(*) FROM inbox_notifications")).scalar() == 1
