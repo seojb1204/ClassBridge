@@ -192,7 +192,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
         spacer.style.height = '1200px'; document.body.append(spacer);
     }""")
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
-    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "auto"
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
     assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
     cdp = p.context.new_cdp_session(p)
     cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
@@ -221,7 +221,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
             "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
             "viewport": p.evaluate("({width:innerWidth, height:innerHeight, visual:visualViewport.toJSON?.(), scrollHeight:document.documentElement.scrollHeight})"),  # noqa: E501
             "box": box,
-            "chain": grid.evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),  # noqa: E501
+            "chain": p.locator(".mobile-grid-wrap .slot").nth(1).evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),  # noqa: E501
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
