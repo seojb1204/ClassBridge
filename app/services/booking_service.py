@@ -376,12 +376,15 @@ def book(db: Session, actor: User, slot_id: int, student_id: int | None = None,
          topic: str = "", now: datetime | None = None, *,
          applicant_name: str = "", student_number: str = "", grade: int | None = None,
          consultation_type: str = "other", consultation_mode: str = "in_person") -> Booking:
-    now = now or utcnow()
     pol = _policy(db)
     student = _resolve_student(db, actor, student_id)
 
     def work():
-        slot = _check_slot_for(db, actor, repo.get_slot(db, slot_id), now, pol)
+        # Serialize against staff time edits before validating the latest slot.
+        # populate_existing prevents an earlier identity-map read from staying stale.
+        locked = db.scalar(select(Slot).where(Slot.id == slot_id).with_for_update()
+                           .execution_options(populate_existing=True))
+        slot = _check_slot_for(db, actor, locked, now or utcnow(), pol)
         if repo.active_booking_of(db, student.id) is not None:
             raise Conflict("이미 진행 중인 상담 예약이 있습니다. 기존 예약을 취소하거나 변경하세요",
                            code="active_booking_exists")
