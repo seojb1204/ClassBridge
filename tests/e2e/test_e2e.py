@@ -149,6 +149,9 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
             "title": "먼저 읽을 공지", "body": "상담 준비 안내입니다.\n" * 18, "published": True, "revision": 1}}))
         page.reload()
         session.go(path)
+        page.get_by_role("button", name="목록", exact=True).click()
+        if path == "/slots":
+            page.locator(".calendar-support > summary").click()
         page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
         assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]
         page.locator(".available-day-buttons button").nth(1).click()
@@ -211,6 +214,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/slots")
+    prof.page.locator(".calendar-support > summary").click()
     prof.page.get_by_role("button", name="공지 작성", exact=True).click()
     prof.page.get_by_label("공지 제목").fill("상담 전 준비 안내")
     prof.page.get_by_label("공지 내용").fill("질문을 정리해 주세요.\n<script>window.noticeInjected=true</script>")
@@ -219,6 +223,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     student = Session(browser, base, "notice-student@test.ac.kr", MOBILE)
     student.go("/booking")
     assert student.page.locator(".announcement-panel").count() == 0
+    prof.page.locator(".calendar-support > summary").click()
     prof.page.get_by_role("button", name="공지 수정", exact=True).click()
     prof.page.get_by_label("공개 상태").select_option("true")
     prof.page.get_by_role("button", name="공지 저장", exact=True).click()
@@ -234,6 +239,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     student.page.get_by_text("‘예약 가능’ 시간을 눌러 예약하세요.", exact=False).wait_for()
     admin = Session(browser, base, "admin@test.ac.kr", PC)
     admin.go("/slots")
+    admin.page.locator(".calendar-support > summary").click()
     admin.page.get_by_role("button", name="공지 수정", exact=True).click()
     admin.page.get_by_label("공개 상태").select_option("false")
     admin.page.get_by_role("button", name="공지 저장", exact=True).click()
@@ -742,14 +748,16 @@ def test_mobile_student_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "mobile1@test.ac.kr", MOBILE)
     st.go("/booking")
+    assert st.page.locator(".week-grid .day-head").count() == 7
+    st.page.get_by_role("button", name="목록", exact=True).click()
+    st.page.locator(".day-chips").wait_for()
     assert st.page.locator(".day-chips").is_visible()
-    assert st.page.locator(".week-grid").count() == 0
     slot = _find_slot(st, mobile=True)
-    st.page.get_by_role("button", name="일간 시간표 보기").click()
-    st.page.locator(".day-timeline").wait_for(state="visible")
-    assert st.page.locator(".day-timeline-slot.slot.open").count() > 0
-    assert st.page.locator(".day-timeline-slot.slot.open").first.bounding_box()["height"] >= 44
-    st.page.get_by_role("group", name="일정 보기 방식").get_by_role("button", name="목록 보기").click()
+    st.page.get_by_role("button", name="3일", exact=True).click()
+    st.page.locator(".week-grid").wait_for(state="visible")
+    assert st.page.locator(".week-grid .day-head").count() == 3
+    assert st.page.locator(".week-grid .slot.open").count() > 0
+    st.page.get_by_role("button", name="목록", exact=True).click()
     st.page.locator(".daily .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
@@ -794,6 +802,9 @@ def test_mobile_staff_insights_and_timetable(server, browser):
 
     prof.go("/bookings")
     prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator(".calendar-week").wait_for()
+    assert prof.page.locator(".week-grid .day-head").count() == 7
+    prof.page.get_by_role("button", name="목록", exact=True).click()
     prof.page.locator(".day-chips").wait_for()
     day_chip = prof.page.locator(".chip").filter(
         has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
@@ -802,10 +813,11 @@ def test_mobile_staff_insights_and_timetable(server, browser):
         day_chip = prof.page.locator(".chip").filter(
             has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
     day_chip.first.click()
-    prof.page.get_by_role("button", name="일간 시간표 보기").click()
-    prof.page.locator(".day-timeline").wait_for(state="visible")
-    assert prof.page.locator(".day-timeline-slot").count() >= 1
-    prof.page.get_by_role("group", name="일정 보기 방식").get_by_role("button", name="목록 보기").click()
+    prof.page.get_by_role("button", name="3일", exact=True).click()
+    prof.page.locator(".week-grid").wait_for(state="visible")
+    assert prof.page.locator(".week-grid .day-head").count() == 3
+    assert prof.page.locator(".week-grid .slot").count() >= 1
+    prof.page.get_by_role("button", name="목록", exact=True).click()
     prof.page.locator(".daily .cards").wait_for(state="visible")
     prof.close()
 
@@ -817,8 +829,8 @@ def test_mobile_professor_views(server, browser):
                        ("/surveys", "mobile_06_prof_surveys")):
         prof.go(path)
         if path == "/slots":
-            assert prof.page.locator(".day-chips").is_visible()
-            assert prof.page.get_by_role("button", name="일간 시간표 보기").count() == 0
+            assert prof.page.get_by_role("button", name="주간", exact=True).get_attribute("aria-pressed") == "true"
+            assert prof.page.locator(".week-grid .day-head").count() == 7
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
@@ -1108,7 +1120,10 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.toast('12개 등록')
     prof.page.locator('.daily-title:focus').wait_for()
     assert prof.page.locator('#slot-create-panel').count() == 0
+    prof.page.get_by_role('button', name='목록', exact=True).click()
+    prof.page.locator('.daily .card.slot.open').first.wait_for()
     assert prof.page.locator('.daily .card.slot.open').count() == 6
+    prof.page.locator('.calendar-support > summary').click()
     summary = prof.page.get_by_role('region', name='예약 가능한 상담 일정')
     # More than three dates may already exist from other end-to-end scenarios.
     if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():

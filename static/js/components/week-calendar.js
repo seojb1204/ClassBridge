@@ -1,5 +1,5 @@
 // 주간 시간표(PC) / 일별 카드 목록(모바일) 공용 컴포넌트.
-import { addDays, fmtDate, fmtTime, kstParts } from "../time.js";
+import { addDays, fmtDate, fmtTime, kstParts, todayKst } from "../time.js";
 import { h } from "../ui.js";
 
 const MOBILE = window.matchMedia("(max-width: 720px)");
@@ -74,16 +74,53 @@ function slotLabel(s) {
  * @param {(day)=>void} [o.onDay]
  * @param {(slot)=>Node|null} [o.extra] 슬롯 카드에 추가로 붙일 노드
  * @param {boolean} [o.mobileListOnly] 모바일에서 목록만 표시
- * @param {"list"|"timeline"} [o.mobileView] 모바일 목록/시간표 보기
+ * @param {"week"|"three"|"list"|"timeline"} [o.mobileView] 모바일 보기
  * @param {(mode:string)=>void} [o.onViewChange] 모바일 보기 전환
  */
 export function renderCalendar(o) {
   const byDay = {};
   for (const s of o.slots) (byDay[kstParts(s.start_at).date] ||= []).push(s);
-  return isMobile() ? renderDaily(o, byDay) : renderWeekly(o, byDay);
+  return isMobile() ? renderMobile(o, byDay) : renderWeekly(o, byDay);
+}
+
+// Keep the same event data and detail handlers in every view. Mobile defaults
+// to a whole-week overview; three-day mode is the readable, touch-sized view.
+function renderMobile(o, byDay) {
+  const mode = ["week", "three", "list", "timeline"].includes(o.mobileView) ? o.mobileView : "week";
+  const toggle = h("div", { class: "mobile-view-toggle calendar-view-switch", role: "group", "aria-label": "일정 보기 방식" },
+    ...[["week", "주간"], ["three", "3일"], ["list", "목록"]].map(([value, label]) =>
+      h("button", { type: "button", class: mode === value ? "btn primary" : "btn",
+        "aria-pressed": String(mode === value), onclick: () => o.onViewChange?.(value) }, label)));
+  if (mode === "list" || mode === "timeline") {
+    return h("div", { class: "mobile-calendar" }, toggle,
+      renderDaily({ ...o, mobileListOnly: mode === "list", hideViewToggle: true }, byDay));
+  }
+  let start = o.weekStart;
+  if (mode === "three" && o.selectedDay >= start && o.selectedDay <= addDays(start, 6)) {
+    start = o.selectedDay > addDays(o.weekStart, 4) ? addDays(o.weekStart, 4) : o.selectedDay;
+  }
+  const count = mode === "three" ? 3 : 7;
+  const days = Array.from({ length: count }, (_, i) => addDays(start, i));
+  const events = o.slots.filter(s => days.includes(kstParts(s.start_at).date));
+  const navigate = (delta) => o.onDay?.(addDays(start, delta) < o.weekStart ? o.weekStart
+    : addDays(start, delta) > addDays(o.weekStart, 4) ? addDays(o.weekStart, 4) : addDays(start, delta));
+  const pager = mode === "three" ? h("div", { class: "calendar-range" },
+    h("button", { type: "button", class: "btn small", disabled: start === o.weekStart,
+      onclick: () => navigate(-3), "aria-label": "이전 3일" }, "‹"),
+    h("span", {}, `${fmtDate(start)} – ${fmtDate(addDays(start, 2))}`),
+    h("button", { type: "button", class: "btn small", disabled: start === addDays(o.weekStart, 4),
+      onclick: () => navigate(3), "aria-label": "다음 3일" }, "›")) : null;
+  return h("div", { class: `mobile-calendar calendar-${mode}` }, toggle, pager,
+    h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(start)} – ${fmtDate(days[days.length - 1])}`),
+    h("p", { class: "hint calendar-help" }, mode === "week"
+      ? "한 주의 강의·상담을 함께 봅니다. 작은 일정은 3일 또는 목록에서 자세히 볼 수 있어요."
+      : "일정을 누르면 강의·상담 상세 내용을 볼 수 있어요."),
+    renderWeekly({ ...o, slots: events, gridDays: days, compactGrid: true }, byDay));
 }
 
 function renderWeekly(o, byDay) {
+  const days = o.gridDays || Array.from({ length: 7 }, (_, d) => addDays(o.weekStart, d));
+  const rowPx = o.compactGrid ? 24 : 18;
   // The pixel size of a 15-minute interval must NOT change with the
   // consultation duration or the number of slots in the displayed week.
   let minH = 9, maxH = 12;
@@ -97,12 +134,14 @@ function renderWeekly(o, byDay) {
     maxH = Math.min(24, Math.max(...ends) + 1);
   }
   const rows = ((maxH - minH) * 60) / STEP;
-  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "주간 시간표" });
-  grid.style.gridTemplateRows = `auto repeat(${rows}, 18px)`;
+  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": days.length === 3 ? "3일 시간표" : "주간 시간표" });
+  grid.style.gridTemplateRows = `auto repeat(${rows}, ${rowPx}px)`;
+  if (o.compactGrid) grid.style.gridTemplateColumns = `36px repeat(${days.length}, minmax(0, 1fr))`;
   grid.append(h("div", { class: "corner" }));
-  for (let d = 0; d < 7; d++) {
-    const day = addDays(o.weekStart, d);
-    const head = h("div", { class: "day-head" }, h("strong", {}, DAYS[d]), " ", day.slice(5).replace("-", "/"));
+  for (let d = 0; d < days.length; d++) {
+    const day = days[d];
+    const weekday = kstParts(`${day}T12:00:00+09:00`).weekday;
+    const head = h("div", { class: `day-head${day === todayKst() ? " is-today" : ""}` }, h("strong", {}, weekday), " ", day.slice(5).replace("-", "/"));
     if (o.dayCountMode === "booked") head.append(h("small", { class: "reserved-day-count" }, `예약 ${dayCount(o, byDay[day] || [])}명`));
     head.style.gridColumn = String(d + 2);
     grid.append(head);
@@ -111,15 +150,15 @@ function renderWeekly(o, byDay) {
     const label = h("div", { class: "hour" }, `${String(hr).padStart(2, "0")}:00`);
     label.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
     grid.append(label);
-    for (let d = 0; d < 7; d++) {
+    for (let d = 0; d < days.length; d++) {
       const cell = h("div", { class: "cell" });
       cell.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
       cell.style.gridColumn = String(d + 2);
       grid.append(cell);
     }
   }
-  for (let d = 0; d < 7; d++) {
-    for (const s of byDay[addDays(o.weekStart, d)] || []) {
+  for (let d = 0; d < days.length; d++) {
+    for (const s of byDay[days[d]] || []) {
       const a = kstParts(s.start_at), b = kstParts(s.end_at);
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
@@ -130,8 +169,8 @@ function renderWeekly(o, byDay) {
         o.extra ? o.extra(s) : null);
       // CSS grid line numbers must be integers (e.g. a 09:05 lecture).
       btn.style.gridRow = `${Math.floor(start / STEP) + 2} / ${Math.ceil(end / STEP) + 2}`;
-      btn.style.marginTop = `${1 + (start % STEP) * 18 / STEP}px`;
-      btn.style.marginBottom = `${1 + ((STEP - end % STEP) % STEP) * 18 / STEP}px`;
+      btn.style.marginTop = `${1 + (start % STEP) * rowPx / STEP}px`;
+      btn.style.marginBottom = `${1 + ((STEP - end % STEP) % STEP) * rowPx / STEP}px`;
       btn.style.gridColumn = String(d + 2);
       if (sharingLane(s, o.slots)) {
         btn.style.width = "calc(50% - 4px)";
@@ -140,7 +179,8 @@ function renderWeekly(o, byDay) {
       grid.append(btn);
     }
   }
-  return h("div", { class: "week-wrap" }, grid);
+  return h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
+    ...(o.compactGrid ? { tabindex: "0", role: "region", "aria-label": "시간표 스크롤 영역" } : {}) }, grid);
 }
 
 function renderDaily(o, byDay) {
@@ -173,7 +213,7 @@ function renderDaily(o, byDay) {
       o.extra ? o.extra(s) : null)));
   return h("div", { class: "daily" }, chips,
     h("h3", { class: "daily-title", tabindex: "-1" }, `${fmtDate(sel)} · 일정`),
-    o.mobileListOnly ? null : toggle,
+    o.mobileListOnly || o.hideViewToggle ? null : toggle,
     list.length ? (mode === "timeline" ? renderDailyTimeline(o, list, sel) : cards)
       : h("p", { class: "empty" }, "이 날은 등록된 일정이 없습니다. 다른 날짜를 선택해 주세요."));
 }
