@@ -41,7 +41,7 @@ class Booking(Base):
     __tablename__ = "bookings"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('booked','cancelled','completed','no_show')", name="ck_bookings_status"
+            "status IN ('booked','cancelled','completed','no_show','expired')", name="ck_bookings_status"
         ),
         # 학생 1명당 활성 예약 1건: DB 수준 보장 (SQLite·PostgreSQL 모두 부분 인덱스 지원)
         Index(

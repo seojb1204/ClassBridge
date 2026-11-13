@@ -35,7 +35,7 @@ export function bookingActivity() {
         h('p', {}, `학생: ${item.student_name} · 예약 #${item.booking_id}`),
         h('p', {}, `처리자: ${item.actor_name} (${item.actor_is_student ? '예약 학생 본인' : '교수자·관리자'})`),
         h('p', {}, '처리 시각: ' + new Date(item.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false })),
-        h('p', {}, `상담 일시: ${fmtDateTime(item.start_at)} · 현재 상태: ${{booked:'예약됨',cancelled:'취소됨',completed:'완료',no_show:'미참석'}[item.status] || item.status}`),
+        h('p', {}, `상담 일시: ${fmtDateTime(item.start_at)} · 현재 상태: ${{expired: "기간 종료·결과 미확인", booked:'예약됨',cancelled:'취소됨',completed:'완료',no_show:'미참석'}[item.status] || item.status}`),
         item.detail ? h('p', {}, `기록 내용: ${item.detail}`) : null)));
       cursor = data.next_before_id;
       more.hidden = !cursor;

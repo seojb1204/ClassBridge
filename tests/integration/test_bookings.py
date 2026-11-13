@@ -70,14 +70,14 @@ def test_individual_requires_capacity_one(clients):
     assert r.status_code == 400
 
 
-def test_cancel_deadline_three_hours(app, clients):
+def test_cancel_deadline_thirty_minutes(app, clients):
     p, s1 = clients["prof"], clients["s1"]
     ids = make_slots(p)
     bid = s1.post("/api/bookings", json={"slot_id": ids[0]}).json()["id"]
-    # 상담 시작을 2시간 뒤로 옮겨 마감 상황 재현 (직접 DB 수정)
+    # 상담 시작을 29분 뒤로 옮겨 마감 상황 재현 (테스트 DB)
     db = app.state.SessionLocal()
     s = db.get(Slot, ids[0])
-    s.start_at = utcnow() + timedelta(hours=2)
+    s.start_at = utcnow() + timedelta(minutes=29)
     s.end_at = s.start_at + timedelta(minutes=30)
     db.commit()
     db.close()

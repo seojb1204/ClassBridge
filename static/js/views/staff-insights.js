@@ -5,7 +5,7 @@ import { fmtDateTime } from "../time.js";
 import { errorToast, h, mount, promptText, select, toast } from "../ui.js";
 
 const LABELS = {
-  booked: "예약 중", completed: "상담 완료", no_show: "미참석", cancelled: "취소",
+  expired: "기간 종료·결과 미확인", booked: "예약 중", completed: "상담 완료", no_show: "미참석", cancelled: "취소",
   career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타",
   in_person: "대면", online: "온라인",
 };
@@ -44,6 +44,7 @@ function overviewView(data) {
       metric("상담 완료", counts.completed),
       metric("미참석", counts.no_show),
       metric("취소", counts.cancelled),
+      metric("기간 종료·결과 미확인", counts.expired || 0),
       metric("작성된 상담 기록", data.recorded_notes),
       metric("열린 상담 시간", data.open_slots),
       metric("향후 14일 예약", data.upcoming_14_days),

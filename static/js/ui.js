@@ -145,6 +145,6 @@ export function busy(btn, fn) {
 }
 
 export const STATUS_LABEL = {
-  booked: "예약됨", cancelled: "취소됨", completed: "완료", no_show: "미참석",
+  expired: "기간 종료·결과 미확인", booked: "예약됨", cancelled: "취소됨", completed: "완료", no_show: "미참석",
   draft: "초안", published: "게시 중", closed: "종료", new: "새 건의", reviewed: "확인함", archived: "보관",
 };

@@ -66,7 +66,8 @@ def booking_policy(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = D
     return {"booking_window_days": settings["booking_window_days"],
             "booking_deadline_minutes": settings["booking_deadline_minutes"],
             "booking_deadline_hours": settings["booking_deadline_minutes"] / 60,
-            "cancel_deadline_hours": settings["cancel_deadline_hours"]}
+            "cancel_deadline_minutes": settings["booking_deadline_minutes"],
+            "cancel_deadline_hours": settings["booking_deadline_minutes"] / 60}
 
 
 # ── 상담 시간 ──

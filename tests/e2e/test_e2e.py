@@ -1249,3 +1249,34 @@ def test_mobile_booking_summary(server, browser):
     page.clock.fast_forward(3600000)
     assert " 후" not in summary.inner_text()
     staff.close()
+
+
+@pytest.mark.parametrize("viewport", [PC, MOBILE])
+def test_unresolved_history_filter_includes_past_and_allows_staff_correction(server, browser, viewport):
+    base, _ = server
+    staff = Session(browser, base, "prof@test.ac.kr", viewport, service_workers="block")
+    page = staff.page
+    requests = []
+    booking = {"id": 987654, "status": "expired", "student_name": "History fixture",
+               "student_email": "fixture@example.test", "topic": "", "professor_note": "",
+               "slot": {"start_at": "2026-01-01T01:00:00Z", "end_at": "2026-01-01T01:30:00Z",
+                        "kind": "individual"}}
+
+    def bookings(route):
+        requests.append(route.request.url)
+        route.fulfill(json=[booking] if "status=expired" in route.request.url else [])
+
+    page.route("**/api/bookings?*", bookings)
+    staff.go("/bookings")
+    page.get_by_role("button", name="예약 목록", exact=True).click()
+    page.get_by_label("예약 상태", exact=True).select_option("expired")
+    page.locator(".badge.expired").wait_for(state="attached")
+    assert "from_date=" not in requests[-1]
+    assert page.get_by_text("과거 포함 · 결과 확인 필요 · 1건 (한국시간)", exact=True).count() == 1
+    row = page.locator('[data-booking-id="987654"]')
+    if viewport == MOBILE:
+        row.locator("summary").first.click()
+    row.locator("details.action-more summary").click()
+    assert row.get_by_role("button", name="완료", exact=True).is_visible()
+    assert row.get_by_role("button", name="미참석", exact=True).is_visible()
+    staff.close()

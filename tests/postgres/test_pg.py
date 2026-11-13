@@ -532,3 +532,28 @@ def test_cancelled_slot_delete_race_has_one_winner(pg_app):
         outcomes = list(pool.map(remove, range(2)))
     assert outcomes.count("deleted") == 1
     assert outcomes.count(404) == 1
+
+
+def test_historical_expiry_upgrade_preserves_refs_and_unique_seat_rule(pg_app):
+    from app.models import Booking, BookingEvent, Slot
+    from app.services.auto_complete import complete_elapsed
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = login(pg_app, "expiry@example.test")
+    slots = make_slots(prof)
+    bid = student.post("/api/bookings", json={"slot_id": slots[0]}).json()["id"]
+    now = utcnow()
+    with pg_app.state.SessionLocal.begin() as db:
+        slot = db.get(Slot, slots[0])
+        slot.start_at = now - timedelta(days=2)
+        slot.end_at = slot.start_at + timedelta(minutes=30)
+        db.get(Booking, bid).professor_note = "fixture note"
+    command.downgrade(_alembic(PG_URL), "0009")
+    command.upgrade(_alembic(PG_URL), "head")
+    assert complete_elapsed(pg_app.state.SessionLocal, now - timedelta(days=1), now) == 0
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Booking, bid).status == "expired"
+        assert db.get(Booking, bid).professor_note == "fixture note"
+        assert db.scalar(select(func.count()).select_from(BookingEvent).where(BookingEvent.booking_id == bid)) == 1
+    assert student.post("/api/bookings", json={"slot_id": slots[1]}).status_code == 201
+    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+        command.downgrade(_alembic(PG_URL), "0009")

@@ -13,6 +13,7 @@ TRANSITIONS: dict[str, set[str]] = {
     "booked": {"cancelled", "completed", "no_show"},
     "completed": {"no_show"},
     "no_show": {"completed"},
+    "expired": {"completed", "no_show"},
     "cancelled": set(),
 }
 
@@ -21,11 +22,10 @@ TRANSITIONS: dict[str, set[str]] = {
 class Policy:
     booking_window_days: int
     booking_deadline_minutes: int
-    cancel_deadline_hours: int
 
     @classmethod
     def from_settings(cls, s: dict[str, int]) -> "Policy":
-        return cls(s["booking_window_days"], s["booking_deadline_minutes"], s["cancel_deadline_hours"])
+        return cls(s["booking_window_days"], s["booking_deadline_minutes"])
 
 
 def generate_blocks(days: list[date], start: time, end: time, duration_min: int,
@@ -76,8 +76,8 @@ def check_student_booking_time(slot_start: datetime, now: datetime, policy: Poli
 
 
 def check_student_cancel_time(slot_start: datetime, now: datetime, policy: Policy) -> None:
-    if slot_start - now < timedelta(hours=policy.cancel_deadline_hours):
-        raise Conflict(f"상담 시작 {policy.cancel_deadline_hours}시간 전까지만 취소·변경할 수 있습니다",
+    if slot_start - now < timedelta(minutes=policy.booking_deadline_minutes):
+        raise Conflict(f"상담 시작 {policy.booking_deadline_minutes}분 전까지만 취소·변경할 수 있습니다",
                        code="cancel_deadline")
 
 

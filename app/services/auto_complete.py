@@ -23,6 +23,13 @@ def complete_elapsed(session_factory, started_at, now):
             db.add(marker)
             db.flush()
         since = datetime.fromisoformat(marker.value)
+        # Preserve historical uncertainty: elapsed pre-activation bookings are
+        # inactive, but must never be asserted to have been attended or missed.
+        historical = select(Slot.id).where(Slot.status == "open", Slot.end_at <= since, Slot.end_at <= now)
+        expired = db.scalars(update(Booking).where(Booking.status == "booked", Booking.slot_id.in_(historical))
+                            .values(status="expired").returning(Booking.id)).all()
+        for booking_id in expired:
+            audit.add(db, None, "booking.expired", "booking", booking_id)
         elapsed = select(Slot.id).where(Slot.status == "open", Slot.end_at > since, Slot.end_at <= now)
         ids = db.scalars(update(Booking).where(Booking.status == "booked", Booking.slot_id.in_(elapsed))
                          .values(status="completed").returning(Booking.id)).all()
