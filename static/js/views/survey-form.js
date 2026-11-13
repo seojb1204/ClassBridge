@@ -29,9 +29,8 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
     }));
   const btn = h("button", { class: "btn primary", type: "submit", disabled }, "제출");
   form.append(btn);
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (btn.disabled) return;
+  let validationStarted = false;
+  function validate() {
     const answers = {};
     const missing = [];
     for (const [q, value, controls, error] of getters) {
@@ -53,9 +52,17 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
         h("ul", {}, missing.map(([q, control]) => h("li", {}, h("button", {
           class: "btn small", type: "button", onclick: () => control?.focus(),
         }, q.title)))));
-      summary.focus();
-      return;
     }
+    return { answers, missing };
+  }
+  form.addEventListener("input", () => { if (validationStarted) validate(); });
+  form.addEventListener("change", () => { if (validationStarted) validate(); });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (btn.disabled) return;
+    validationStarted = true;
+    const { answers, missing } = validate();
+    if (missing.length) { summary.focus(); return; }
     btn.disabled = true;
     try { await onSubmit(answers); } finally { btn.disabled = disabled; }
   });

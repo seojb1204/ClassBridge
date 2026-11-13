@@ -105,6 +105,8 @@ def test_survey_required_summary_labels_optional_clear(server, browser, viewport
         group.get_by_role('radio').first.check()
         group.get_by_role('button', name='선택 해제').click()
         assert group.locator('input:checked').count() == 0
+    assert not summary.is_visible()
+    assert page.locator('.survey-form [aria-describedby]').count() == 0
     user.shot('survey_response_ux_' + str(viewport['width']))
     page.get_by_role('button', name='제출', exact=True).click()
     page.get_by_text('응답이 익명으로 제출되었습니다. 감사합니다.', exact=True).wait_for()
