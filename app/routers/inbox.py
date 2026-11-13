@@ -1,6 +1,6 @@
 """An account-scoped inbox, independent of browser push registration."""
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, require
@@ -44,6 +44,21 @@ def listing(p: Principal = Depends(staff), db: Session = Depends(get_db),
             "has_more": has_more, "next_before_id": rows[-1].id if has_more else None}
 
 
+def unread_count(db, recipient_id):
+    return db.scalar(select(func.count()).select_from(InboxNotification).where(
+        InboxNotification.recipient_id == recipient_id,
+        InboxNotification.available_at <= utcnow(), InboxNotification.read_at.is_(None)))
+
+
+@router.put("/read-all")
+def read_all(p: Principal = Depends(staff), db: Session = Depends(get_db)):
+    now = utcnow()
+    db.execute(update(InboxNotification).where(InboxNotification.recipient_id == p.id,
+        InboxNotification.available_at <= now, InboxNotification.read_at.is_(None)).values(read_at=now))
+    db.commit()
+    return {"ok": True, "unread": unread_count(db, p.id)}
+
+
 @router.put("/{notification_id}/read")
 def read(notification_id: int, p: Principal = Depends(staff), db: Session = Depends(get_db)):
     row = db.scalar(select(InboxNotification).where(InboxNotification.id == notification_id,
@@ -53,4 +68,4 @@ def read(notification_id: int, p: Principal = Depends(staff), db: Session = Depe
     if row.read_at is None:
         row.read_at = utcnow()
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "unread": unread_count(db, p.id)}
