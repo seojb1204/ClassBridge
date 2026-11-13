@@ -236,3 +236,29 @@ submission time. New immediate timing can reveal the submission moment, so submi
 and privacy notices explicitly describe inference risk. No suggestion ID/content/author
 is added to notices. Email pause, push consent/session checks, no polling, and transaction
 rollback remain intact. Actual external receipt still depends on the worker/provider/device.
+
+## Private professor reminders
+
+Migration 0012 adds staff_reminders and a nullable inbox message field, without
+altering historical records. Only SETTINGS_MANAGE can create/list/cancel through
+/api/admin/staff-reminders. Requests require an explicit professor recipient, UUID
+idempotency key, timezone-aware future scheduled_at and a short plain-text message.
+This is a distinct private notice, never an anonymous suggestion or student broadcast.
+The existing worker atomically dispatches due inbox/outbox records, reselecting valid
+opted-in devices at the due time; push rechecks role, recipient, opt-in and cancellation
+before network transmission. No email is created. A past-due undispatched reminder is
+recovered after restart rather than discarded through the normal 3-minute daily grace.
+
+The worker also runs when external channels are disabled, so in-app reminders work.
+Its wait is bounded by the next durable reminder deadline, with the existing 6-hour
+idle reconciliation ceiling and write wake-up. No periodic browser polling is added.
+Single always-on Render instance remains the supported deployment model; provider,
+network, device and app-opening delays prevent guaranteed exact-minute receipt.
+Direct approved operational database scheduling does not signal the local worker and
+must occur more than 6 hours before due or be followed by an authorized worker restart.
+
+Back up before migration. Keep schema 0012 and reminders on rollback. After custom
+inbox rows exist, pre-feature code cannot display the new kind: use a compatible
+roll-forward fix rather than reverting to an earlier reader or downgrading the schema.
+No real messages should be created as tests. Validate synthetic delivery in CI and
+schedule only the user's explicitly authorized recipient, text and time.

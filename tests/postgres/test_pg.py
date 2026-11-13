@@ -614,5 +614,54 @@ def test_populated_inbox_migration_refuses_data_loss(pg_app):
     with pytest.raises(RuntimeError, match="preserve existing inbox"):
         command.downgrade(_alembic(PG_URL), "0010")
     with pg_app.state.engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0011"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0012"
         assert conn.execute(text("SELECT count(*) FROM inbox_notifications")).scalar() == 1
+
+
+def test_private_reminder_concurrent_dispatch_exactly_once(pg_app):
+    from uuid import uuid4
+
+    from app.models import InboxNotification, StaffReminder
+    from app.services import staff_reminders
+    p = login(pg_app, 'prof@test.ac.kr')
+    identifier = str(uuid4())
+    due = utcnow() + timedelta(minutes=1)
+    with pg_app.state.SessionLocal() as db:
+        staff_reminders.create(db, identifier, p.me['id'], 'Synthetic concurrent reminder', due, None)
+    def dispatch(_):
+        with pg_app.state.SessionLocal() as db:
+            staff_reminders.enqueue_due(db, due)
+    assert _race(5, dispatch) == ['ok'] * 5
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(InboxNotification)) == 1
+        assert db.get(StaffReminder, identifier).dispatched_at == due
+    with pytest.raises(RuntimeError, match='preserve scheduled reminders'):
+        command.downgrade(_alembic(PG_URL), '0011')
+    with pg_app.state.engine.connect() as conn:
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar() == '0012'
+        assert conn.execute(text('SELECT count(*) FROM staff_reminders')).scalar() == 1
+
+
+def test_private_reminder_cancel_vs_dispatch_is_atomic(pg_app):
+    from uuid import uuid4
+
+    from app.models import InboxNotification, StaffReminder
+    from app.services import staff_reminders
+    p = login(pg_app, 'prof@test.ac.kr')
+    identifier = str(uuid4())
+    due = utcnow() + timedelta(minutes=1)
+    with pg_app.state.SessionLocal() as db:
+        staff_reminders.create(db, identifier, p.me['id'], 'Synthetic cancellation race', due, None)
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            if i:
+                staff_reminders.enqueue_due(db, due)
+            else:
+                staff_reminders.cancel(db, identifier)
+    result = _race(2, attempt)
+    assert all(value in ('ok', 'conflict') for value in result)
+    with pg_app.state.SessionLocal() as db:
+        row = db.get(StaffReminder, identifier)
+        count = db.scalar(select(func.count()).select_from(InboxNotification))
+        assert (row.cancelled_at is not None and row.dispatched_at is None and count == 0) or (
+            row.cancelled_at is None and row.dispatched_at is not None and count == 1)

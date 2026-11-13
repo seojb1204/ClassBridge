@@ -9,11 +9,11 @@ from app.models.inbox import InboxNotification
 from app.timeutil import kst_date, to_kst
 
 LABELS = {"created": "새 상담 예약", "changed": "상담 예약 변경", "cancelled": "상담 예약 취소",
-          "slot_changed": "상담 정보 변경", "suggestion": "새 건의 접수"}
+          "slot_changed": "상담 정보 변경", "suggestion": "새 건의 접수", "custom_reminder": "개인 예약 알림"}
 
 
 def enqueue(db, event_key: str, kind: str, *, available_at=None):
-    if kind not in LABELS:
+    if kind not in LABELS or kind == "custom_reminder":
         raise ValueError("Unsupported inbox notification kind")
     insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
     for recipient in db.scalars(select(User.id).where(User.role.in_(("professor", "admin")), User.is_active.is_(True))):
@@ -25,9 +25,10 @@ def enqueue(db, event_key: str, kind: str, *, available_at=None):
 def public_item(row):
     suggestion = row.kind == "suggestion"
     return {"id": row.id, "kind": row.kind, "title": LABELS[row.kind],
-            "body": "새 건의가 접수되었습니다. 건의함에서 확인하세요." if suggestion
+            "body": row.message if row.kind == "custom_reminder" else
+                "새 건의가 접수되었습니다. 건의함에서 확인하세요." if suggestion
                 else "상담 예약 관련 변경이 있습니다. 예약 관리에서 확인하세요.",
-            "url": "/#/suggestions" if suggestion else "/#/bookings",
+            "url": "/#/inbox" if row.kind == "custom_reminder" else "/#/suggestions" if suggestion else "/#/bookings",
             "created_on": row.created_on.isoformat(), "arrived_on": kst_date(row.available_at).isoformat(),
             "arrived_at": to_kst(row.available_at).isoformat(timespec="seconds"),
             "read": row.read_at is not None}

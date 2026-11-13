@@ -2,6 +2,7 @@ from app.models.audit import AppSetting, AuditLog
 from app.models.booking import Blackout, Booking, BookingEvent, Slot
 from app.models.inbox import InboxNotification
 from app.models.notification import Notification, PushSubscription
+from app.models.staff_reminder import StaffReminder
 from app.models.suggestion import Suggestion
 from app.models.support import SupportMessage, SupportTicket
 from app.models.survey import Answer, GuestParticipation, Participation, Question, Response, Survey
@@ -11,5 +12,5 @@ __all__ = [
     "AppSetting", "AuditLog", "Blackout", "Booking", "BookingEvent", "Slot",
     "Suggestion", "Answer", "Participation", "Question", "Response", "Survey",
     "AuthSession", "User", "SupportMessage", "SupportTicket",
-    "InboxNotification", "GuestParticipation", "Notification", "PushSubscription",
+    "StaffReminder", "InboxNotification", "GuestParticipation", "Notification", "PushSubscription",
 ]

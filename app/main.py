@@ -45,11 +45,10 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
     settings.validate()
     @asynccontextmanager
     async def lifespan(app):
-        worker = None
-        if settings.gmail_notifications_enabled or settings.push_enabled:
-            worker = NotificationWorker(app.state.SessionLocal, settings)
-            app.state.notification_worker = worker
-            worker.start()
+        # Private scheduled inbox notices also need due-time dispatch when external channels are off.
+        worker = NotificationWorker(app.state.SessionLocal, settings)
+        app.state.notification_worker = worker
+        worker.start()
         stop = asyncio.Event()
         wake = asyncio.Event()
         app.state.completion_wake = wake
@@ -103,9 +102,10 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
               suggestions.router, support.router, analysis.router, announcement.router, public_surveys.router):
         app.include_router(r)
     app.include_router(site_share.router)
-    from app.routers import inbox, notifications
+    from app.routers import inbox, notifications, staff_reminders
     app.include_router(notifications.router)
     app.include_router(inbox.router)
+    app.include_router(staff_reminders.router)
 
     @app.middleware("http")
     async def wake_completion_after_write(request, call_next):
