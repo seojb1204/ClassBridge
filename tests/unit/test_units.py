@@ -169,3 +169,13 @@ def test_production_config_rejects_unsafe():
 def test_production_config_ok():
     Settings(env="production", database_url="postgresql://x", secret_key="k" * 40, cookie_secure=True,
              google_client_id="id", google_client_secret="sec", admin_emails=["a@x"]).validate()
+
+
+def test_rescheduling_ignores_only_booking_window():
+    far = NOW + timedelta(days=90)
+    with pytest.raises(Conflict):
+        bp.check_student_booking_time(far, NOW, POL)
+    bp.check_student_booking_time(far, NOW, POL, enforce_window=False)
+    for start in (NOW - timedelta(seconds=1), NOW + timedelta(minutes=29)):
+        with pytest.raises(Conflict):
+            bp.check_student_booking_time(start, NOW, POL, enforce_window=False)

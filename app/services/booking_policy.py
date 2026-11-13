@@ -64,13 +64,14 @@ def expand_days(start_date: date, weekdays: list[int] | None, repeat_weeks: int)
             if (start_date + timedelta(days=i)).weekday() in wds]
 
 
-def check_student_booking_time(slot_start: datetime, now: datetime, policy: Policy) -> None:
+def check_student_booking_time(slot_start: datetime, now: datetime, policy: Policy, *,
+                               enforce_window: bool = True) -> None:
     if slot_start <= now:
         raise Conflict("이미 지난 상담 시간입니다", code="slot_past")
     if slot_start - now < timedelta(minutes=policy.booking_deadline_minutes):
         raise Conflict(f"상담 시작 {policy.booking_deadline_minutes}분 전까지만 예약할 수 있습니다",
                        code="booking_deadline")
-    if slot_start - now > timedelta(days=policy.booking_window_days):
+    if enforce_window and slot_start - now > timedelta(days=policy.booking_window_days):
         raise Conflict(f"{policy.booking_window_days}일 이내의 상담만 예약할 수 있습니다",
                        code="booking_window")
 

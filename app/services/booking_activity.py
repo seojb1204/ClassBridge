@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, aliased
 from app.models import Booking, BookingEvent, User
 
 CANCELLATIONS = ("cancel", "cancel_by_staff", "cancel_by_slot")
-CHANGES = ("rescheduled_from", "rescheduled_to", "slot_changed")
+CHANGES = ("rescheduled", "rescheduled_from", "rescheduled_to", "slot_changed")
 ACTIONS = CANCELLATIONS + CHANGES + ("book", "book_by_staff", "completed", "no_show")
 
 

@@ -5,7 +5,7 @@ import { field, h, select } from '../ui.js';
 export const eventLabels = {
   book: '학생 예약 신청', book_by_staff: '대리 예약', cancel: '학생 예약 취소',
   cancel_by_staff: '교수자·관리자 예약 취소', cancel_by_slot: '상담 시간 취소로 예약 취소',
-  rescheduled_from: '일정 변경 · 이전 예약', rescheduled_to: '일정 변경 · 새 예약',
+  rescheduled: '예약 시간 수정', rescheduled_from: '일정 변경 · 이전 예약', rescheduled_to: '일정 변경 · 새 예약',
   slot_changed: '상담 시간 정보 수정', completed: '상담 완료 처리', no_show: '미참석 처리',
   note_update: '상담 기록 수정',
 };

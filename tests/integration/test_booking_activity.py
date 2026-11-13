@@ -29,7 +29,7 @@ def test_change_is_not_cancellation_and_cursor_is_stable(clients):
     new = s.post(f'/api/bookings/{bid}/reschedule', json={'new_slot_id': slots[1]}).json()['id']
     assert p.get('/api/staff/booking-events?kind=cancel').json()['items'] == []
     changes = p.get('/api/staff/booking-events?kind=change').json()['items']
-    assert {x['action'] for x in changes} == {'rescheduled_from', 'rescheduled_to'}
+    assert {x['action'] for x in changes} == {'rescheduled'}
     first = p.get('/api/staff/booking-events?limit=1').json()
     assert p.post(f'/api/bookings/{new}/cancel', json={'reason': '운영 일정'}).status_code == 200
     second = p.get(f'/api/staff/booking-events?limit=1&before_id={first["next_before_id"]}').json()

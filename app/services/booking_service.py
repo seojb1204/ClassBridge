@@ -10,8 +10,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 from typing import Callable, TypeVar
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -104,7 +106,7 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
             reason = "마감"
         else:
             try:
-                policy_mod.check_student_booking_time(s.start_at, now, pol)
+                policy_mod.check_student_booking_time(s.start_at, now, pol, enforce_window=mine_active is None)
             except Conflict as e:
                 reason = e.message
         views.append(SlotView(s, remaining, mine, reason == "" and not mine, reason,
@@ -358,14 +360,15 @@ def _resolve_student(db: Session, actor: User, student_id: int | None) -> User:
     return target
 
 
-def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, pol: Policy) -> Slot:
+def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, pol: Policy,
+                    *, rescheduling: bool = False) -> Slot:
     if slot is None or slot.status != "open":
         raise NotFound("예약 가능한 상담 시간이 아닙니다")
     if _is_staff(actor):
         if slot.start_at <= now:
             raise Conflict("이미 지난 상담 시간입니다", code="slot_past")
     else:
-        policy_mod.check_student_booking_time(slot.start_at, now, pol)
+        policy_mod.check_student_booking_time(slot.start_at, now, pol, enforce_window=not rescheduling)
     return slot
 
 
@@ -432,48 +435,65 @@ def cancel(db: Session, actor: User, booking_id: int, reason: str = "",
 
 
 def reschedule(db: Session, actor: User, booking_id: int, new_slot_id: int, reason: str = "",
-               now: datetime | None = None) -> Booking:
-    """기존 취소 + 새 예약을 한 트랜잭션으로. 새 예약이 실패하면 기존 예약은 그대로 남는다."""
-    now = now or utcnow()
+               now: datetime | None = None, *, expected_slot_id: int | None = None) -> Booking:
+    """Move the existing booking atomically, preserving identity and all history."""
     pol = _policy(db)
     staff = _is_staff(actor)
 
     def work():
-        old = _visible_booking(db, actor, booking_id, lock=True)
-        if old.status != "booked":
+        booking = _visible_booking(db, actor, booking_id, lock=True)
+        # A concurrent move may have committed while this request waited for
+        # the booking lock. Refresh before checking its current slot/status.
+        db.refresh(booking)
+        if booking.status != "booked":
             raise Conflict("진행 중인 예약만 변경할 수 있습니다")
-        if old.slot_id == new_slot_id:
+        if expected_slot_id is not None and booking.slot_id != expected_slot_id:
+            raise Conflict("예약 시간이 이미 변경되었습니다. 새로고침 후 다시 선택해 주세요",
+                           code="booking_changed")
+        if booking.slot_id == new_slot_id:
             raise BadRequest("같은 상담 시간입니다")
+        # Serialize seat transfers in a consistent slot order, including moves
+        # in opposite directions. Capacity updates remain conditional in SQL.
+        locked = {slot.id: slot for slot in db.scalars(select(Slot)
+                  .where(Slot.id.in_([booking.slot_id, new_slot_id])).order_by(Slot.id)
+                  .with_for_update().execution_options(populate_existing=True))}
+        previous = locked[booking.slot_id]
+        if previous.status != "open":
+            raise Conflict("기존 상담 시간이 취소되었습니다. 새로고침해 주세요")
+        checked_at = now or utcnow()  # Recheck the deadline after lock waits.
         if not staff:
-            policy_mod.check_student_cancel_time(old.slot.start_at, now, pol)
-        new_slot = _check_slot_for(db, actor, repo.get_slot(db, new_slot_id), now, pol)
-
-        old.status = "cancelled"
-        old.cancel_reason = "예약 변경"
-        repo.release_seat(db, old.slot_id)
-        db.flush()  # 부분 인덱스에서 기존 활성 예약 해제
-        if not repo.try_take_seat(db, new_slot.id):
+            policy_mod.check_student_cancel_time(previous.start_at, checked_at, pol)
+        target = _check_slot_for(db, actor, locked.get(new_slot_id), checked_at, pol, rescheduling=True)
+        if not repo.try_take_seat(db, target.id):
             raise Conflict("변경하려는 시간의 정원이 마감되었습니다. 기존 예약은 유지됩니다", code="slot_full")
-        nb = Booking(slot_id=new_slot.id, student_id=old.student_id, topic=old.topic,
-                     created_by_id=actor.id, applicant_name=old.applicant_name,
-                     student_number=old.student_number, grade=old.grade,
-                     consultation_type=old.consultation_type, consultation_mode=old.consultation_mode)
-        db.add(nb)
+        old_slot_id = previous.id
+        old = SimpleNamespace(id=booking.id,
+                              slot=SimpleNamespace(start_at=previous.start_at, end_at=previous.end_at))
+        repo.release_seat(db, old_slot_id)
+        booking.slot_id = target.id
+        booking.slot = target  # Keep the response and notification relationship fresh.
         db.flush()
-        repo.add_event(db, old.id, actor.id, "rescheduled_from", f"→ booking {nb.id}")
-        detail = f"← booking {old.id}"
+        detail = (f"slot {old_slot_id} [{previous.start_at.isoformat()}~{previous.end_at.isoformat()}] "
+                  f"{previous.kind} {previous.location[:60]} → "
+                  f"slot {target.id} [{target.start_at.isoformat()}~{target.end_at.isoformat()}] "
+                  f"{target.kind} {target.location[:60]}")
         if reason.strip():
             detail += f"; {reason.strip()}"
-        ev = repo.add_event(db, nb.id, actor.id, "rescheduled_to", detail)
-        enqueue(db, nb, ev, "changed", old=old)
+        ev = repo.add_event(db, booking.id, actor.id, "rescheduled", detail)
+        # Keep the original slot protected as historical even though the
+        # booking row now points at its new slot (no schema/backfill required).
+        audit_repo.add(db, actor.id, "slot.booking_moved", "slot", old_slot_id,
+                       {"booking_id": booking.id, "to_slot": target.id})
+        enqueue(db, booking, ev, "changed", old=old)
         if staff:
-            audit_repo.add(db, actor.id, "booking.reschedule_by_staff", "booking", nb.id,
-                           {"from_booking": old.id, "student_id": old.student_id, "reason": reason[:200]})
-        return nb
+            audit_repo.add(db, actor.id, "booking.reschedule_by_staff", "booking", booking.id,
+                           {"from_slot": old_slot_id, "to_slot": target.id,
+                            "student_id": booking.student_id, "reason": reason[:200]})
+        return booking
 
-    nb = _atomic(db, work)
-    db.refresh(nb)
-    return nb
+    booking = _atomic(db, work)
+    db.refresh(booking)
+    return booking
 
 
 def set_outcome(db: Session, actor: User, booking_id: int, outcome: str,
@@ -537,3 +557,24 @@ def delete_empty_cancelled_slot(db: Session, actor: User, slot_id: int) -> None:
         db.delete(slot)
 
     _atomic(db, work)
+
+
+def available_days(db: Session, viewer: User, now: datetime | None = None) -> list[dict]:
+    """Available dates without an artificial rescheduling horizon or N queries."""
+    from sqlalchemy import select
+
+    now = now or utcnow()
+    pol = _policy(db)
+    active = None if _is_staff(viewer) else repo.active_booking_of(db, viewer.id)
+    query = select(Slot.start_at).where(
+        Slot.status == "open", Slot.booked_count < Slot.capacity, Slot.start_at > now,
+        Slot.start_at >= now + timedelta(minutes=pol.booking_deadline_minutes))
+    if active is None:
+        query = query.where(Slot.start_at <= now + timedelta(days=pol.booking_window_days))
+    else:
+        query = query.where(Slot.id != active.slot_id)
+    counts: dict[str, int] = {}
+    for start_at in db.scalars(query):
+        day = start_at.astimezone(KST).date().isoformat()
+        counts[day] = counts.get(day, 0) + 1
+    return [{"date": day, "count": count} for day, count in sorted(counts.items())]

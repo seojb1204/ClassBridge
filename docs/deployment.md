@@ -150,3 +150,27 @@ pg_restore --clean --if-exists --no-owner --dbname="$RESTORE_DATABASE_URL" class
   and deploy a compatible forward fix; do not roll back to code that cannot display
   unresolved appointments. SQLite migration rebuilds in an explicit transaction,
   validates foreign keys before commit, and restores FK enforcement afterward.
+
+### In-place rescheduling
+
+- A reschedule now keeps the booking ID, original creation metadata, private note,
+  applicant details, and prior event history. Only its slot and update timestamp
+  change. One `rescheduled` event captures the before/after slot IDs, time ranges,
+  types and truncated locations. Old cross-ID `rescheduled_from/to` events remain
+  readable; existing records are not rewritten or merged.
+- Slot capacities and the same booking update commit in one transaction. A failed
+  capacity check, stale client view, or outbox failure preserves the original
+  booking, both seat counts, event history and notification queue. Booking and
+  ordered slot locks serialize transfers; database deadlocks produce the existing
+  retryable conflict response rather than partial changes.
+- Current clients send `expected_slot_id` to reject stale edits. Legacy clients
+  without it retain compatibility, with row-lock serialization and full history.
+- Student edits require both original and target starts to be at least the unified
+  30-minute deadline away (exact boundary allowed). The maximum booking horizon
+  applies only to new reservations, not edits. Only open slots with free capacity
+  may be selected; staff overrides remain unchanged.
+- The outbox receives a single `changed` event with the same booking ID and chain,
+  and before/after time snapshots. No separate cancellation or creation notice is
+  generated. Reminder/automatic-completion wake scheduling remains unchanged.
+- This change requires no schema migration or data backfill. Existing historical
+  cancellations, completions and unresolved records are retained as-is.

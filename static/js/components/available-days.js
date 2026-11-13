@@ -1,21 +1,11 @@
 import { get } from "../api.js";
-import { addDays, fmtDate, kstParts, todayKst } from "../time.js";
+import { fmtDate } from "../time.js";
 import { h } from "../ui.js";
 
 export async function loadAvailableDays() {
   try {
-    const policy = await get("/api/booking-policy");
-    const days = policy.booking_window_days + 1, today = todayKst();
-    const batches = [];
-    for (let offset = 0; offset < days; offset += 62)
-      batches.push(get(`/api/slots?start=${addDays(today, offset)}&days=${Math.min(62, days - offset)}`));
-    const counts = new Map();
-    for (const slot of (await Promise.all(batches)).flat()) {
-      if (!slot.bookable) continue;
-      const day = kstParts(slot.start_at).date;
-      counts.set(day, (counts.get(day) || 0) + 1);
-    }
-    return [...counts].sort(([a], [b]) => a.localeCompare(b));
+    const days = await get("/api/slots/available-days");
+    return days.map(({ date, count }) => [date, count]);
   } catch { return null; }
 }
 

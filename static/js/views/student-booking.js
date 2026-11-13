@@ -55,10 +55,10 @@ async function draw(root, revealDay = false) {
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
-        `시작 ${policy.booking_deadline_minutes}분 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
+        `시작 ${policy.booking_deadline_minutes}분 전까지 신규 예약할 수 있습니다. 기존 예약의 시간 변경에는 이 ${policy.booking_window_days}일 범위 제한이 없습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
     active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
       h("strong", {}, fmtDateTime(active.slot.start_at)),
-      " · 내 예약을 누르면 취소할 수 있고, 다른 가능 시간을 누르면 변경할 수 있습니다.",
+      " · 취소하지 않고 다른 가능한 시간을 눌러 바로 변경할 수 있습니다.",
       h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
     legend(),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
@@ -109,7 +109,11 @@ async function openSlot(root, s, active, policy) {
     h("p", {}, h("strong", {}, fmtDateTime(s.start_at)), ` (${s.kind === "group" ? `단체 · 남은 자리 ${s.remaining}` : "개인 상담"})`),
     s.location ? h("p", { class: "muted" }, `장소: ${s.location}`) : null,
     s.note ? h("p", { class: "muted" }, s.note) : null,
-    active ? h("p", { class: "warn" }, `기존 예약(${fmtDateTime(active.slot.start_at)})이 이 시간으로 변경됩니다.`)
+    active ? h("div", { class: "notice" },
+      h("p", {}, `변경 전: ${fmtDateTime(active.slot.start_at)}`),
+      h("p", {}, `변경 후: ${fmtDateTime(s.start_at)}`),
+      h("p", {}, "예약을 취소하거나 새로 만들지 않고 기존 예약의 시간만 변경합니다. 상담 내용은 유지됩니다."),
+      h("p", { class: "muted" }, `기존 상담과 새 상담 모두 시작 ${policy.booking_deadline_minutes}분 전까지 변경할 수 있습니다.`))
       : h("div", {}, field("이름", applicantName), field("학번", studentNumber),
         field("학년", grade), field("상담 유형", consultationType),
         field("상담 방식", consultationMode), field("상담 내용", topic),
@@ -118,7 +122,7 @@ async function openSlot(root, s, active, policy) {
     { label: "닫기", value: null },
     { label: active ? "이 시간으로 변경" : "예약하기", primary: true, handler: async () => {
       try {
-        if (active) await post(`/api/bookings/${active.id}/reschedule`, { new_slot_id: s.id });
+        if (active) await post(`/api/bookings/${active.id}/reschedule`, { new_slot_id: s.id, expected_slot_id: active.slot.id });
         else await post("/api/bookings", {
           slot_id: s.id, topic: topic.value, applicant_name: applicantName.value,
           student_number: studentNumber.value, grade: grade.value ? +grade.value : null,
@@ -128,7 +132,7 @@ async function openSlot(root, s, active, policy) {
       } catch (e) {
         if (e.code === "slot_full") toast("다른 학생이 먼저 예약했습니다. 가능한 시간을 다시 선택해 주세요.", "error");
         else errorToast(e);
-        if (e.code === "slot_full" || e.status === 0) { await draw(root); return null; }
+        if (e.code === "slot_full" || e.code === "booking_changed" || e.status === 0) { await draw(root); return null; }
         return false;
       }
     } },

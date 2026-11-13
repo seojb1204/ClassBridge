@@ -72,6 +72,7 @@ class BookingCancelIn(BaseModel):
 
 class BookingRescheduleIn(BaseModel):
     new_slot_id: int
+    expected_slot_id: int | None = None
     reason: str = Field(default="", max_length=500)
 
 
