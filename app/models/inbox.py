@@ -1,4 +1,4 @@
-"""Private, durable professor notification inbox; no student identity or content."""
+"""Private, durable staff notification inbox; no student identity or content."""
 from datetime import date, datetime
 
 from sqlalchemy import Date, ForeignKey, Index, Integer, String, UniqueConstraint

@@ -16,7 +16,7 @@ def enqueue(db, event_key: str, kind: str, *, available_at=None):
     if kind not in LABELS:
         raise ValueError("Unsupported inbox notification kind")
     insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
-    for recipient in db.scalars(select(User.id).where(User.role == "professor", User.is_active.is_(True))):
+    for recipient in db.scalars(select(User.id).where(User.role.in_(("professor", "admin")), User.is_active.is_(True))):
         db.execute(insert(InboxNotification).values(recipient_id=recipient, event_key=event_key,
             kind=kind, created_on=kst_date(utcnow()), available_at=available_at or utcnow()).on_conflict_do_nothing(
                 index_elements=[InboxNotification.recipient_id, InboxNotification.event_key]))

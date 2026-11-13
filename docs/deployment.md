@@ -190,3 +190,15 @@ not proof that a phone received/read a notification. Old suggestions are not res
 Rollback retains schema 0011 and its inbox records; do not downgrade after notices
 exist. Previous application code is compatible with the additive table. No live
 student reservation or suggestion may be created for release verification.
+
+## Staff notification bell
+
+Professor and administrator accounts receive their own app-inbox rows for new
+booking/suggestion events. The header bell shows the signed-in account's unread
+count and opens a compact preview; the full inbox supports read marking. Students
+cannot access staff inbox routes. Existing mobile More navigation remains available.
+External suggestion push/email eligibility is unchanged (professor-only); this
+release expands only the app inbox and never registers devices or changes opt-in.
+No migration or historical backfill is performed. Notification UI fetches on boot,
+explicit opening/refresh and read changes, not on an interval. Delayed suggestion
+availability remains 5–10 minutes and unread counts exclude not-yet-due records.

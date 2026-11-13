@@ -1,0 +1,62 @@
+// Explicit refresh only. Never keep the database awake with background polling.
+import { get, put } from "../api.js";
+import { h, mount, toast } from "../ui.js";
+
+export function inboxBell() {
+  const badge = h("span", { class: "inbox-badge", "aria-hidden": "true", hidden: true });
+  const button = h("button", { class: "btn inbox-bell", type: "button", "aria-label": "알림 열기",
+    "aria-expanded": "false", "aria-controls": "inbox-popover" }, h("span", { "aria-hidden": "true" }, "🔔"), " 알림", badge);
+  const panel = h("section", { id: "inbox-popover", class: "inbox-popover", hidden: true,
+    "aria-label": "알림 모아보기" }, h("p", { role: "status" }, "알림을 불러오는 중…"));
+  const wrap = h("div", { class: "inbox-header" }, button, panel);
+  let pending = false;
+  const close = (focus = false) => { panel.hidden = true; button.setAttribute("aria-expanded", "false"); if (focus) button.focus(); };
+  const setCount = count => {
+    badge.textContent = count > 99 ? "99+" : String(count);
+    badge.hidden = !count;
+    button.setAttribute("aria-label", count ? `알림 열기, 읽지 않은 알림 ${count}건` : "알림 열기");
+  };
+  async function refresh() {
+    if (pending) return;
+    pending = true;
+    try {
+      const data = await get("/api/inbox");
+      setCount(data.unread);
+      const refreshButton = h("button", { class: "btn small", type: "button", onclick: refresh }, "새로고침");
+      mount(panel, h("div", { class: "inbox-popover-head" }, h("h2", {}, "알림 모아보기"),
+        h("button", { class: "btn small", type: "button", onclick: () => close(true) }, "닫기")),
+        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 열거나 새로고침할 때 갱신`),
+        ...data.items.slice(0, 5).map(item => {
+          const read = h("button", { class: "btn small", type: "button", disabled: item.read }, item.read ? "읽음" : "읽음 표시");
+          read.onclick = async () => {
+            read.disabled = true;
+            try { await put(`/api/inbox/${item.id}/read`); await refresh(); }
+            catch (err) { read.disabled = false; toast(err.message, "error"); }
+          };
+          return h("article", { class: "inbox-preview" }, h("h3", {}, item.title), h("p", {}, item.body),
+            h("small", {}, item.created_on), h("div", { class: "actions" },
+              h("a", { class: "btn small", href: item.url, onclick: () => close() }, "내용 확인"), read));
+        }),
+        !data.items.length ? h("p", {}, "새 알림이 없습니다.") : null,
+        h("div", { class: "actions" }, h("a", { class: "btn small", href: "#/inbox", onclick: () => close() }, "알림 전체 보기"), refreshButton));
+    } catch (err) {
+      mount(panel, h("p", { class: "error-box" }, "알림을 불러오지 못했습니다."),
+        h("button", { class: "btn small", type: "button", onclick: refresh }, "다시 시도"),
+        h("button", { class: "btn small", type: "button", onclick: () => close(true) }, "닫기"));
+    } finally { pending = false; }
+  }
+  button.onclick = () => {
+    if (!panel.hidden) { close(); return; }
+    document.getElementById("nav").classList.remove("open");
+    document.getElementById("menu-btn")?.setAttribute("aria-expanded", "false");
+    panel.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    refresh();
+  };
+  wrap.addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden) { e.preventDefault(); close(true); } });
+  document.addEventListener("click", e => { if (!wrap.contains(e.target)) close(); });
+  window.addEventListener("hashchange", () => close());
+  window.addEventListener("inbox-count", e => setCount(e.detail));
+  refresh();
+  return wrap;
+}

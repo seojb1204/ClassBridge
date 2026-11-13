@@ -13,14 +13,14 @@ from app.services.inbox import public_item
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
 
 
-def professor(p: Principal = Depends(require(P.BOOKING_MANAGE))):
-    if p.role != "professor":
-        raise Forbidden("교수자 알림함입니다")
+def staff(p: Principal = Depends(require(P.BOOKING_MANAGE))):
+    if p.role not in ("professor", "admin"):
+        raise Forbidden("교수자·관리자 알림함입니다")
     return p
 
 
 @router.get("")
-def listing(p: Principal = Depends(professor), db: Session = Depends(get_db)):
+def listing(p: Principal = Depends(staff), db: Session = Depends(get_db)):
     own = (InboxNotification.recipient_id == p.id) & (InboxNotification.available_at <= utcnow())
     rows = db.scalars(select(InboxNotification).where(own).order_by(InboxNotification.id.desc()).limit(100))
     return {"items": [public_item(row) for row in rows],
@@ -29,7 +29,7 @@ def listing(p: Principal = Depends(professor), db: Session = Depends(get_db)):
 
 
 @router.put("/{notification_id}/read")
-def read(notification_id: int, p: Principal = Depends(professor), db: Session = Depends(get_db)):
+def read(notification_id: int, p: Principal = Depends(staff), db: Session = Depends(get_db)):
     row = db.scalar(select(InboxNotification).where(InboxNotification.id == notification_id,
         InboxNotification.recipient_id == p.id, InboxNotification.available_at <= utcnow()).with_for_update())
     if row is None:
