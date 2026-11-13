@@ -50,7 +50,7 @@ async function inbox(root) {
   order.setAttribute("aria-label", "건의 정렬");
   const search = h("input", { type: "search", value: filter.query, maxlength: 200,
     placeholder: "건의 내용 검색", "aria-label": "건의 내용 검색" });
-  const reload = async () => { if (location.hash !== path || !root.isConnected || inboxVersion !== version) return; try { await inbox(root); } catch (e) { errorToast(e); } };
+  const reload = async () => { if (location.hash !== path || !root.isConnected) return; try { await inbox(root); } catch (e) { errorToast(e); } };
   const apply = () => { pageOffset = 0; filter = { ...filter, status: st.value, category: ct.value, order: order.value }; reload(); };
   order.addEventListener("change", apply);
   const searchForm = h("form", { class: "toolbar suggestion-search", role: "search" }, search,
