@@ -83,6 +83,47 @@ async function inbox(root) {
       if (isCurrent()) { pageOffset = 0; await reload(); }
     } catch (e) { errorToast(e); }
   });
+  // Selection is scoped to the visible page and resets on navigation/filter/reload.
+  const selected = new Set();
+  const boxes = [];
+  const allBox = h("input", { type: "checkbox", disabled: !list.length,
+    "aria-label": "현재 페이지 전체 선택" });
+  const selectionCount = h("span", { "aria-live": "polite" });
+  const deleteSelected = h("button", { type: "button", class: "btn danger", disabled: true }, "선택 삭제");
+  const syncSelection = () => {
+    allBox.checked = list.length > 0 && selected.size === list.length;
+    allBox.indeterminate = selected.size > 0 && selected.size < list.length;
+    selectionCount.textContent = `${selected.size}건 선택 / 현재 페이지 ${list.length}건`;
+    deleteSelected.disabled = selected.size === 0;
+    boxes.forEach(({ id, checkbox }) => { checkbox.checked = selected.has(id); });
+  };
+  allBox.onchange = () => {
+    selected.clear();
+    if (allBox.checked) list.forEach(s => selected.add(s.id));
+    syncSelection();
+  };
+  deleteSelected.onclick = busy(deleteSelected, async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    try {
+      const confirmed = await confirmPermanent("선택한 건의 영구 삭제",
+        `선택한 ${ids.length}건과 해당 답변·내부 메모를 영구 삭제할까요? 선택하지 않은 건의는 남으며, 삭제 후에는 복원할 수 없습니다.`);
+      if (!confirmed || !isCurrent()) return;
+      await post("/api/suggestions/trash/delete-selected", { confirmation: "영구 삭제", ids });
+      if (isCurrent()) await reload();
+    } catch (e) { errorToast(e); if (isCurrent()) await reload(); }
+  });
+  const cards = list.map(s => {
+    if (!trash) return card(root, s);
+    const checkbox = h("input", { type: "checkbox", "aria-label": `건의 선택: ${s.content.slice(0, 45)}` });
+    checkbox.onchange = () => {
+      if (checkbox.checked) selected.add(s.id); else selected.delete(s.id);
+      syncSelection();
+    };
+    boxes.push({ id: s.id, checkbox });
+    return card(root, s, h("label", { class: "trash-selection-label" }, checkbox, "선택"));
+  });
+  syncSelection();
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "건의함"), h("span", { class: "muted" }, `전체 ${stats.total}건`)),
     h("div", { class: "toolbar" },
@@ -94,15 +135,18 @@ async function inbox(root) {
     h("p", { class: "hint" }, "접수일 기준으로 정렬합니다. 익명성 보호를 위해 같은 날의 접수 순서는 표시하지 않습니다."),
     h("div", { class: "filters" }, st, ct, order, can("ai:analyze") && ["demo", "external"].includes(feature("ai")) ? aBtn : null),
     analysisBox,
-    list.length ? h("div", { class: "cards" }, list.map((s) => card(root, s))) : empty(trash ? "휴지통이 비어 있습니다." : "건의가 없습니다."), pager(reload, list.length));
+    trash ? h("section", { class: "trash-selection", "aria-label": "휴지통 선택 삭제" },
+      h("div", { class: "toolbar" }, h("label", { class: "trash-selection-label" }, allBox, "현재 페이지 전체 선택"), selectionCount, deleteSelected),
+      h("p", { class: "hint" }, "전체 선택 후 남길 항목의 체크를 해제하세요. 페이지 이동·검색·필터 변경 시 선택은 초기화됩니다.")) : null,
+    list.length ? h("div", { class: "cards" }, cards) : empty(trash ? "휴지통이 비어 있습니다." : "건의가 없습니다."), pager(reload, list.length));
 }
 
-function card(root, s) {
+function card(root, s, selection = null) {
   const path = location.hash;
   const setStatus = async (status) => {
     try { await put(`/api/suggestions/${s.id}/status`, { status }); if (location.hash === path) await inbox(root); } catch (e) { errorToast(e); }
   };
-  return h("div", { class: "card" },
+  return h("div", { class: "card" }, selection,
     h("div", { class: "row" }, h("span", {}, h("span", { class: "suggestion-meta" }, CAT_LABEL[s.category]), " ", h("span", { class: "muted" }, fmtDate(s.submitted_on))),
       badge(s.status === "reviewed" ? "검토 중" : STATUS_LABEL[s.status], s.status)),
     h("span", { class: "suggestion-meta" }, s.replies.length ? `${s.is_public ? "답변" : "내부 메모"} ${s.replies.length}개` : s.is_public ? "미답변" : "내부 메모 없음"),

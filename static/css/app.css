@@ -387,3 +387,7 @@ code { font-size: .78rem; word-break: break-all; }
 .suggestion-meta { color: var(--muted); font-size: .85rem; }
 .inbox-item > .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .inbox-item small, .inbox-preview small { font-variant-numeric: tabular-nums; }
+
+.trash-selection { margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.trash-selection-label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.trash-selection-label input { width: 18px; height: 18px; flex-shrink: 0; }
