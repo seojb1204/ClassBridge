@@ -128,7 +128,10 @@ function renderWeekly(o, byDay) {
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, slotLabel(s)),
         o.extra ? o.extra(s) : null);
-      btn.style.gridRow = `${start / STEP + 2} / ${Math.max(end / STEP + 2, start / STEP + 3)}`;
+      // CSS grid line numbers must be integers (e.g. a 09:05 lecture).
+      btn.style.gridRow = `${Math.floor(start / STEP) + 2} / ${Math.ceil(end / STEP) + 2}`;
+      btn.style.marginTop = `${1 + (start % STEP) * 18 / STEP}px`;
+      btn.style.marginBottom = `${1 + ((STEP - end % STEP) % STEP) * 18 / STEP}px`;
       btn.style.gridColumn = String(d + 2);
       if (sharingLane(s, o.slots)) {
         btn.style.width = "calc(50% - 4px)";

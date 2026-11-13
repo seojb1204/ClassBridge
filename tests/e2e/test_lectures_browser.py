@@ -16,10 +16,15 @@ def test_staff_manual_lecture_same_calendar(server, browser, viewport):  # noqa:
     p.get_by_role("button", name="+ 강의 추가", exact=True).click()
     dialog = p.locator(".modal")
     dialog.get_by_label("강의명", exact=True).fill("수동 강의 브라우저 " + str(viewport["width"]))
-    dialog.get_by_label("시작 (한국 시간)", exact=True).fill("20:00" if viewport == PC else "21:00")
+    dialog.get_by_label("시작 (한국 시간)", exact=True).fill("20:05" if viewport == PC else "21:05")
     dialog.get_by_label("종료 (한국 시간)", exact=True).fill("20:50" if viewport == PC else "21:50")
     dialog.get_by_role("button", name="강의 저장", exact=True).click()
     p.locator(".slot.lecture").filter(has_text=str(viewport["width"])).wait_for()
+    if viewport == PC:
+        placement = p.locator(".slot.lecture").filter(has_text=str(viewport["width"])).evaluate(
+            "el => ({row: el.style.gridRowStart, margin: el.style.marginTop})")
+        assert placement["row"].isdigit(), placement
+        assert placement["margin"] == "7px", placement
     assert p.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     staff.shot("lectures_" + str(viewport["width"]))
     p.locator(".slot.lecture").filter(has_text=str(viewport["width"])).click()
