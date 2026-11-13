@@ -1,3 +1,4 @@
+import { loadLectures, lectureEditor } from "../components/lecture-editor.js";
 import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
@@ -92,9 +93,9 @@ async function renderCalendarView(root) {
   selectedDay ||= todayKst();
   detach?.();
   detach = onLayoutChange(() => { if (viewMode === "calendar") renderCalendarView(root); });
-  const [slots, bookings] = await Promise.all([
+  const [slots, bookings, lectures] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
-    get(`/api/bookings?start=${weekStart}&days=7`),
+    get(`/api/bookings?start=${weekStart}&days=7`), loadLectures(weekStart),
   ]);
   const enhanced = slots.map((slot) => {
     const count = bookings.filter((b) => b.slot.id === slot.id && b.status === "booked").length;
@@ -107,11 +108,12 @@ async function renderCalendarView(root) {
     staffToday(),
     viewSwitcher(root),
     h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 상담 시간을 누르면 학생과 기록을 확인할 수 있습니다."),
+    h("button", { class: "btn", onclick: () => lectureEditor(() => renderCalendarView(root)) }, "+ 강의 추가"),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
-    renderCalendar({ weekStart, selectedDay, slots: enhanced, mobileView, dayCountMode: "booked",
+    renderCalendar({ weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
       onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
-      onSlot: (slot) => showStaffSlot(root, slot, bookings) }),
+      onSlot: (slot) => slot.event_type === "lecture" ? lectureEditor(() => renderCalendarView(root), slot) : showStaffSlot(root, slot, bookings) }),
   );
 }
 

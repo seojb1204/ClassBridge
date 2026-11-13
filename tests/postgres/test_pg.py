@@ -11,6 +11,7 @@ from datetime import time, timedelta
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import func, select, text
 
 from app.core.errors import AppError, Conflict
@@ -614,7 +615,8 @@ def test_populated_inbox_migration_refuses_data_loss(pg_app):
     with pytest.raises(RuntimeError, match="preserve existing inbox"):
         command.downgrade(_alembic(PG_URL), "0010")
     with pg_app.state.engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0012"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == (
+            ScriptDirectory.from_config(_alembic(PG_URL)).get_current_head())
         assert conn.execute(text("SELECT count(*) FROM inbox_notifications")).scalar() == 1
 
 
@@ -638,7 +640,8 @@ def test_private_reminder_concurrent_dispatch_exactly_once(pg_app):
     with pytest.raises(RuntimeError, match='preserve scheduled reminders'):
         command.downgrade(_alembic(PG_URL), '0011')
     with pg_app.state.engine.connect() as conn:
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar() == '0012'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar() == (
+            ScriptDirectory.from_config(_alembic(PG_URL)).get_current_head())
         assert conn.execute(text('SELECT count(*) FROM staff_reminders')).scalar() == 1
 
 

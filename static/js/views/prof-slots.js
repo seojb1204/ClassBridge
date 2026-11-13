@@ -1,3 +1,4 @@
+import { loadLectures, lectureEditor } from "../components/lecture-editor.js";
 import { schedulePreview } from "../components/schedule-preview.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
@@ -45,8 +46,8 @@ export async function render(root) {
 async function draw(root, revealDay = false) {
   if (location.hash !== "#/slots") return;
   const version = ++drawVersion, path = location.hash;
-  const [slots, announcement, availableDays] = await Promise.all([
-    get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(),
+  const [slots, announcement, availableDays, lectures] = await Promise.all([
+    get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(), loadLectures(weekStart),
   ]);
   if (version !== drawVersion || location.hash !== path) return;
   mount(root,
@@ -57,13 +58,14 @@ async function draw(root, revealDay = false) {
     h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
+    h("button", { class: "btn", onclick: () => lectureEditor(() => draw(root)) }, "+ 강의 추가"),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,
       onchange: (e) => { showCancelled = e.target.checked; draw(root); } }), "취소된 상담 시간 보기"),
-    renderCalendar({ weekStart, slots: showCancelled ? slots : slots.filter(s => s.status !== "cancelled"), selectedDay, mobileListOnly: true,
+    renderCalendar({ weekStart, slots: [...(showCancelled ? slots : slots.filter(s => s.status !== "cancelled")), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileListOnly: true,
       onDay: (d) => { selectedDay = d; draw(root, true); },
-      onSlot: (s) => editSlot(root, s),
-      extra: (s) => (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`)
+      onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : editSlot(root, s),
+      extra: (s) => s.event_type === "lecture" ? null : (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`)
         : s.can_delete ? h("span", { class: "slot-count" }, "눌러서 빈 시간 삭제") : null) }),
     showForm && !isMobile() ? h("section", { class: "panel", id: "slot-create-panel" },
       h("h2", {}, "상담 시간 등록"), createForm(root)) : null,

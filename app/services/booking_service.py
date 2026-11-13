@@ -20,12 +20,13 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError, BadRequest, Conflict, Forbidden, NotFound
 from app.core.permissions import P, has_permission
 from app.db import utcnow
-from app.models import Booking, Slot, User
+from app.models import Booking, Lecture, Slot, User
 from app.repositories import audit as audit_repo
 from app.repositories import bookings as repo
 from app.repositories import users as users_repo
 from app.services import booking_policy as policy_mod
 from app.services.booking_policy import Policy
+from app.services.lecture_policy import lecture_overlap, lock_calendar
 from app.services.notifications import enqueue
 from app.services.settings_service import get_settings
 from app.timeutil import KST
@@ -44,6 +45,7 @@ def _policy(db: Session) -> Policy:
 def _atomic(db: Session, fn: Callable[[], T]) -> T:
     """fn 실행 후 커밋. 어떤 실패든 전체 롤백 → 기존 예약이 사라지는 부분 실패가 없다."""
     try:
+        lock_calendar(db)
         result = fn()
         db.commit()
         return result
@@ -95,6 +97,8 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
     history = repo.booked_slot_ids(db, [s.id for s in slots]) if staff else set()
     pol = _policy(db)
     mine_active = None if staff else repo.active_booking_of(db, viewer.id)
+    lecture_times = list(db.execute(select(Lecture.start_at, Lecture.end_at).where(
+        Lecture.status == "active", Lecture.start_at < end, Lecture.end_at > start)))
     views = []
     for s in slots:
         remaining = max(s.capacity - s.booked_count, 0)
@@ -102,6 +106,8 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
         reason = ""
         if s.status != "open":
             reason = "취소된 시간"
+        elif any(a < s.end_at and b > s.start_at for a, b in lecture_times):
+            reason = "강의 시간"
         elif remaining == 0:
             reason = "마감"
         else:
@@ -364,6 +370,8 @@ def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, 
                     *, rescheduling: bool = False) -> Slot:
     if slot is None or slot.status != "open":
         raise NotFound("예약 가능한 상담 시간이 아닙니다")
+    if lecture_overlap(db, slot.start_at, slot.end_at):
+        raise Conflict("강의 시간에는 상담을 예약할 수 없습니다", code="lecture_overlap")
     if _is_staff(actor):
         if slot.start_at <= now:
             raise Conflict("이미 지난 상담 시간입니다", code="slot_past")
@@ -569,7 +577,9 @@ def available_days(db: Session, viewer: User, now: datetime | None = None) -> li
     now = now or utcnow()
     pol = _policy(db)
     active = None if _is_staff(viewer) else repo.active_booking_of(db, viewer.id)
-    query = select(Slot.start_at).where(
+    from app.models import Lecture
+    query = select(Slot.start_at).where(~select(Lecture.id).where(
+        Lecture.status == "active", Lecture.start_at < Slot.end_at, Lecture.end_at > Slot.start_at).exists(),
         Slot.status == "open", Slot.booked_count < Slot.capacity, Slot.start_at > now,
         Slot.start_at >= now + timedelta(minutes=pol.booking_deadline_minutes))
     if active is None:
