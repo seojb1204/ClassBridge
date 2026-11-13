@@ -1,6 +1,7 @@
 """Real-browser edit uses one request, one booking ID, no cancel/rebook steps."""
 import json
 import os
+import re
 from datetime import timedelta
 
 import pytest
@@ -43,7 +44,7 @@ def test_one_click_same_id_change_beyond_new_booking_horizon(server, browser, vi
     panel = student.page.locator(".available-days")
     if panel.get_by_role("button", name="전체 일정 보기", exact=True).count():
         panel.get_by_role("button", name="전체 일정 보기", exact=True).click()
-    panel.get_by_role("button", name=f"{far_day.month}월 {far_day.day}일", exact=False).click()
+    panel.get_by_role("button", name=re.compile(rf"^{far_day.month}월 {far_day.day}일 ")).click()
     student.page.locator(f'.slot.open[data-slot-id="{slots[1]}"]').click()
     modal = student.page.locator(".modal")
     modal.get_by_text("변경 전:", exact=False).wait_for()
