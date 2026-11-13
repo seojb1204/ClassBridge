@@ -75,14 +75,22 @@ class PushSender:
                 message = scheduled_message(db, row.payload, pref, utcnow())
                 if not message:
                     raise MailFailure("skipped", "schedule_changed")
+            elif kind == "suggestion":
+                if item[1].role != "professor" or not pref.instant:
+                    raise MailFailure("skipped", "preference_or_permission_changed")
+                message = {"title": "ClassBridge 새 건의", "body": "새 건의가 접수되었습니다. 건의함에서 확인하세요.",
+                           "url": "/#/suggestions"}
             elif kind == "test":
                 message = {"title": "ClassBridge 테스트 알림", "body": "이 기기의 알림 수신을 확인했습니다.",
                            "url": "/#/personal"}
             else:
                 if not pref.instant:
                     raise MailFailure("skipped", "preference_disabled")
+                labels = {"created": "새 상담 예약이 접수되었습니다", "changed": "상담 예약 시간이 변경되었습니다",
+                          "cancelled": "상담 예약이 취소되었습니다", "slot_changed": "상담 정보가 변경되었습니다"}
+                label = labels.get(kind, "상담 예약 상태가 변경되었습니다")
                 message = {"title": "ClassBridge 상담 예약 알림", "url": "/#/bookings",
-                           "body": f"상담 예약이 변경되었습니다 · {format_time(row.payload['start'])}"}
+                           "body": f"{label} · {format_time(row.payload['start'])}"}
             payload = json.dumps({**message, "tag": row.event_key, "session": item[0].session_id}, ensure_ascii=False)
         try:
             with NoRedirectSession() as session:

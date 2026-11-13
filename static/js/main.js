@@ -17,6 +17,7 @@ import * as editor from "./views/survey-editor.js";
 import * as suggestions from "./views/suggestions.js";
 import * as surveys from "./views/surveys.js";
 import * as support from "./views/support.js";
+import * as inbox from "./views/inbox.js";
 
 function home(root) {
   if (can("slot:manage")) return go(isStandalone() ? "/bookings" : "/slots");
@@ -30,6 +31,7 @@ function registerRoutes() {
   route("/booking", "booking:self", studentBooking.render, "상담 예약");
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
   route("/personal", "booking:manage", personalAlerts);
+  if (state.me.role === "professor") route("/inbox", "booking:manage", inbox.render, "내 알림");
   route("/bookings/today", "booking:manage", profBookings.todayBookings);
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자

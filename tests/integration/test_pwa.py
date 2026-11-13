@@ -24,3 +24,11 @@ def test_installation_assets_and_root_worker(clients):
 def test_installation_does_not_grant_student_staff_access(clients):
     assert clients["s1"].get("/api/bookings").status_code == 403
     assert clients["s1"].get("/static/manifest.webmanifest").status_code == 200
+
+
+def test_notification_worker_links_are_fixed_authenticated_routes(clients):
+    worker = clients['prof'].get('/sw.js').text
+    assert '"/#/suggestions"' in worker
+    assert '"/#/inbox"' in worker
+    assert '.includes(payload.url) ? payload.url : "/#/bookings"' in worker
+    assert 'config.session !== payload.session' in worker

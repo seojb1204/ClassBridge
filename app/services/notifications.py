@@ -3,7 +3,7 @@ import logging
 from datetime import timedelta
 from threading import Event, Thread
 
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, or_, select, update
 from sqlalchemy.orm import aliased
 
 from app.db import utcnow
@@ -16,6 +16,8 @@ log = logging.getLogger("classbridge.notifications")
 
 
 def enqueue(db, booking, event, kind, *, old=None):
+    from app.services.inbox import enqueue as enqueue_inbox
+    enqueue_inbox(db, f"booking-event-{event.id}", kind)
     settings = db.info.get("settings")
     if not settings or not (settings.gmail_notifications_enabled or settings.push_enabled):
         return
@@ -62,7 +64,8 @@ def claim(session_factory, now=None, channel="gmail"):
                          earlier.subscription_id.is_not_distinct_from(Notification.subscription_id),
                          earlier.id < Notification.id, earlier.status.not_in(("sent", "skipped"))))
         row = db.scalar(select(Notification).where(Notification.status == "pending", Notification.channel == channel,
-                        Notification.next_attempt_at <= now, ~blocked)
+                        Notification.next_attempt_at <= now,
+                        or_(Notification.payload["kind"].as_string() == "suggestion", ~blocked))
                         .order_by(Notification.id).limit(1).with_for_update(skip_locked=True))
         if row is None:
             db.commit()
@@ -89,6 +92,12 @@ def deliver_one(session_factory, sender, settings, now=None, channel="gmail"):
     now = now or utcnow()
     values = {"lease_until": None}
     try:
+        if channel == "gmail" and row.payload.get("kind") == "suggestion":
+            with session_factory() as db:
+                permitted = db.scalar(select(User.id).where(User.email == row.recipient,
+                    User.role == "professor", User.is_active.is_(True)))
+                if not permitted or email_paused(db):
+                    raise MailFailure("skipped", "recipient_permission_revoked")
         gmail_id = sender.send(row)
         values.update(status="sent", sent_at=utcnow(), gmail_id=gmail_id, error_code="")
     except MailFailure as exc:
@@ -129,7 +138,8 @@ def next_worker_delay(session_factory, settings, now):
                 earlier.subscription_id.is_not_distinct_from(Notification.subscription_id),
                 earlier.id < Notification.id, earlier.status.not_in(("sent", "skipped"))))
             pending = db.scalar(select(Notification.next_attempt_at).where(
-                Notification.status == "pending", Notification.channel == channel, ~blocked)
+                Notification.status == "pending", Notification.channel == channel,
+                or_(Notification.payload["kind"].as_string() == "suggestion", ~blocked))
                 .order_by(Notification.next_attempt_at).limit(1))
             if pending:
                 due_times.append(pending)

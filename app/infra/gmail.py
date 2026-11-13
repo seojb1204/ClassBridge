@@ -25,6 +25,13 @@ def format_time(value):
 
 def message_for(row):
     p = row.payload
+    if p["kind"] == "suggestion":
+        msg = EmailMessage(policy=SMTP)
+        msg["From"], msg["To"] = row.sender, row.recipient
+        msg["Subject"] = "[ClassBridge] 새 건의 접수"
+        msg["Message-ID"] = f"<classbridge-{row.event_key}@{row.sender.split('@')[1]}>"
+        msg.set_content("새 건의가 접수되었습니다. 로그인 후 건의함에서 확인하세요.\n" + p["url"])
+        return msg
     labels = {"created": "예약 신청", "changed": "예약 변경", "cancelled": "예약 취소",
               "slot_changed": "상담 정보 변경"}
     label = labels[p["kind"]]

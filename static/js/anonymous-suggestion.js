@@ -30,7 +30,7 @@ async function submitForm(root) {
       visibility.value = "private";
     } catch (err) { errorToast(err); }
   }));
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "익명 건의함")), form, h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
+  mount(root, h("div", { class: "page-head" }, h("h1", {}, "익명 건의함")), h("p", { class: "hint" }, "새 건의 접수 알림은 5~10분 뒤부터 교수자가 확인할 수 있으며, 앱 접속·기기 연결 상태에 따라 더 늦어질 수 있습니다. 알림에 작성자나 건의 내용은 포함하지 않지만, 알림 시점으로 제출 시간대를 추정할 수 있습니다."), form, h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
 }
 
 const root = document.getElementById("view");

@@ -174,3 +174,19 @@ pg_restore --clean --if-exists --no-owner --dbname="$RESTORE_DATABASE_URL" class
   generated. Reminder/automatic-completion wake scheduling remains unchanged.
 - This change requires no schema migration or data backfill. Existing historical
   cancellations, completions and unresolved records are retained as-is.
+
+## Professor app inbox and suggestion notices
+
+Migration 0011 only adds the per-professor inbox table; no historical records are
+reclassified or backfilled. Booking event notices persist atomically even when
+external channels are disabled or no push device is registered. The app inbox
+is refreshed on opening or explicit refresh, not by background polling. New
+suggestions use content-free notices delayed randomly 5–10 minutes; no author,
+suggestion ID or text is retained in notices. Timing anonymity is limited as
+explained in anonymity.md. Existing push opt-in and valid-session checks remain;
+Android Chrome is the supported push provider. External provider acceptance is
+not proof that a phone received/read a notification. Old suggestions are not resent.
+
+Rollback retains schema 0011 and its inbox records; do not downgrade after notices
+exist. Previous application code is compatible with the additive table. No live
+student reservation or suggestion may be created for release verification.
