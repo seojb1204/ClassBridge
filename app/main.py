@@ -103,8 +103,9 @@ def create_app(settings: Settings | None = None, identity_verifier=None) -> Fast
               suggestions.router, support.router, analysis.router, announcement.router, public_surveys.router):
         app.include_router(r)
     app.include_router(site_share.router)
-    from app.routers import notifications
+    from app.routers import inbox, notifications
     app.include_router(notifications.router)
+    app.include_router(inbox.router)
 
     @app.middleware("http")
     async def wake_completion_after_write(request, call_next):

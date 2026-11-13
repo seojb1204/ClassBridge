@@ -12,8 +12,8 @@ self.addEventListener("push", (event) => {
       const config = await response.json();
       if (!config.enabled || config.session !== payload.session) return;
     } catch { return; }
-    // Ignore provider-supplied links; always open the authenticated booking page.
-    const url = ["/#/bookings/today", "/#/personal"].includes(payload.url) ? payload.url : "/#/bookings";
+    // Allow only fixed authenticated app routes, never arbitrary provider links.
+    const url = ["/#/bookings/today", "/#/personal", "/#/suggestions", "/#/inbox"].includes(payload.url) ? payload.url : "/#/bookings";
     await self.registration.showNotification(String(payload.title || "ClassBridge 상담 예약 알림"), {
       body: String(payload.body || "상담 예약이 변경되었습니다").slice(0, 2400),
       tag: String(payload.tag || "classbridge-booking"),

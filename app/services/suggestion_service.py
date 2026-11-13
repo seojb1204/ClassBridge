@@ -20,6 +20,7 @@ from app.db import utcnow
 from app.models import Suggestion, User
 from app.models.suggestion import SUGGESTION_CATEGORIES
 from app.repositories import suggestions as repo
+from app.services import suggestion_notifications
 from app.timeutil import kst_date
 
 MAX_LEN = 2000
@@ -53,6 +54,7 @@ def submit(db: Session, limiter: RateLimiter, secret: str, user: User, category:
 def save(db: Session, category: str, text: str, is_public: bool, now: datetime) -> None:
     repo.add(db, Suggestion(id=str(uuid.uuid4()), category=category, content=text,
                             submitted_on=kst_date(now), is_public=is_public))
+    suggestion_notifications.enqueue(db, now)
     db.commit()
 
 
