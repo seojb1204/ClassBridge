@@ -75,6 +75,14 @@ class PushSender:
                 message = scheduled_message(db, row.payload, pref, utcnow())
                 if not message:
                     raise MailFailure("skipped", "schedule_changed")
+            elif kind == "custom_reminder":
+                from app.models.staff_reminder import StaffReminder
+                reminder = db.get(StaffReminder, row.payload.get("reminder_id"))
+                if (not reminder or reminder.recipient_id != item[1].id or item[1].role != "professor"
+                        or not pref.instant or reminder.cancelled_at is not None
+                        or reminder.dispatched_at is None or reminder.scheduled_at > utcnow()):
+                    raise MailFailure("skipped", "reminder_or_permission_changed")
+                message = {"title": "ClassBridge 알림", "body": reminder.message, "url": "/#/inbox"}
             elif kind == "suggestion":
                 if item[1].role != "professor" or not pref.instant:
                     raise MailFailure("skipped", "preference_or_permission_changed")

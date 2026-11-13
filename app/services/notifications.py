@@ -11,6 +11,8 @@ from app.infra.gmail import GmailSender, MailFailure
 from app.models import Booking, Slot, User
 from app.models.notification import Notification
 from app.services.personal_alerts import daily_due, devices, email_paused, enqueue_due, preferences
+from app.services.staff_reminders import enqueue_due as enqueue_staff_due
+from app.services.staff_reminders import next_due as next_staff_due
 
 log = logging.getLogger("classbridge.notifications")
 
@@ -65,7 +67,7 @@ def claim(session_factory, now=None, channel="gmail"):
                          earlier.id < Notification.id, earlier.status.not_in(("sent", "skipped"))))
         row = db.scalar(select(Notification).where(Notification.status == "pending", Notification.channel == channel,
                         Notification.next_attempt_at <= now,
-                        or_(Notification.payload["kind"].as_string() == "suggestion", ~blocked))
+                        or_(Notification.payload["kind"].as_string().in_(("suggestion", "custom_reminder")), ~blocked))
                         .order_by(Notification.id).limit(1).with_for_update(skip_locked=True))
         if row is None:
             db.commit()
@@ -122,6 +124,9 @@ def next_worker_delay(session_factory, settings, now):
     """
     due_times = []
     with session_factory() as db:
+        staff_due = next_staff_due(db)
+        if staff_due:
+            due_times.append(staff_due)
         channels = []
         if settings.gmail_notifications_enabled and not email_paused(db):
             channels.append("gmail")
@@ -139,7 +144,7 @@ def next_worker_delay(session_factory, settings, now):
                 earlier.id < Notification.id, earlier.status.not_in(("sent", "skipped"))))
             pending = db.scalar(select(Notification.next_attempt_at).where(
                 Notification.status == "pending", Notification.channel == channel,
-                or_(Notification.payload["kind"].as_string() == "suggestion", ~blocked))
+                or_(Notification.payload["kind"].as_string().in_(("suggestion", "custom_reminder")), ~blocked))
                 .order_by(Notification.next_attempt_at).limit(1))
             if pending:
                 due_times.append(pending)
@@ -182,8 +187,9 @@ class NotificationWorker:
                 delay = 20  # Retry transient failures inside the three-minute alert grace.
                 try:
                     scanned_at = utcnow()
-                    if self.settings.push_enabled:
-                        with self.session_factory() as db:
+                    with self.session_factory() as db:
+                        enqueue_staff_due(db, scanned_at)
+                        if self.settings.push_enabled:
                             enqueue_due(db, scanned_at)
                     did_work = deliver_one(self.session_factory, sender, self.settings)
                     did_work = deliver_one(self.session_factory, push_sender, self.settings, channel="push") or did_work

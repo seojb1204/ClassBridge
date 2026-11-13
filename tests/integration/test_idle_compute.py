@@ -182,6 +182,7 @@ def test_notification_scan_clock_and_fast_failure_retry(monkeypatch):
     monkeypatch.setattr(notifications, "deliver_one", lambda *args, **kwargs: False)
     seen = []
     monkeypatch.setattr(notifications, "enqueue_due", lambda db, now: seen.append(now))
+    monkeypatch.setattr(notifications, "enqueue_staff_due", lambda db, now: None)
     def plan(factory, settings, now):
         assert now == seen[0] == baseline
         return 1

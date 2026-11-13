@@ -16,6 +16,7 @@ class InboxNotification(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     event_key: Mapped[str] = mapped_column(String(100))
+    message: Mapped[str | None] = mapped_column(String(240), nullable=True)
     kind: Mapped[str] = mapped_column(String(30))
     created_on: Mapped[date] = mapped_column(Date)
     available_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
