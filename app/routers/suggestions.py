@@ -160,6 +160,17 @@ def empty_trash(body: EmptyTrashIn, p: Principal = Depends(require(P.SUGGESTION_
                 db: Session = Depends(get_db)):
     return management.empty_suggestion_trash(db, p.user, body.ids, body.confirmation)
 
+class DeleteSelectedTrashIn(BaseModel):
+    confirmation: Literal["영구 삭제"]
+    ids: list[str] = Field(min_length=1, max_length=10000)
+
+
+@router.post("/trash/delete-selected", dependencies=[Depends(feature_on)])
+def delete_selected_trash(body: DeleteSelectedTrashIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                          db: Session = Depends(get_db)):
+    return management.delete_selected_suggestion_trash(db, p.user, body.ids, body.confirmation)
+
+
 @router.post("/{sid}/replies", response_model=ReplyOut, status_code=201, dependencies=[Depends(feature_on)])
 def add_reply(sid: str, body: ReplyIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
                      db: Session = Depends(get_db)):

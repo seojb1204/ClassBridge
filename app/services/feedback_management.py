@@ -46,8 +46,18 @@ def trash_snapshot(db):
 
 
 def empty_suggestion_trash(db, actor, ids, confirmation):
+    return _purge_trash_selection(db, actor, ids, confirmation, "suggestion.empty_trash")
+
+
+def delete_selected_suggestion_trash(db, actor, ids, confirmation):
+    if not ids:
+        raise BadRequest("삭제할 건의를 선택해 주세요")
+    return _purge_trash_selection(db, actor, ids, confirmation, "suggestion.delete_selected")
+
+
+def _purge_trash_selection(db, actor, ids, confirmation, audit_action):
     if confirmation != "영구 삭제" or len(set(ids)) != len(ids):
-        raise BadRequest("휴지통 비우기 확인이 필요합니다")
+        raise BadRequest("휴지통 삭제 대상과 확인을 다시 확인해 주세요")
     rows = list(db.scalars(select(Suggestion).where(Suggestion.id.in_(ids))
                           .order_by(Suggestion.id).with_for_update()))
     if len(rows) != len(ids) or any(row.deleted_on is None for row in rows):
@@ -57,7 +67,7 @@ def empty_suggestion_trash(db, actor, ids, confirmation):
     db.execute(delete(SuggestionReply).where(SuggestionReply.suggestion_id.in_(ids)))
     db.execute(delete(Suggestion).where(Suggestion.id.in_(ids)))
     # No contents or anonymous-author data are retained in the audit log.
-    audit_repo.add(db, actor.id, "suggestion.empty_trash", "suggestion", detail={"count": len(rows)})
+    audit_repo.add(db, actor.id, audit_action, "suggestion", detail={"count": len(rows)})
     db.commit()
     return {"deleted": len(rows)}
 

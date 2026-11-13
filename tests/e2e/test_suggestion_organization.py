@@ -123,3 +123,55 @@ def test_trash_yes_no_and_empty_all_ignore_filters(server, browser, viewport, em
     assert writes[-1].post_data_json == {'confirmation': '영구 삭제', 'ids': ['trash-1', 'trash-2']}
     assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
     staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+@pytest.mark.parametrize('email', ['prof@test.ac.kr', 'admin@test.ac.kr'])
+def test_trash_select_all_except_one_and_cancel(server, browser, viewport, email):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, email, viewport, service_workers='block')
+    rows = [{'id': f'select-{i}', 'category': 'other', 'content': f'가상 선택 건의 {i}',
+             'submitted_on': '2026-11-13', 'status': 'new', 'is_public': False,
+             'deleted_on': '2026-11-13', 'replies': []} for i in range(3)]
+    writes = []
+    def handle(route):
+        url = route.request.url
+        if url.endswith('/stats'):
+            route.fulfill(json={'total': 0, 'by_status': {}, 'by_category': {}})
+        elif url.endswith('/trash/delete-selected'):
+            body = route.request.post_data_json
+            writes.append(body)
+            rows[:] = [r for r in rows if r['id'] not in body['ids']]
+            route.fulfill(json={'deleted': len(body['ids'])})
+        else:
+            route.fulfill(json=rows if 'trash=true' in url else [])
+    staff.page.route('**/api/suggestions**', handle)
+    staff.go('/suggestions')
+    staff.page.get_by_role('button', name='휴지통', exact=True).click()
+    all_box = staff.page.get_by_role('checkbox', name='현재 페이지 전체 선택', exact=True)
+    all_box.wait_for()
+    delete = staff.page.get_by_role('button', name='선택 삭제', exact=True)
+    assert delete.is_disabled()
+    all_box.check()
+    staff.page.get_by_role('checkbox', name='건의 선택: 가상 선택 건의 1', exact=True).uncheck()
+    staff.page.get_by_text('2건 선택 / 현재 페이지 3건', exact=True).wait_for()
+    assert all_box.evaluate('el => el.indeterminate')
+    staff.shot(f'trash_selection_{email.split("@")[0]}_{viewport["width"]}')
+    delete.click()
+    dialog = staff.page.get_by_role('dialog', name='선택한 건의 영구 삭제', exact=True)
+    assert dialog.get_by_text('선택한 2건', exact=False).is_visible()
+    dialog.get_by_role('button', name='아니요', exact=True).click()
+    assert not writes
+    assert staff.page.get_by_role('checkbox', name='건의 선택: 가상 선택 건의 0', exact=True).is_checked()
+    delete.click()
+    dialog.get_by_role('button', name='예, 영구 삭제', exact=True).click()
+    staff.page.get_by_text('0건 선택 / 현재 페이지 1건', exact=True).wait_for()
+    assert writes == [{'confirmation': '영구 삭제', 'ids': ['select-0', 'select-2']}]
+    assert staff.page.get_by_text('가상 선택 건의 1', exact=True).is_visible()
+    assert delete.is_disabled()
+    all_box.check()
+    staff.page.get_by_label('건의 정렬', exact=True).select_option('oldest')
+    staff.page.get_by_text('0건 선택 / 현재 페이지 1건', exact=True).wait_for()
+    assert not all_box.is_checked()
+    assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
+    staff.close()
