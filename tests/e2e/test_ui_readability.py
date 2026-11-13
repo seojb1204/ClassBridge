@@ -69,3 +69,30 @@ def test_inbox_read_state_and_disclosure(server, browser, viewport):  # noqa: F8
     assert s.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
     s.shot(f'polish_inbox_read_{viewport["width"]}')
     s.close()
+
+
+@pytest.mark.parametrize("viewport", [PC, MOBILE])
+def test_late_booking_response_cannot_replace_new_inbox(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    s = Session(browser, base, 'prof@test.ac.kr', viewport, service_workers='block')
+    item = {'id': 1, 'kind': 'created', 'title': '가상 이동 검증', 'body': '가상 내용',
+            'url': '#/bookings', 'created_on': '2026-11-13', 'read': True}
+    s.page.route('**/api/inbox**', lambda route: route.fulfill(
+        json={'items': [item], 'unread': 0, 'has_more': False}))
+    s.go('/inbox')
+    pending = []
+    s.page.route('**/api/bookings?*', pending.append)
+    with s.page.expect_request('**/api/bookings?*'):
+        s.page.get_by_role('link', name='내용 확인', exact=True).click()
+    s.page.wait_for_url('**/#/bookings')
+    # Return before the old booking response completes, as a fast user can.
+    s.go('/inbox')
+    assert pending
+    with s.page.expect_response('**/api/bookings?*'):
+        pending[0].fulfill(json=[])
+    # Flush the response/render microtasks and two browser frames, not a fixed sleep.
+    s.page.evaluate('() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))')
+    assert s.page.locator('#view').get_by_role('heading', name='내 알림', exact=True).is_visible()
+    assert s.page.locator('#view').get_by_role('heading', name='예약 관리', exact=True).count() == 0
+    assert s.page.locator('body').get_attribute('data-ready') == '/inbox'
+    s.close()
