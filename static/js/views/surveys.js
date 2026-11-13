@@ -3,7 +3,7 @@ import { get, post } from "../api.js";
 import { go } from "../router.js";
 import { can, feature } from "../state.js";
 import { fmtDateTime } from "../time.js";
-import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast, confirmAction, promptText } from "../ui.js";
+import { STATUS_LABEL, badge, empty, errorToast, h, mount, toast, confirmAction, modal } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
 import { renderForm } from "./survey-form.js";
 import { showSurveyQr } from "../components/survey-share.js";
@@ -14,26 +14,45 @@ export async function renderList(root) {
 }
 
 let showTrash = false;
+let listVersion = 0;
 async function staffList(root) {
-  const list = await get(`/api/surveys?trash=${showTrash}`);
+  const version = ++listVersion;
+  const trash = showTrash;
+  const list = await get(`/api/surveys?trash=${trash}`);
+  if (version !== listVersion || !root.isConnected) return;
+  let managing = false;
   const manage = async (s, action) => {
+    if (managing) return;
+    managing = true;
     try {
       let body = {};
       if (action === "purge") {
-        const word = await promptText("설문 영구 삭제", `‘${s.title}’의 문항, 답변 ${s.response_count}건, 참여 기록을 모두 삭제합니다. 복원할 수 없습니다. ‘영구 삭제’를 입력하세요.`);
-        if (word !== "영구 삭제") return;
-        body = { confirmation: word, response_count: s.response_count };
+        const confirmed = await modal("설문을 영구 삭제할까요?",
+          h("p", {}, `‘${s.title}’의 문항, 답변 ${s.response_count}건, 참여 기록을 모두 삭제합니다. 복원할 수 없습니다.`), [
+            { label: "아니오", value: false }, { label: "예, 영구 삭제", value: true, danger: true },
+          ]);
+        if (confirmed !== true) return;
+        body = { confirmation: "영구 삭제", response_count: s.response_count };
       } else if (!(await confirmAction(action === "trash" ? "설문 휴지통 이동" : "설문 복원",
         action === "trash" ? `‘${s.title}’과 답변 ${s.response_count}건을 휴지통으로 옮기고 응답 접수를 중단합니다. 복원해도 자동으로 다시 공개되지 않습니다. 필요한 결과 파일은 먼저 내려받으세요.` : "설문을 복원합니다. 종료된 설문은 다시 게시되지 않습니다.", "확인", action === "trash"))) return;
+      root.querySelectorAll("button").forEach(button => { button.disabled = true; });
       await post(`/api/surveys/${s.id}/${action}`, body);
-      await staffList(root);
-    } catch (e) { errorToast(e); }
+      toast(action === "purge" ? "설문을 영구 삭제했습니다." : action === "trash" ? "설문을 휴지통으로 옮겼습니다." : "설문을 복원했습니다.", "success");
+      if (root.isConnected) await staffList(root);
+    } catch (e) {
+      errorToast(e);
+      if ([404, 409].includes(e.status) && root.isConnected) await staffList(root).catch(errorToast);
+    }
+    finally {
+      managing = false;
+      root.querySelectorAll("button").forEach(button => { button.disabled = false; });
+    }
   };
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "설문"), h("a", { class: "btn primary", href: "#/surveys/edit/new" }, "+ 새 설문")),
     h("div", { class: "toolbar" },
-      h("button", { class: showTrash ? "btn" : "btn primary", onclick: () => { showTrash = false; staffList(root); } }, "설문 목록"),
-      h("button", { class: showTrash ? "btn primary" : "btn", onclick: () => { showTrash = true; staffList(root); } }, "휴지통")),
+      h("button", { class: showTrash ? "btn" : "btn primary", "aria-pressed": String(!trash), onclick: () => { showTrash = false; staffList(root).catch(errorToast); } }, "설문 목록"),
+      h("button", { class: showTrash ? "btn primary" : "btn", "aria-pressed": String(trash), onclick: () => { showTrash = true; staffList(root).catch(errorToast); } }, "휴지통")),
     list.length ? h("div", { class: "cards" }, list.map((s) => h("div", { class: "card" },
       h("div", { class: "row" }, h("strong", {}, s.title), badge(STATUS_LABEL[s.status], s.status)),
       h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),

@@ -4,7 +4,8 @@ import { scaleLabels } from "../survey-scale.js";
 
 export function renderForm(survey, onSubmit, { disabled = false } = {}) {
   const getters = [];
-  const form = h("form", { class: "survey-form" },
+  const summary = h("div", { class: "error-box", role: "alert", tabindex: -1, hidden: true });
+  const form = h("form", { class: "survey-form" }, summary,
     h("div", { class: "panel" }, h("h2", {}, survey.title || "(제목 없음)"),
       survey.description ? h("p", { class: "pre" }, survey.description) : null,
       h("p", { class: "muted" }, survey.access_mode === "anonymous"
@@ -14,16 +15,54 @@ export function renderForm(survey, onSubmit, { disabled = false } = {}) {
       h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침")),
     survey.questions.map((q) => {
       const { node, value } = input(q, disabled);
-      getters.push([q, value]);
-      return h("fieldset", { class: "q-card" }, h("legend", {}, q.title, q.required ? h("span", { class: "req" }, " *") : null), node);
+      const legendId = `question-${q.id}-label`, errorId = `question-${q.id}-error`;
+      const controls = node.matches("input, textarea, select") ? [node] : [...node.querySelectorAll("input")];
+      if (node.matches("input, textarea, select")) node.setAttribute("aria-labelledby", legendId);
+      const error = h("p", { id: errorId, class: "error-box", hidden: true }, "이 필수 문항에 답해 주세요.");
+      getters.push([q, value, controls, error]);
+      const clear = !q.required && ["single", "scale5"].includes(q.qtype)
+        ? h("button", { class: "btn small", type: "button", disabled, onclick: () => {
+          controls.forEach(control => { control.checked = false; });
+        } }, "선택 해제") : null;
+      return h("fieldset", { class: "q-card" }, h("legend", { id: legendId }, q.title,
+        q.required ? h("span", { class: "req" }, " *") : null), node, error, clear);
     }));
   const btn = h("button", { class: "btn primary", type: "submit", disabled }, "제출");
   form.append(btn);
+  let validationStarted = false;
+  function validate() {
+    const answers = {};
+    const missing = [];
+    for (const [q, value, controls, error] of getters) {
+      const answer = value();
+      answers[String(q.id)] = answer;
+      const invalid = q.required && (answer == null || (typeof answer === "string" && !answer.trim())
+        || (Array.isArray(answer) && !answer.length));
+      error.hidden = !invalid;
+      controls.forEach(control => {
+        control.setAttribute("aria-invalid", String(Boolean(invalid)));
+        if (invalid) control.setAttribute("aria-describedby", error.id);
+        else control.removeAttribute("aria-describedby");
+      });
+      if (invalid) missing.push([q, controls[0]]);
+    }
+    summary.hidden = !missing.length;
+    if (missing.length) {
+      summary.replaceChildren(h("strong", {}, `필수 문항 ${missing.length}개를 확인해 주세요.`),
+        h("ul", {}, missing.map(([q, control]) => h("li", {}, h("button", {
+          class: "btn small", type: "button", onclick: () => control?.focus(),
+        }, q.title)))));
+    }
+    return { answers, missing };
+  }
+  form.addEventListener("input", () => { if (validationStarted) validate(); });
+  form.addEventListener("change", () => { if (validationStarted) validate(); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (btn.disabled) return;
-    const answers = {};
-    for (const [q, value] of getters) answers[String(q.id)] = value();
+    validationStarted = true;
+    const { answers, missing } = validate();
+    if (missing.length) { summary.focus(); return; }
     btn.disabled = true;
     try { await onSubmit(answers); } finally { btn.disabled = disabled; }
   });
