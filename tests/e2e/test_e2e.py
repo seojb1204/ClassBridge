@@ -402,7 +402,7 @@ def server(tmp_path_factory):
 def browser():
     from playwright.sync_api import sync_playwright
     with sync_playwright() as pw:
-        b = pw.chromium.launch()
+        b = pw.chromium.launch(executable_path=os.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE"))
         yield b
         b.close()
 

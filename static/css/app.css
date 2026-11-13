@@ -10,7 +10,7 @@
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; }
+html, body { margin: 0; background: var(--bg); }
 body { font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
 a { color: var(--primary); }
