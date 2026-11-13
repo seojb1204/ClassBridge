@@ -43,10 +43,12 @@ export function modal(title, body, actions) {
       if (closed) return;
       closed = true;
       document.removeEventListener("keydown", handleKeys);
+      window.removeEventListener("hashchange", handleNavigation);
       root.replaceChildren();
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
       resolve(value);
     };
+    const handleNavigation = () => { if (!pending) close(null); };
     const focusables = () => [...box.querySelectorAll(
       'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     )].filter((el) => el.getClientRects().length > 0);
@@ -95,6 +97,7 @@ export function modal(title, body, actions) {
     } }, box);
     root.replaceChildren(backdrop);
     document.addEventListener("keydown", handleKeys);
+    window.addEventListener("hashchange", handleNavigation);
     (focusables()[0] || box).focus({ preventScroll: true });
   });
 }

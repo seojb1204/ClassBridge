@@ -911,8 +911,8 @@ def test_survey_trash_restore_and_purge_ui(server, browser):
         card.wait_for()
     prof.shot("survey_trash")
     card.get_by_role("button", name="영구 삭제").click()
-    prof.page.locator(".modal input").fill("영구 삭제")
-    prof.page.locator(".modal").get_by_role("button", name="확인", exact=True).click()
+    assert prof.page.locator(".modal input").count() == 0
+    prof.page.locator(".modal").get_by_role("button", name="예, 영구 삭제", exact=True).click()
     card.wait_for(state="hidden")
     prof.close()
 
