@@ -70,6 +70,17 @@ def local_analyze(items: list[str], top: int = 8) -> dict:
 
 
 def _validate_external(raw: dict, items: list[str]) -> dict:
+    # External JSON is untrusted even when syntactically valid. Keep this dormant
+    # optional path fail-safe without enabling it or changing local analysis.
+    if (not isinstance(raw, dict) or not isinstance(raw.get("themes", []), list)
+            or not isinstance(raw.get("actions", []), list)
+            or not isinstance(raw.get("summary", ""), str)):
+        raise ExternalAIError("invalid_response_shape")
+    for th in raw.get("themes", []):
+        if not isinstance(th, dict) or not isinstance(th.get("item_ids", []), list):
+            raise ExternalAIError("invalid_theme_shape")
+    if any(not isinstance(action, str) for action in raw.get("actions", [])):
+        raise ExternalAIError("invalid_action_shape")
     themes = []
     for th in raw.get("themes", [])[:10]:
         ids = [i for i in th.get("item_ids", []) if isinstance(i, int) and 0 <= i < len(items)]

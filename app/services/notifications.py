@@ -94,7 +94,7 @@ def deliver_one(session_factory, sender, settings, now=None, channel="gmail"):
     now = now or utcnow()
     values = {"lease_until": None}
     try:
-        if channel == "gmail" and row.payload.get("kind") == "suggestion":
+        if channel == "gmail":
             with session_factory() as db:
                 permitted = db.scalar(select(User.id).where(User.email == row.recipient,
                     User.role == "professor", User.is_active.is_(True)))

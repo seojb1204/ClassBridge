@@ -15,7 +15,7 @@ def enable(app):
     s = app.state.settings
     s.gmail_notifications_enabled = True
     s.gmail_sender_email = "sender@example.com"
-    s.gmail_professor_email = "professor@example.com"
+    s.gmail_professor_email = "prof@test.ac.kr"
     return s
 
 
@@ -40,7 +40,7 @@ def test_book_change_cancel_and_minimal_named_mail(app, clients):
         text = msg.get_content()
         assert "신청학생" in text
         assert "PRIVATE" not in text and "s1@" not in text
-        assert msg["To"] == "professor@example.com" and not msg["Cc"] and not msg["Bcc"]
+        assert msg["To"] == "prof@test.ac.kr" and not msg["Cc"] and not msg["Bcc"]
         assert text.rstrip().endswith("정보가 아닙니다.")
 
 

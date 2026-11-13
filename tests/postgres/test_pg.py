@@ -665,3 +665,41 @@ def test_private_reminder_cancel_vs_dispatch_is_atomic(pg_app):
         count = db.scalar(select(func.count()).select_from(InboxNotification))
         assert (row.cancelled_at is not None and row.dispatched_at is None and count == 0) or (
             row.cancelled_at is None and row.dispatched_at is not None and count == 1)
+
+
+def test_new_booking_rechecks_staff_time_edit_after_slot_lock(pg_app):
+    """A student waiting for a staff edit must validate the committed new time."""
+    from sqlalchemy import event
+    prof = login(pg_app, "prof@test.ac.kr")
+    sid = make_slots(prof)[0]
+    uid = _students(pg_app, 1)[0]
+    waiting = threading.Event()
+    def observe(_conn, _cursor, statement, _parameters, _context, _many):
+        if 'FROM slots' in statement and 'FOR UPDATE' in statement:
+            waiting.set()
+    with pg_app.state.SessionLocal() as staff_db:
+        slot = staff_db.scalar(select(Slot).where(Slot.id == sid).with_for_update())
+        event.listen(pg_app.state.engine, 'before_cursor_execute', observe)
+        try:
+            def attempt():
+                with pg_app.state.SessionLocal() as db:
+                    try:
+                        booking_service.book(db, db.get(User, uid), sid)
+                        return 'accepted'
+                    except Conflict as error:
+                        return error.code
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(attempt)
+                try:
+                    assert waiting.wait(5), 'booking did not acquire slot lock'
+                    now = utcnow()
+                    slot.start_at, slot.end_at = now + timedelta(minutes=5), now + timedelta(minutes=35)
+                    staff_db.commit()
+                finally:
+                    staff_db.rollback()  # Do not strand the worker if an assertion fails.
+                assert future.result(timeout=10) == 'booking_deadline'
+        finally:
+            event.remove(pg_app.state.engine, 'before_cursor_execute', observe)
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Booking)) == 0
+        assert db.get(Slot, sid).booked_count == 0
