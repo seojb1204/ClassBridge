@@ -11,11 +11,12 @@ from app.models.suggestion import Suggestion, SuggestionReply
 from app.services import feedback_management
 from tests.conftest import PG_URL, login
 from tests.integration.test_suggestion_trash import add_rows
+from tests.postgres.test_pg import pg_app  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not PG_URL, reason="TEST_PG_URL 미설정")
 
 
-def test_selected_delete_vs_restore_is_atomic(pg_app):
+def test_selected_delete_vs_restore_is_atomic(pg_app):  # noqa: F811
     prof = login(pg_app, 'prof@test.ac.kr')
     ids = add_rows(pg_app)
     barrier = Barrier(2)
