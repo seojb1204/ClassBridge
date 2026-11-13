@@ -74,6 +74,8 @@ class Settings:
         return self.env == "production"
 
     def validate(self) -> None:
+        if self.env not in {"development", "test", "production"}:
+            raise ConfigError("APP_ENV must be development|test|production")
         if self.push_enabled:
             if not all((self.push_public_key, self.push_private_key,
                         self.push_professor_email, self.push_contact_email)):
