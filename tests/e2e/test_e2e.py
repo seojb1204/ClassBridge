@@ -224,7 +224,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     student = Session(browser, base, "notice-student@test.ac.kr", MOBILE)
     student.go("/booking")
     assert student.page.locator(".announcement-panel").count() == 0
-    prof.page.locator(".calendar-support > summary").click()
+    assert prof.page.locator(".calendar-support").get_attribute("open") is not None
     prof.page.get_by_role("button", name="공지 수정", exact=True).click()
     prof.page.get_by_label("공개 상태").select_option("true")
     prof.page.get_by_role("button", name="공지 저장", exact=True).click()

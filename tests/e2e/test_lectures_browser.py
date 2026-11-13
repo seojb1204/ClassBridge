@@ -139,7 +139,8 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     p.locator(".day-chips").wait_for()
     assert p.locator(".day-chips .chip").count() == 7
     p.locator(".day-chips .chip").last.click()
-    p.locator('.chip[aria-selected="true"]').wait_for()
+    expect(p.locator(".day-chips .chip").last).to_have_attribute("aria-selected", "true")
+    expect(p.locator(".daily .card.slot.open").first).to_be_visible()
     assert p.locator(".daily .card.slot.open").count() == 1
     if path == "/slots":
         assert p.locator(".daily .card.slot.lecture").count() == 1
