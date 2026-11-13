@@ -201,19 +201,21 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
             window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 100);
             e.scrollTop = down ? e.scrollHeight : 0;
         }""", direction == 1)
-        p.wait_for_timeout(100)
+        p.wait_for_timeout(500)
         before = p.evaluate("scrollY")
         box = grid.bounding_box()
         # Dispatch native touch input with touch emulation explicitly enabled.
         x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        p.wait_for_timeout(80)
         for step in range(1, 11):
             cdp.send("Input.dispatchTouchEvent", {
                 "type": "touchMove", "touchPoints": [{"x": x, "y": y - direction * step * 14}],
             })
-            p.wait_for_timeout(20)
+            p.wait_for_timeout(40)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-        p.wait_for_timeout(300)
+        p.wait_for_function("([before, direction]) => (scrollY - before) * direction > 20",
+                            arg=[before, direction], timeout=5000)
         diagnostics = {
             "direction": direction, "before": before, "after": p.evaluate("scrollY"),
             "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
