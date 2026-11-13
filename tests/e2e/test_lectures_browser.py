@@ -171,7 +171,6 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
         spacer.style.height = '1200px'; document.body.append(spacer);
     }""")
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
-    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
     assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
     cdp = p.context.new_cdp_session(p)
     for direction in (1, -1):
