@@ -33,7 +33,13 @@ def test_one_click_same_id_change_beyond_new_booking_horizon(server, browser, vi
     requests = []
     student.page.on("request", lambda request: requests.append(request.url)
                     if request.method == "POST" and "/api/bookings" in request.url else None)
+    available = student.ctx.request.get(base + "/api/slots/available-days").json()
+    assert any(day["date"] == far_day.isoformat() for day in available), available
     student.go("/booking")
+    # Fixtures were seeded through the API after the initial browser render.
+    # Navigating to the unchanged hash need not reload that already-ready view.
+    student.page.reload()
+    student.page.wait_for_selector('body[data-ready="/booking"]')
     panel = student.page.locator(".available-days")
     if panel.get_by_role("button", name="전체 일정 보기", exact=True).count():
         panel.get_by_role("button", name="전체 일정 보기", exact=True).click()
