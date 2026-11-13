@@ -165,8 +165,11 @@ function renderWeekly(o, byDay) {
       const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s),
         "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
-        h("span", { class: "slot-meta" }, slotLabel(s)),
-        o.extra ? o.extra(s) : null);
+        h("span", { class: "slot-meta" }, o.compactGrid
+          ? (s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
+            : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
+          : slotLabel(s)),
+        o.extra && !o.compactGrid ? o.extra(s) : null);
       // CSS grid line numbers must be integers (e.g. a 09:05 lecture).
       btn.style.gridRow = `${Math.floor(start / STEP) + 2} / ${Math.ceil(end / STEP) + 2}`;
       btn.style.marginTop = `${1 + (start % STEP) * rowPx / STEP}px`;

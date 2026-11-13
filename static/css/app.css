@@ -538,3 +538,9 @@ textarea { line-height: 1.75; }
   .mobile-tabs { padding-left: max(.4rem, env(safe-area-inset-left, 0px));
     padding-right: max(.4rem, env(safe-area-inset-right, 0px)); }
 }
+
+@media (max-width: 720px) {
+  .mobile-grid-wrap .slot.open { background: #fbebdf; color: #78320f; border: 1px solid #c59475; }
+  .mobile-grid-wrap .slot.open:hover, .mobile-grid-wrap .slot.open:focus-visible { background: #f5dac7; }
+  .mobile-grid-wrap .slot.lecture { background: #e6ece3; color: #29442c; border-color: #7d9276; }
+}
