@@ -154,7 +154,7 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
 
 
 @pytest.mark.parametrize("mode", ["주간", "3일"])
-@pytest.mark.parametrize("width", [360, 390])
+@pytest.mark.parametrize("width", [390, 360])
 def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, width):  # noqa: F811
     from datetime import date, timedelta
     from urllib.parse import parse_qs, urlparse
