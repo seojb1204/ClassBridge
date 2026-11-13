@@ -496,3 +496,6 @@ textarea { line-height: 1.75; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* Lectures are staff calendar events, not bookable slots. */
+.slot.lecture { background: #e6ece3; color: #29442c; border: 1px solid #7d9276; border-inline-start: 4px solid #526b49; }

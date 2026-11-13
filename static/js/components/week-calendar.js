@@ -23,7 +23,7 @@ export function revealSelectedDay(root) {
 
 function dayCount(o, slots) {
   return o.dayCountMode === "booked"
-    ? slots.filter(s => s.status !== "cancelled").reduce((sum, s) => sum + (s.bookingCount || 0), 0)
+    ? slots.filter(s => s.event_type !== "lecture" && s.status !== "cancelled").reduce((sum, s) => sum + (s.bookingCount || 0), 0)
     : slots.filter(s => s.bookable === true).length;
 }
 
@@ -39,7 +39,14 @@ export function onLayoutChange(cb) {
   return detach;
 }
 
+// Consultation slots and lectures can intentionally coexist on the same time axis.
+function sharingLane(slot, events) {
+  return events.some(other => other !== slot && (other.event_type === "lecture") !== (slot.event_type === "lecture")
+    && new Date(other.start_at) < new Date(slot.end_at) && new Date(other.end_at) > new Date(slot.start_at));
+}
+
 function slotClass(s) {
+  if (s.event_type === "lecture") return "slot lecture";
   if (s.managerState === "reserved") return "slot reserved";
   if (s.status === "cancelled") return "slot cancelled";
   if (s.mine) return "slot mine";
@@ -48,6 +55,7 @@ function slotClass(s) {
 }
 
 function slotLabel(s) {
+  if (s.event_type === "lecture") return `강의 · ${s.title}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
   if (s.managerState === "free") return "빈 상담";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";
@@ -89,7 +97,7 @@ function renderWeekly(o, byDay) {
     maxH = Math.min(24, Math.max(...ends) + 1);
   }
   const rows = ((maxH - minH) * 60) / STEP;
-  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "주간 상담 시간표" });
+  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "주간 시간표" });
   grid.style.gridTemplateRows = `auto repeat(${rows}, 18px)`;
   grid.append(h("div", { class: "corner" }));
   for (let d = 0; d < 7; d++) {
@@ -122,6 +130,10 @@ function renderWeekly(o, byDay) {
         o.extra ? o.extra(s) : null);
       btn.style.gridRow = `${start / STEP + 2} / ${Math.max(end / STEP + 2, start / STEP + 3)}`;
       btn.style.gridColumn = String(d + 2);
+      if (sharingLane(s, o.slots)) {
+        btn.style.width = "calc(50% - 4px)";
+        btn.style.justifySelf = s.event_type === "lecture" ? "end" : "start";
+      }
       grid.append(btn);
     }
   }
@@ -157,10 +169,10 @@ function renderDaily(o, byDay) {
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
       o.extra ? o.extra(s) : null)));
   return h("div", { class: "daily" }, chips,
-    h("h3", { class: "daily-title", tabindex: "-1" }, `${fmtDate(sel)} · 상담 시간`),
+    h("h3", { class: "daily-title", tabindex: "-1" }, `${fmtDate(sel)} · 일정`),
     o.mobileListOnly ? null : toggle,
     list.length ? (mode === "timeline" ? renderDailyTimeline(o, list, sel) : cards)
-      : h("p", { class: "empty" }, "이 날은 등록된 상담 시간이 없습니다. 다른 날짜를 선택해 주세요."));
+      : h("p", { class: "empty" }, "이 날은 등록된 일정이 없습니다. 다른 날짜를 선택해 주세요."));
 }
 
 // On narrow screens display one day on a true time axis instead of squeezing
@@ -173,7 +185,7 @@ function renderDailyTimeline(o, slots, day) {
   const pxPerMinute = 1.6; // 30 min = 48 px; 60 min = 96 px
   const height = (maxH - minH) * 60 * pxPerMinute;
   const axis = h("div", { class: "day-timeline", role: "group",
-    "aria-label": `${fmtDate(day)} 일간 상담 시간표` });
+    "aria-label": `${fmtDate(day)} 일간 시간표` });
   axis.style.height = `${height}px`;
   for (let hour = minH; hour <= maxH; hour++) {
     const line = h("div", { class: "day-timeline-hour" },
@@ -193,6 +205,10 @@ function renderDailyTimeline(o, slots, day) {
     h("span", { class: "slot-meta" }, slotLabel(s)));
     button.style.top = `${from * pxPerMinute}px`;
     button.style.height = `${Math.max(44, (to - from) * pxPerMinute - 2)}px`;
+    if (sharingLane(s, slots)) {
+      button.style.width = "calc((100% - 64px) / 2 - 4px)";
+      if (s.event_type === "lecture") button.style.left = "calc(64px + (100% - 64px) / 2)";
+    }
     axis.append(button);
   }
   return axis;
