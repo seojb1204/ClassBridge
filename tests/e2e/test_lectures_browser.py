@@ -156,21 +156,38 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
 @pytest.mark.parametrize("mode", ["주간", "3일"])
 @pytest.mark.parametrize("width", [360, 390])
 def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, width):  # noqa: F811
+    from datetime import date, timedelta
+    from urllib.parse import parse_qs, urlparse
+
     from playwright.sync_api import expect
 
     base, _ = server
     session = Session(browser, base, "prof@test.ac.kr", {"width": width, "height": 640}, service_workers="block")
     p = session.page
+    def tall_calendar(route):
+        start = date.fromisoformat(parse_qs(urlparse(route.request.url).query)["start"][0])
+        start -= timedelta(days=start.weekday())
+        route.fulfill(json=[{
+            "id": 99000 + i, "start_at": f"{start + timedelta(days=i)}T09:00:00+09:00",
+            "end_at": f"{start + timedelta(days=i)}T17:00:00+09:00",
+            "kind": "individual", "capacity": 1, "remaining": 1, "status": "open",
+            "bookable": True, "mine": False, "location": "", "note": "", "reason": "",
+        } for i in range(7)])
+
+    p.route("**/api/slots?*", tall_calendar)
+    p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
+    p.reload()
     session.go("/slots")
     p.get_by_role("button", name=mode, exact=True).click()
     grid = p.locator(".mobile-grid-wrap")
-    grid.wait_for()
+    expect(grid.locator(".slot")).to_have_count(7 if mode == "주간" else 3)
     # Keep both outer directions scrollable independently of fixture event count.
     p.evaluate("""() => {
         const spacer = document.createElement('div');
         spacer.style.height = '1200px'; document.body.append(spacer);
     }""")
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
     assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
     cdp = p.context.new_cdp_session(p)
     for direction in (1, -1):
