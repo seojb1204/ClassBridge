@@ -181,7 +181,7 @@ Migration 0011 only adds the per-professor inbox table; no historical records ar
 reclassified or backfilled. Booking event notices persist atomically even when
 external channels are disabled or no push device is registered. The app inbox
 is refreshed on opening or explicit refresh, not by background polling. New
-suggestions use content-free notices delayed randomly 5–10 minutes; no author,
+suggestions use immediately eligible content-free notices; no author,
 suggestion ID or text is retained in notices. Timing anonymity is limited as
 explained in anonymity.md. Existing push opt-in and valid-session checks remain;
 Android Chrome is the supported push provider. External provider acceptance is
@@ -200,15 +200,15 @@ cannot access staff inbox routes. Existing mobile More navigation remains availa
 External suggestion push/email eligibility is unchanged (professor-only); this
 release expands only the app inbox and never registers devices or changes opt-in.
 No migration or historical backfill is performed. Notification UI fetches on boot,
-explicit opening/refresh and read changes, not on an interval. Delayed suggestion
-availability remains 5–10 minutes and unread counts exclude not-yet-due records.
+explicit opening/refresh and read changes, not on an interval. New suggestion notices are immediately eligible; historical delayed records keep
+their original schedule and unread counts exclude not-yet-due records.
 
 ## Inbox order and suggestion organization
 
 Notifications sort by availability/delivery eligibility (descending), not insertion
 ID. Delayed suggestions can therefore arrive in a different order from submission.
 Equal availability uses ID descending as deterministic tie-breaker. Own-visible
-`before_id` cursors permit browsing past 100 notices without exposing timestamps;
+`before_id` cursors permit browsing past 100 notices;
 unread is a separate filter, not an implicit prioritization that disrupts recency.
 Existing rows are not rewritten and paused email settings are untouched.
 
@@ -221,3 +221,18 @@ Relevant patterns are explicit filters/order, unread versus state separation,
 compact detail expansion and reversible archiving. No user content is sent to
 those services. Precise anonymous suggestion submission times, author tracking,
 automatic publication and external AI classification are deliberately excluded.
+
+## Immediate suggestion notices and notification time
+
+New suggestions use the existing transaction's current UTC time as inbox availability
+and external-send eligibility, without a random delay. Existing delayed inbox/outbox
+rows remain untouched: no bulk release, replay, duplicate notice, or backfill.
+The existing available_at field already stores subsecond timestamps; no migration is
+needed. API arrived_at reports KST ISO seconds, UI shows KST hours/minutes. Sorting
+continues on full available_at then id DESC, even within the same displayed minute.
+The label means first eligible app-inbox time, not submission or device-receipt time.
+Old delayed records show their original eligibility time, never a reconstructed
+submission time. New immediate timing can reveal the submission moment, so submission
+and privacy notices explicitly describe inference risk. No suggestion ID/content/author
+is added to notices. Email pause, push consent/session checks, no polling, and transaction
+rollback remain intact. Actual external receipt still depends on the worker/provider/device.

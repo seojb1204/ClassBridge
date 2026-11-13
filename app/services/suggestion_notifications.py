@@ -1,7 +1,6 @@
-"""Anonymous, delayed suggestion notices. Never retain a suggestion reference."""
-import secrets
+"""Anonymous, immediately eligible suggestion notices. Never retain a suggestion reference."""
 import uuid
-from datetime import time, timedelta
+from datetime import time
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -16,9 +15,9 @@ from app.timeutil import kst_date, kst_to_utc
 def enqueue(db, now):
     day = kst_date(now)
     bucket = kst_to_utc(day, time.min)
-    due = now + timedelta(seconds=300 + secrets.randbelow(301))
+    due = now
     key = uuid.uuid4().hex
-    # No suggestion/author link; scheduling metadata can still reveal a broad time window.
+    # No suggestion/author link; notification timing can reveal the submission time.
     inbox.enqueue(db, f"suggestion-{key}", "suggestion", available_at=due)
     settings = db.info.get("settings")
     if not settings or not (settings.gmail_notifications_enabled or settings.push_enabled):

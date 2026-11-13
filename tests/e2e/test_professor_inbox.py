@@ -14,7 +14,7 @@ def test_professor_inbox_read_and_refresh(server, browser, viewport):  # noqa: F
     prof = Session(browser, base, "prof@test.ac.kr", viewport, service_workers="block")
     calls = []
     item = {"id": 1, "kind": "created", "title": "새 상담 예약", "body": "예약 관리에서 확인하세요.",
-            "url": "#/bookings", "created_on": "2026-11-13", "read": False}
+            "url": "#/bookings", "created_on": "2026-11-13", "arrived_at": "2026-11-13T10:02:43+09:00", "read": False}
     def inbox(route):
         calls.append(route.request.method)
         if route.request.method == "PUT":
@@ -26,6 +26,7 @@ def test_professor_inbox_read_and_refresh(server, browser, viewport):  # noqa: F
     prof.go("/inbox")
     prof.page.get_by_role("heading", name="내 알림", exact=True).wait_for()
     prof.page.get_by_text("읽지 않은 알림 1건", exact=True).wait_for()
+    prof.page.get_by_text("알림 시각 2026-11-13 10:02 (한국시간)", exact=True).wait_for()
     prof.page.get_by_role("button", name="읽음 표시", exact=True).click()
     prof.page.get_by_text("읽지 않은 알림 0건", exact=True).wait_for()
     assert calls.count("PUT") == 1
@@ -42,7 +43,7 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
     staff = Session(browser, base, email, viewport, service_workers='block')
     calls = []
     item = {'id': 1, 'kind': 'created', 'title': '새 상담 예약', 'body': '예약 관리에서 확인하세요.',
-            'url': '#/bookings', 'created_on': '2026-11-13', 'read': False}
+            'url': '#/bookings', 'created_on': '2026-11-13', 'arrived_at': '2026-11-13T00:05:59+09:00', 'read': False}
     def inbox(route):
         calls.append(route.request.method)
         if route.request.method == 'PUT':
@@ -57,6 +58,7 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
     bell.click()
     panel = staff.page.get_by_role('region', name='알림 모아보기')
     panel.get_by_text('새 상담 예약', exact=True).wait_for()
+    panel.get_by_text('알림 시각 2026-11-13 00:05 (한국시간)', exact=True).wait_for()
     panel.get_by_role('button', name='읽음 표시', exact=True).click()
     staff.page.get_by_role('button', name='알림 열기', exact=True).wait_for()
     panel.get_by_role('button', name='닫기', exact=True).focus()
