@@ -33,3 +33,55 @@ def test_professor_inbox_read_and_refresh(server, browser, viewport):  # noqa: F
     prof.page.get_by_role("button", name="알림 새로고침").click()
     assert prof.page.get_by_role("button", name="읽음", exact=True).is_disabled()
     prof.ctx.close()
+
+
+@pytest.mark.parametrize('email', ['prof@test.ac.kr', 'admin@test.ac.kr'])
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport, email):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, email, viewport, service_workers='block')
+    calls = []
+    item = {'id': 1, 'kind': 'created', 'title': '새 상담 예약', 'body': '예약 관리에서 확인하세요.',
+            'url': '#/bookings', 'created_on': '2026-11-13', 'read': False}
+    def inbox(route):
+        calls.append(route.request.method)
+        if route.request.method == 'PUT':
+            item['read'] = True
+            route.fulfill(json={'ok': True})
+        else:
+            route.fulfill(json={'items': [item], 'unread': int(not item['read'])})
+    staff.page.route('**/api/inbox**', inbox)
+    staff.page.reload()
+    bell = staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 1건', exact=True)
+    bell.wait_for()
+    bell.click()
+    panel = staff.page.get_by_role('region', name='알림 모아보기')
+    panel.get_by_text('새 상담 예약', exact=True).wait_for()
+    panel.get_by_role('button', name='읽음 표시', exact=True).click()
+    staff.page.get_by_role('button', name='알림 열기', exact=True).wait_for()
+    panel.get_by_role('button', name='닫기', exact=True).focus()
+    staff.page.keyboard.press('Escape')
+    assert staff.page.locator('#inbox-popover').is_hidden()
+    assert staff.page.locator('.inbox-bell').evaluate('e => e === document.activeElement')
+    assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
+    assert calls.count('PUT') == 1
+    if viewport == MOBILE:
+        button_box = staff.page.locator('.inbox-bell').bounding_box()
+        assert button_box['y'] < 70 and button_box['x'] > viewport['width'] / 2
+        staff.page.get_by_role('button', name='더보기 메뉴').click()
+        staff.page.locator('#nav').get_by_role('link', name='내 알림', exact=True).wait_for()
+    staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_student_has_no_staff_bell_or_inbox_requests(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    student = Session(browser, base, 'bell-student@example.test', viewport, service_workers='block')
+    calls = []
+    student.page.on('request', lambda request: calls.append(request.url) if '/api/inbox' in request.url else None)
+    student.page.reload()
+    student.page.wait_for_selector('body[data-ready="/booking"]')
+    assert student.page.locator('.inbox-bell').count() == 0
+    assert student.page.locator('#nav a[href="#/inbox"]').count() == 0
+    assert calls == []
+    student.ctx.close()

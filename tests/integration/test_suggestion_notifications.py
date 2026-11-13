@@ -32,7 +32,7 @@ def test_anonymous_notices_without_content_or_identity(app, clients):
         assert row.created_at.hour == 15 and row.created_at.minute == 0 and row.created_at.second == 0
         assert 300 <= (row.next_attempt_at - NOW).total_seconds() <= 600
         inbox_rows = list(db.scalars(select(InboxNotification)))
-        assert len(inbox_rows) == 2
+        assert len(inbox_rows) == 4
         assert {r.available_at for r in inbox_rows} == {r.next_attempt_at for r in db.scalars(select(Notification))}
         assert row.recipient == PROF
         assert row.status == "pending"

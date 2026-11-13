@@ -9,6 +9,7 @@ export async function render(root) {
     refresh.disabled = true;
     try {
       const data = await get("/api/inbox");
+      window.dispatchEvent(new CustomEvent("inbox-count", { detail: data.unread }));
       count.textContent = `읽지 않은 알림 ${data.unread}건`;
       mount(list, ...data.items.map(item => {
         const read = h("button", { class: "btn small", type: "button", disabled: item.read }, item.read ? "읽음" : "읽음 표시");

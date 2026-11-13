@@ -21,7 +21,7 @@ def test_booking_inbox_without_external_channels(app, clients):
     assert clients['prof'].put(f"/api/inbox/{item['id']}/read").status_code == 200
     assert clients['prof'].get('/api/inbox').json()['unread'] == 0
     assert clients['s1'].get('/api/inbox').status_code == 403
-    assert clients['admin'].get('/api/inbox').status_code == 403
+    assert clients['admin'].get('/api/inbox').status_code == 200
     assert clients['s1'].put(f"/api/inbox/{item['id']}/read").status_code == 403
 
 
@@ -31,11 +31,11 @@ def test_scoped_deduplicated_and_transactional(app, clients):
         enqueue(db, 'suggestion-day-2026-11-13', 'suggestion')
         db.commit()
         rows = db.scalars(select(InboxNotification)).all()
-        assert len(rows) == 1
-        first_id = rows[0].id
+        assert len(rows) == 2
+        first_id = next(r.id for r in rows if r.recipient_id == clients['prof'].me['id'])
         enqueue(db, 'rollback-test', 'created')
         db.rollback()
-        assert len(db.scalars(select(InboxNotification)).all()) == 1
+        assert len(db.scalars(select(InboxNotification)).all()) == 2
         user = db.scalar(select(User).where(User.email == 's2@test.ac.kr'))
         user.role = 'professor'
         db.commit()
@@ -45,7 +45,7 @@ def test_scoped_deduplicated_and_transactional(app, clients):
     with app.state.SessionLocal() as db:
         enqueue(db, 'new-event', 'changed')
         db.commit()
-        assert len(db.scalars(select(InboxNotification)).all()) == 3
+        assert len(db.scalars(select(InboxNotification)).all()) == 5
 
 
 def test_inactive_professor_gets_no_new_rows(app, clients):
@@ -55,7 +55,8 @@ def test_inactive_professor_gets_no_new_rows(app, clients):
         db.flush()
         enqueue(db, 'inactive', 'created')
         db.commit()
-        assert not db.scalars(select(InboxNotification)).all()
+        assert not db.scalars(select(InboxNotification).where(
+            InboxNotification.recipient_id == professor.id)).all()
 
 
 def test_inbox_migration_preserves_data_and_refuses_loss(tmp_path):
@@ -94,7 +95,8 @@ def test_delayed_suggestion_not_visible_or_markable(app, clients):
     with app.state.SessionLocal() as db:
         enqueue(db, 'delayed', 'suggestion', available_at=utcnow() + timedelta(minutes=10))
         db.commit()
-        row = db.scalar(select(InboxNotification))
+        row = db.scalar(select(InboxNotification).where(
+            InboxNotification.recipient_id == clients['prof'].me['id']))
         nid = row.id
     assert clients['prof'].get('/api/inbox').json() == {'items': [], 'unread': 0}
     assert clients['prof'].put(f'/api/inbox/{nid}/read').status_code == 404
@@ -103,3 +105,55 @@ def test_delayed_suggestion_not_visible_or_markable(app, clients):
         db.commit()
     assert clients['prof'].get('/api/inbox').json()['unread'] == 1
     assert clients['prof'].put(f'/api/inbox/{nid}/read').status_code == 200
+
+
+def test_admin_inbox_is_private_and_does_not_mark_professors_read(app, clients):
+    sid = make_slots(clients['prof'])[0]
+    assert clients['s1'].post('/api/bookings', json={'slot_id': sid}).status_code == 201
+    prof_item = clients['prof'].get('/api/inbox').json()['items'][0]
+    admin_result = clients['admin'].get('/api/inbox').json()
+    assert admin_result['unread'] == 1
+    admin_item = admin_result['items'][0]
+    assert admin_item['id'] != prof_item['id']
+    assert clients['admin'].put(f"/api/inbox/{prof_item['id']}/read").status_code == 404
+    assert clients['prof'].put(f"/api/inbox/{admin_item['id']}/read").status_code == 404
+    assert clients['admin'].put(f"/api/inbox/{admin_item['id']}/read").status_code == 200
+    assert clients['admin'].get('/api/inbox').json()['unread'] == 0
+    assert clients['prof'].get('/api/inbox').json()['unread'] == 1
+
+
+def test_admin_suggestion_delay_and_permission_revocation(app, clients):
+    from datetime import timedelta
+
+    from app.db import utcnow
+    from app.services import suggestion_service
+    now = utcnow()
+    with app.state.SessionLocal() as db:
+        suggestion_service.save(db, 'other', 'private synthetic suggestion', False, now)
+        row = db.scalar(select(InboxNotification).where(
+            InboxNotification.recipient_id == clients['admin'].me['id']))
+        nid = row.id
+        assert 300 <= (row.available_at - now).total_seconds() <= 600
+    assert clients['admin'].get('/api/inbox').json() == {'items': [], 'unread': 0}
+    assert clients['admin'].put(f'/api/inbox/{nid}/read').status_code == 404
+    with app.state.SessionLocal.begin() as db:
+        db.get(InboxNotification, nid).available_at = utcnow() - timedelta(seconds=1)
+    result = clients['admin'].get('/api/inbox').json()
+    assert result['unread'] == 1
+    assert 'private synthetic suggestion' not in str(result)
+    with app.state.SessionLocal.begin() as db:
+        user = db.get(User, clients['admin'].me['id'])
+        user.role = 'student'
+    assert clients['admin'].get('/api/inbox').status_code == 403
+    assert clients['admin'].put(f'/api/inbox/{nid}/read').status_code == 403
+
+
+def test_inactive_admin_gets_no_new_notices_or_access(app, clients):
+    with app.state.SessionLocal.begin() as db:
+        admin = db.get(User, clients['admin'].me['id'])
+        admin.is_active = False
+        db.flush()
+        enqueue(db, 'inactive-admin-test', 'created')
+        assert not db.scalars(select(InboxNotification).where(
+            InboxNotification.recipient_id == admin.id)).all()
+    assert clients['admin'].get('/api/inbox').status_code == 401

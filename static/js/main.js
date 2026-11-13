@@ -1,3 +1,4 @@
+import { inboxBell } from "./components/inbox-bell.js";
 import { navIcon } from "./components/nav-icon.js";
 import { personalAlerts, pushButton } from "./push.js";
 import { initializePwa, installButton, isStandalone } from "./pwa.js";
@@ -31,7 +32,7 @@ function registerRoutes() {
   route("/booking", "booking:self", studentBooking.render, "상담 예약");
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
   route("/personal", "booking:manage", personalAlerts);
-  if (state.me.role === "professor") route("/inbox", "booking:manage", inbox.render, "내 알림");
+  if (["professor", "admin"].includes(state.me.role)) route("/inbox", "booking:manage", inbox.render, "내 알림");
   route("/bookings/today", "booking:manage", profBookings.todayBookings);
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
@@ -102,6 +103,7 @@ function renderChrome() {
       pushButton('desktop-help-link'),
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
+  if (["professor", "admin"].includes(state.me.role)) document.querySelector(".topbar").append(inboxBell());
   nav.addEventListener("click", () => {
     nav.classList.remove("open");
     document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
