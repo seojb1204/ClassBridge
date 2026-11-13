@@ -34,7 +34,7 @@ export function inboxBell() {
             catch (err) { read.disabled = false; toast(err.message, "error"); }
           };
           return h("article", { class: "inbox-preview" }, h("h3", {}, item.title), h("p", {}, item.body),
-            h("small", {}, `알림 도착일 ${item.arrived_on || item.created_on}`), h("div", { class: "actions" },
+            h("small", {}, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`), h("div", { class: "actions" },
               h("a", { class: "btn small", href: item.url, onclick: () => close() }, "내용 확인"), read));
         }),
         !data.items.length ? h("p", {}, "새 알림이 없습니다.") : null,

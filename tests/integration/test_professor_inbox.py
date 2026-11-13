@@ -123,9 +123,7 @@ def test_admin_inbox_is_private_and_does_not_mark_professors_read(app, clients):
     assert clients['prof'].get('/api/inbox').json()['unread'] == 1
 
 
-def test_admin_suggestion_delay_and_permission_revocation(app, clients):
-    from datetime import timedelta
-
+def test_admin_suggestion_immediate_and_permission_revocation(app, clients):
     from app.db import utcnow
     from app.services import suggestion_service
     now = utcnow()
@@ -134,11 +132,7 @@ def test_admin_suggestion_delay_and_permission_revocation(app, clients):
         row = db.scalar(select(InboxNotification).where(
             InboxNotification.recipient_id == clients['admin'].me['id']))
         nid = row.id
-        assert 300 <= (row.available_at - now).total_seconds() <= 600
-    assert clients['admin'].get('/api/inbox').json() == {'items': [], 'unread': 0, 'has_more': False, 'next_before_id': None}
-    assert clients['admin'].put(f'/api/inbox/{nid}/read').status_code == 404
-    with app.state.SessionLocal.begin() as db:
-        db.get(InboxNotification, nid).available_at = utcnow() - timedelta(seconds=1)
+        assert row.available_at == now
     result = clients['admin'].get('/api/inbox').json()
     assert result['unread'] == 1
     assert 'private synthetic suggestion' not in str(result)
@@ -226,4 +220,17 @@ def test_midnight_arrival_date_is_not_enqueue_day(app, clients, monkeypatch):
     item = clients['prof'].get('/api/inbox').json()['items'][0]
     assert item['created_on'] == '2026-11-14'
     assert item['arrived_on'] == '2026-11-15'
+    assert item['arrived_at'] == '2026-11-15T00:05:00+09:00'
     assert 'available_at' not in item
+
+
+def test_second_precision_order_within_displayed_minute(app, clients, monkeypatch):
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 11, 13, 1, 2, 59, tzinfo=timezone.utc)
+    monkeypatch.setattr('app.routers.inbox.utcnow', lambda: now)
+    with app.state.SessionLocal.begin() as db:
+        enqueue(db, 'newer-second-first-insert', 'suggestion', available_at=now)
+        enqueue(db, 'older-second-later-insert', 'created', available_at=now.replace(second=1))
+    items = clients['prof'].get('/api/inbox').json()['items']
+    assert [i['arrived_at'] for i in items] == ['2026-11-13T10:02:59+09:00', '2026-11-13T10:02:01+09:00']

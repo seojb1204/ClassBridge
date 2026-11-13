@@ -18,7 +18,7 @@ export async function render(root) {
         catch (e) { read.disabled = false; toast(e.message, "error"); }
       };
       return h("article", { class: "panel", dataset: { notificationId: item.id } }, h("h2", {}, item.title),
-        h("p", {}, item.body), h("small", { class: "muted" }, `알림 도착일 ${item.arrived_on || item.created_on}`),
+        h("p", {}, item.body), h("small", { class: "muted" }, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`),
         h("div", { class: "actions" }, h("a", { class: "btn small", href: item.url }, "내용 확인"), read));
     }));
     if (!items.length) mount(list, h("p", { class: "empty" }, unreadOnly ? "읽지 않은 알림이 없습니다." : "새 알림이 없습니다. 기능 적용 후 접수된 알림부터 표시됩니다."));
@@ -50,7 +50,7 @@ export async function render(root) {
   all.onclick = () => filter(false); unread.onclick = () => filter(true);
   refresh.onclick = () => draw(true); more.onclick = () => draw(false);
   mount(root, h("h1", {}, "내 알림"),
-    h("p", { class: "hint" }, "최근 도착한 알림부터 표시합니다. 건의 접수 알림은 5~10분 지연되며 제출 순서와 다를 수 있습니다. 화면을 열거나 새로고침할 때 갱신합니다."),
+    h("p", { class: "hint" }, "알림 시각 최신순으로 표시합니다. 새 건의는 접수 즉시 알림을 생성합니다. 화면을 열거나 새로고침할 때 갱신합니다. 알림 시각은 앱에서 확인 가능해진 시각이며 실제 휴대폰 수신 시각이 아닙니다. 이전 지연 알림은 당시 예정 시각을 표시하며 제출 시각을 뜻하지 않습니다."),
     h("a", { class: "btn small", href: "#/personal" }, "휴대폰 알림 설정"), count,
     h("div", { class: "toolbar" }, all, unread, refresh), list, more);
   await draw();

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.db import utcnow
 from app.models import User
 from app.models.inbox import InboxNotification
-from app.timeutil import kst_date
+from app.timeutil import kst_date, to_kst
 
 LABELS = {"created": "새 상담 예약", "changed": "상담 예약 변경", "cancelled": "상담 예약 취소",
           "slot_changed": "상담 정보 변경", "suggestion": "새 건의 접수"}
@@ -29,4 +29,5 @@ def public_item(row):
                 else "상담 예약 관련 변경이 있습니다. 예약 관리에서 확인하세요.",
             "url": "/#/suggestions" if suggestion else "/#/bookings",
             "created_on": row.created_on.isoformat(), "arrived_on": kst_date(row.available_at).isoformat(),
+            "arrived_at": to_kst(row.available_at).isoformat(timespec="seconds"),
             "read": row.read_at is not None}

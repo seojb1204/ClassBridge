@@ -30,7 +30,7 @@ def test_anonymous_notices_without_content_or_identity(app, clients):
         assert row.payload == {"kind": "suggestion", "url": app.state.settings.base_url + "/#/suggestions"}
         assert row.booking_id == 0
         assert row.created_at.hour == 15 and row.created_at.minute == 0 and row.created_at.second == 0
-        assert 300 <= (row.next_attempt_at - NOW).total_seconds() <= 600
+        assert row.next_attempt_at == NOW
         inbox_rows = list(db.scalars(select(InboxNotification)))
         assert len(inbox_rows) == 4
         assert {r.available_at for r in inbox_rows} == {r.next_attempt_at for r in db.scalars(select(Notification))}
@@ -142,3 +142,55 @@ def test_uncertain_suggestion_does_not_block_next(app, clients):
     sender.send.return_value = "mock accepted"
     assert deliver_one(app.state.SessionLocal, sender, app.state.settings)
     assert sender.send.call_count == 1
+
+
+def test_immediate_new_notice_preserves_legacy_delayed_queue(app, clients, monkeypatch):
+    from datetime import timedelta
+    from unittest.mock import Mock
+
+    from app.services.notifications import deliver_one
+
+    enable(app)
+    legacy_due = NOW + timedelta(minutes=7)
+    with app.state.SessionLocal() as db:
+        suggestion_service.save(db, "other", "legacy synthetic", False, NOW)
+        old = db.scalar(select(Notification))
+        old.next_attempt_at = legacy_due
+        for row in db.scalars(select(InboxNotification)):
+            row.available_at = legacy_due
+        db.commit()
+        old_id = old.id
+        suggestion_service.save(db, "other", "new synthetic", False, NOW)
+        assert db.scalar(select(func.count()).select_from(Notification)) == 2
+        assert db.get(Notification, old_id).next_attempt_at == legacy_due
+    monkeypatch.setattr('app.services.notifications.utcnow', lambda: NOW)
+    sender = Mock()
+    sender.send.return_value = "synthetic accepted"
+    assert deliver_one(app.state.SessionLocal, sender, app.state.settings)
+    assert sender.send.call_count == 1
+    assert not deliver_one(app.state.SessionLocal, sender, app.state.settings)
+    with app.state.SessionLocal() as db:
+        assert db.get(Notification, old_id).status == "pending"
+        assert db.get(Notification, old_id).next_attempt_at == legacy_due
+        assert db.scalar(select(func.count()).select_from(Notification).where(Notification.status == "sent")) == 1
+    monkeypatch.setattr('app.services.notifications.utcnow', lambda: legacy_due)
+    assert deliver_one(app.state.SessionLocal, sender, app.state.settings)
+    assert sender.send.call_count == 2
+    assert not deliver_one(app.state.SessionLocal, sender, app.state.settings)
+    with app.state.SessionLocal() as db:
+        assert db.get(Notification, old_id).status == "sent"
+
+
+def test_paused_email_stays_paused_with_immediate_inbox(app, clients):
+    from app.models import AppSetting
+    from app.services.personal_alerts import EMAIL_PAUSED
+
+    enable(app)
+    with app.state.SessionLocal() as db:
+        db.add(AppSetting(key=EMAIL_PAUSED, value=True))
+        db.commit()
+        suggestion_service.save(db, "other", "synthetic private", False, NOW)
+        assert db.get(AppSetting, EMAIL_PAUSED).value is True
+        assert db.scalar(select(func.count()).select_from(Notification)) == 0
+        assert all(row.available_at == NOW for row in db.scalars(select(InboxNotification)))
+        assert db.scalar(select(func.count()).select_from(InboxNotification)) == 2
