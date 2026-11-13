@@ -2,7 +2,7 @@
 import { get, post, put } from "../api.js";
 import { can, feature } from "../state.js";
 import { fmtDate } from "../time.js";
-import { STATUS_LABEL, badge, busy, empty, errorToast, h, mount, select, confirmAction, promptText } from "../ui.js";
+import { STATUS_LABEL, badge, busy, empty, errorToast, h, mount, select, confirmAction, promptText, modal } from "../ui.js";
 import { renderAnalysis } from "./analysis.js";
 
 import { CATS } from "../suggestion-categories.js";
@@ -12,6 +12,12 @@ let trash = false;
 let pageOffset = 0;
 const PAGE_SIZE = 50;
 let inboxVersion = 0;
+
+async function confirmPermanent(title, message) {
+  return (await modal(title, h("p", {}, message), [
+    { label: "아니요", value: false }, { label: "예, 영구 삭제", value: true, danger: true },
+  ])) === true;
+}
 
 export async function render(root) {
   if (can("suggestion:read")) return inbox(root);
@@ -64,11 +70,24 @@ async function inbox(root) {
     try { analysisBox.replaceChildren(renderAnalysis(await post("/api/analysis", { source: "suggestions" }))); }
     catch (e) { errorToast(e); }
   }));
+  const emptyTrash = h("button", { class: "btn danger", type: "button" }, "휴지통 비우기");
+  emptyTrash.onclick = busy(emptyTrash, async () => {
+    try {
+      const snapshot = await get("/api/suggestions/trash/preview");
+      if (!isCurrent()) return;
+      if (!snapshot.count) { await reload(); return; }
+      const confirmed = await confirmPermanent("휴지통 비우기",
+        `현재 휴지통 전체 ${snapshot.count}건과 모든 답변·내부 메모를 영구 삭제할까요? 검색 조건이나 현재 페이지와 관계없이 포함하며 복원할 수 없습니다. 확인 목록에 없는 다른 건의는 삭제하지 않습니다.`);
+      if (!confirmed || !isCurrent()) return;
+      await post("/api/suggestions/trash/empty", { confirmation: "영구 삭제", ids: snapshot.ids });
+      if (isCurrent()) { pageOffset = 0; await reload(); }
+    } catch (e) { errorToast(e); }
+  });
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "건의함"), h("span", { class: "muted" }, `전체 ${stats.total}건`)),
     h("div", { class: "toolbar" },
       h("button", { class: trash ? "btn" : "btn primary", onclick: () => { trash = false; pageOffset = 0; reload(); } }, "건의 목록"),
-      h("button", { class: trash ? "btn primary" : "btn", onclick: () => { trash = true; pageOffset = 0; reload(); } }, "휴지통")),
+      h("button", { class: trash ? "btn primary" : "btn", onclick: () => { trash = true; pageOffset = 0; reload(); } }, "휴지통"), trash ? emptyTrash : null),
     h("div", { class: "stats" }, CATS.map(([k, label]) => h("span", { class: "stat" }, label, h("strong", {}, String(stats.by_category[k] || 0))))),
     trash ? null : statusTabs,
     searchForm,
@@ -113,19 +132,23 @@ function replyList(s) {
 }
 
 function managementButtons(root, s) {
-  const path = location.hash;
+  const path = location.hash, version = inboxVersion;
+  let pending = false;
   const action = async (name) => {
+    if (pending) return;
+    pending = true;
     try {
       let body = {};
       if (name === "purge") {
-        const word = await promptText("건의 영구 삭제", "내용과 모든 답변을 영구 삭제합니다. 복원할 수 없습니다. ‘영구 삭제’를 입력하세요.");
-        if (word !== "영구 삭제") return;
-        body = { confirmation: word };
+        if (!(await confirmPermanent("건의 영구 삭제", "이 건의 1건과 모든 답변·내부 메모를 영구 삭제할까요? 복원할 수 없습니다."))) return;
+        body = { confirmation: "영구 삭제" };
       } else if (!(await confirmAction(name === "trash" ? "휴지통 이동" : "건의 복원",
         name === "trash" ? "게시판에서 숨깁니다. 휴지통에서 복원할 수 있습니다." : "기존 공개 범위로 복원합니다.", "확인", name === "trash"))) return;
+      if (location.hash !== path || !root.isConnected || inboxVersion !== version) return;
       await post(`/api/suggestions/${s.id}/${name}`, body);
       if (location.hash === path) await inbox(root);
     } catch (e) { errorToast(e); }
+    finally { pending = false; }
   };
   return h("div", { class: "actions" }, trash ? [
     h("button", { class: "btn", onclick: () => action("restore") }, "복원"),

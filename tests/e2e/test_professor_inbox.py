@@ -110,3 +110,99 @@ def test_inbox_can_reach_older_unread_notifications(server, browser, viewport): 
     assert staff.page.get_by_role('button', name='미읽음만', exact=True).get_attribute('aria-pressed') == 'true'
     assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
     staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+@pytest.mark.parametrize('email', ['prof@test.ac.kr', 'admin@test.ac.kr'])
+def test_content_open_marks_read_and_read_all_survives_reload(server, browser, viewport, email):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, email, viewport, service_workers='block')
+    items = [{'id': i, 'kind': 'created', 'title': f'가상 알림 {i}', 'body': '가상 내용',
+        'url': '#/bookings', 'created_on': '2026-11-13', 'read': False} for i in range(1, 6)]
+    writes = []
+    def inbox(route):
+        if route.request.method == 'PUT':
+            writes.append(route.request.url)
+            for item in items:
+                if route.request.url.endswith('/read-all') or route.request.url.endswith(f"/{item['id']}/read"):
+                    item['read'] = True
+            route.fulfill(json={'ok': True, 'unread': sum(not x['read'] for x in items)})
+        else:
+            selected = [x for x in items if not x['read']] if 'unread_only=true' in route.request.url else items
+            route.fulfill(json={'items': selected, 'unread': sum(not x['read'] for x in items), 'has_more': False})
+    staff.page.route('**/api/inbox**', inbox)
+    staff.page.reload()
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 5건', exact=True).click()
+    panel = staff.page.locator('#inbox-popover')
+    panel.get_by_role('link', name='내용 확인').first.click()
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 4건', exact=True).wait_for()
+    assert items[0]['read'] and len(writes) == 1
+    staff.go('/inbox')
+    staff.page.locator('[data-notification-id="2"]').get_by_role('link', name='내용 확인').click()
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 3건', exact=True).wait_for()
+    staff.go('/inbox')
+    staff.page.get_by_role('button', name='모두 읽음', exact=True).click()
+    staff.page.get_by_text('읽지 않은 알림 0건', exact=True).wait_for()
+    assert staff.page.locator('.inbox-badge').is_hidden()
+    staff.page.reload()
+    staff.page.get_by_role('button', name='알림 열기', exact=True).wait_for()
+    assert staff.page.locator('.inbox-badge').is_hidden()
+    assert staff.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
+    assert len(writes) == 3
+    staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_read_failure_does_not_hide_count_and_focus_refreshes(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, 'prof@test.ac.kr', viewport, service_workers='block')
+    item = {'id': 1, 'title': '가상 알림', 'body': '가상 내용', 'url': '#/bookings',
+            'created_on': '2026-11-13', 'read': False}
+    def inbox(route):
+        if route.request.method == 'PUT':
+            route.fulfill(status=503, json={'message': '가상 저장 실패'})
+        else:
+            route.fulfill(json={'items': [item], 'unread': int(not item['read']), 'has_more': False})
+    staff.page.route('**/api/inbox**', inbox)
+    staff.go('/inbox')
+    staff.page.locator('[data-notification-id="1"]').get_by_role('link', name='내용 확인').click()
+    staff.page.get_by_text('가상 저장 실패', exact=True).wait_for()
+    assert staff.page.url.endswith('#/inbox')
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 1건', exact=True).wait_for()
+    item['read'] = True  # Simulate a read from another device.
+    staff.page.evaluate('window.dispatchEvent(new Event("focus"))')
+    staff.page.get_by_text('읽지 않은 알림 0건', exact=True).wait_for()
+    assert staff.page.locator('.inbox-badge').is_hidden()
+    staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_close_during_read_does_not_navigate_and_storage_refreshes(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, 'prof@test.ac.kr', viewport, service_workers='block')
+    item = {'id': 1, 'title': '가상 알림', 'body': '가상 내용', 'url': '#/suggestions',
+            'created_on': '2026-11-13', 'read': False}
+    pending = []
+    def inbox(route):
+        if route.request.method == 'PUT':
+            pending.append(route)
+        else:
+            route.fulfill(json={'items': [item], 'unread': int(not item['read']), 'has_more': False})
+    staff.page.route('**/api/inbox**', inbox)
+    staff.page.reload()
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 1건', exact=True).click()
+    before = staff.page.url
+    panel = staff.page.locator('#inbox-popover')
+    with staff.page.expect_request('**/api/inbox/1/read'):
+        panel.get_by_role('link', name='내용 확인').click()
+    panel.get_by_role('button', name='닫기', exact=True).click()
+    assert len(pending) == 1
+    item['read'] = True
+    pending[0].fulfill(json={'ok': True, 'unread': 0})
+    staff.page.get_by_role('button', name='알림 열기', exact=True).wait_for()
+    assert staff.page.url == before
+    assert panel.is_hidden()
+    item['read'] = False
+    staff.page.evaluate('window.dispatchEvent(new StorageEvent("storage", {key: "inbox-refresh"}))')
+    staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 1건', exact=True).wait_for()
+    staff.ctx.close()

@@ -234,3 +234,25 @@ def test_second_precision_order_within_displayed_minute(app, clients, monkeypatc
         enqueue(db, 'older-second-later-insert', 'created', available_at=now.replace(second=1))
     items = clients['prof'].get('/api/inbox').json()['items']
     assert [i['arrived_at'] for i in items] == ['2026-11-13T10:02:59+09:00', '2026-11-13T10:02:01+09:00']
+
+
+@pytest.mark.parametrize('role', ['prof', 'admin'])
+def test_read_all_is_private_available_only_and_idempotent(app, clients, role):
+    from datetime import timedelta
+
+    from app.db import utcnow
+    with app.state.SessionLocal.begin() as db:
+        for i in range(7):
+            enqueue(db, f'read-all-{i}', 'created')
+        enqueue(db, 'read-all-future', 'suggestion', available_at=utcnow() + timedelta(days=1))
+    assert clients[role].put('/api/inbox/read-all').json() == {'ok': True, 'unread': 0}
+    assert clients[role].put('/api/inbox/read-all').json() == {'ok': True, 'unread': 0}
+    assert all(i['read'] for i in clients[role].get('/api/inbox').json()['items'])
+    assert clients['admin' if role == 'prof' else 'prof'].get('/api/inbox').json()['unread'] == 7
+    with app.state.SessionLocal() as db:
+        future = db.scalar(select(InboxNotification).where(InboxNotification.event_key == 'read-all-future',
+            InboxNotification.recipient_id == clients[role].me['id']))
+        assert future.read_at is None
+    assert clients['s1'].put('/api/inbox/read-all').status_code == 403
+    clients[role].headers.pop('X-CSRF-Token')
+    assert clients[role].put('/api/inbox/read-all').status_code == 403
