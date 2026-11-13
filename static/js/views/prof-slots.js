@@ -1,4 +1,4 @@
-import { loadLectures, lectureEditor } from "../components/lecture-editor.js";
+import { loadLectures, lectureEditor, lectureCreateForm } from "../components/lecture-editor.js";
 import { schedulePreview } from "../components/schedule-preview.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
@@ -17,9 +17,27 @@ let showForm = null;
 let showCancelled = false;
 
 let revealCreated = false;
+let registrationKind = "consultation";
 
 export function renderRegistration(root) {
-  mount(root, h("h1", {}, "상담 시간 등록"), h("section", { class: "panel", id: "slot-create-panel" }, createForm(root)));
+  const consultation = createForm(root);
+  const lecture = lectureCreateForm((value) => {
+    weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true; showForm = false;
+    location.hash = "#/slots";
+  });
+  const panel = h("section", { class: "panel", id: "slot-create-panel" });
+  const buttons = [["consultation", "상담 가능 시간"], ["lecture", "강의"]].map(([kind, label]) =>
+    h("button", { class: "btn", "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind) }, label));
+  const choose = (kind) => {
+    registrationKind = kind;
+    buttons.forEach((button, index) => button.setAttribute("aria-pressed", String((index === 1) === (kind === "lecture"))));
+    mount(panel, kind === "lecture" ? lecture : consultation);
+  };
+  choose(registrationKind);
+  mount(root,
+    h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록")),
+    h("div", { class: "calendar-toggle", "aria-label": "등록할 일정 종류" }, ...buttons),
+    h("p", { class: "muted" }, "상담과 강의는 같은 시간표에 표시됩니다. 등록할 종류를 선택해 주세요."), panel);
 }
 
 export async function render(root) {
@@ -52,13 +70,13 @@ async function draw(root, revealDay = false) {
   if (version !== drawVersion || location.hash !== path) return;
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
+      h("button", { class: "btn primary lecture-add", onclick: () => { registrationKind = "lecture"; location.hash = "#/slots/new"; } }, "+ 강의 추가"),
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 시간을 누르면 수정하거나 취소할 수 있습니다."),
+    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼이나 상담 등록 메뉴에서 할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
-    h("button", { class: "btn", onclick: () => lectureEditor(() => draw(root)) }, "+ 강의 추가"),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,
       onchange: (e) => { showCancelled = e.target.checked; draw(root); } }), "취소된 상담 시간 보기"),

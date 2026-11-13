@@ -1,9 +1,9 @@
 import { get, post, patch } from '../api.js';
-import { h, field, modal, errorToast, select } from '../ui.js';
+import { h, field, modal, errorToast, select, busy, toast } from '../ui.js';
 import { kstParts, todayKst } from '../time.js';
 
 export function loadLectures(start) { return get(`/api/lectures?start=${start}&days=7`); }
-export async function lectureEditor(refresh, row = null) {
+function editorFields(refresh, row = null) {
   const a = row ? kstParts(row.start_at) : null, b = row ? kstParts(row.end_at) : null;
   const title = h('input', { value: row?.title || '', maxlength: 120, required: true });
   const location = h('input', { value: row?.location || '', maxlength: 200 });
@@ -17,14 +17,31 @@ export async function lectureEditor(refresh, row = null) {
     row ? h('p', { class: 'muted' }, '수정은 이번 강의에만 적용됩니다.') : field('같은 요일로 총 몇 주', weeks, '이번 주 포함 · 1~26주'),
     h('p', { class: 'notice' }, '강의는 상담과 같은 시간표에 표시됩니다. 강의 시간에는 새 상담 예약이 차단됩니다. 기존 예약과 겹치는 강의는 저장되지 않습니다.'),
     row ? field('삭제 범위', cancelScope) : null);
-  const actions = [{ label: '닫기', value: null }, { label: '강의 저장', primary: true, handler: async () => {
+  const save = async () => {
     try {
       if (!title.reportValidity() || !date.reportValidity() || !start.reportValidity() || !end.reportValidity() || !weeks.reportValidity()) return false;
       const value = { title: title.value, location: location.value, date: date.value, start_time: start.value, end_time: end.value, weeks: row ? 1 : Number(weeks.value) };
       await (row ? patch(`/api/lectures/${row.id}`, value) : post('/api/lectures', value));
-      await refresh(); return true;
+      await refresh(value); return true;
     } catch (e) { errorToast(e); return false; }
-  }}];
+  };
+  return { body, save, cancelScope };
+}
+
+export function lectureCreateForm(refresh) {
+  const { body, save } = editorFields(refresh);
+  const button = h('button', { class: 'btn primary', type: 'submit' }, '강의 저장');
+  const form = h('form', { class: 'lecture-create-form' }, body, button);
+  form.addEventListener('submit', busy(button, async (event) => {
+    event.preventDefault();
+    if (await save()) toast('강의를 시간표에 등록했습니다.', 'success');
+  }));
+  return form;
+}
+
+export async function lectureEditor(refresh, row = null) {
+  const { body, save, cancelScope } = editorFields(refresh, row);
+  const actions = [{ label: '닫기', value: null }, { label: '강의 저장', primary: true, handler: save }];
   // Close the editor before opening confirmation: the shared modal has one root.
   if (row) actions.push({ label: '강의 삭제', danger: true, value: 'delete' });
   const result = await modal(row ? '강의 수정' : '강의 추가', body, actions);
