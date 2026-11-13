@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Booking, BookingEvent, Slot, User
+from app.models import AuditLog, Booking, BookingEvent, Slot, User
 
 
 def get_slot(db: Session, slot_id: int, lock: bool = False) -> Slot | None:
@@ -102,4 +102,10 @@ def events_for(db: Session, booking_id: int) -> list[BookingEvent]:
 
 def booked_slot_ids(db: Session, ids: list[int]) -> set[int]:
     """Any booking history, including cancelled/rescheduled bookings."""
-    return set(db.scalars(select(Booking.slot_id).where(Booking.slot_id.in_(ids)).distinct())) if ids else set()
+    if not ids:
+        return set()
+    current = set(db.scalars(select(Booking.slot_id).where(Booking.slot_id.in_(ids)).distinct()))
+    historical = db.scalars(select(AuditLog.target_id).where(
+        AuditLog.action == "slot.booking_moved", AuditLog.target_type == "slot",
+        AuditLog.target_id.in_([str(sid) for sid in ids])))
+    return current | {int(sid) for sid in historical}

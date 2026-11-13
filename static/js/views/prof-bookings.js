@@ -219,7 +219,7 @@ function actions(root, b) {
   const act = (label, fn, cls = "btn small") => {
     const btn = h("button", { class: cls }, label);
     btn.addEventListener("click", busy(btn, async () => {
-      try { await fn(); await render(root); } catch (e) { errorToast(e); }
+      try { await fn(); await render(root); } catch (e) { errorToast(e); if (e.code === "booking_changed") await render(root); }
     }));
     out.push(btn);
   };
@@ -270,10 +270,38 @@ async function pickSlot(title, noteLabel = "사유 (선택)") {
 }
 
 async function reschedule(b) {
-  const r = await pickSlot("일정 조정");
+  const day = h("input", { type: "date", value: kstParts(b.slot.start_at).date, min: todayKst() });
+  const slotSelect = select([]);
+  const reason = h("input", { type: "text", maxlength: 500 });
+  let version = 0;
+  const load = async () => {
+    const current = ++version;
+    slotSelect.replaceChildren();
+    slotSelect.disabled = true;
+    const slots = await get(`/api/slots?start=${day.value}&days=1`);
+    if (version !== current) return;
+    for (const s of slots.filter((s) => s.id !== b.slot.id && s.status === "open" && s.remaining > 0
+      && new Date(s.start_at) > new Date()))
+      slotSelect.append(h("option", { value: s.id }, fmtDateTime(s.start_at)));
+    slotSelect.disabled = !slotSelect.options.length;
+  };
+  day.addEventListener("change", () => { if (day.value) load().catch(errorToast); });
+  await load();
+  const r = await modal("기존 예약 시간 변경", h("div", {},
+    h("p", {}, `변경 전: ${fmtDateTime(b.slot.start_at)}`),
+    h("p", {}, "예약과 상담 내용은 유지하고 시간만 변경합니다. 원하는 날짜를 선택하세요."),
+    field("변경 후 날짜", day), field("변경 후 시간", slotSelect), field("사유 (선택)", reason)), [
+    { label: "닫기", value: null },
+    { label: "시간 변경", primary: true, handler: () => {
+      if (slotSelect.disabled || !slotSelect.value) { toast("변경할 시간을 선택하세요", "error"); return false; }
+      return { slot: +slotSelect.value, reason: reason.value };
+    } },
+  ]);
   if (!r) return;
-  await post(`/api/bookings/${b.id}/reschedule`, { new_slot_id: r.slot, reason: r.reason });
-  toast("일정을 조정했습니다", "success");
+  await post(`/api/bookings/${b.id}/reschedule`, {
+    new_slot_id: r.slot, expected_slot_id: b.slot.id, reason: r.reason,
+  });
+  toast("기존 예약의 시간을 변경했습니다", "success");
 }
 
 async function bookForStudent(root) {

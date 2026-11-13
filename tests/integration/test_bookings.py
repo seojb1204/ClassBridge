@@ -130,7 +130,8 @@ def test_reschedule_success_and_atomic_failure(app, clients):
     assert r.status_code == 200
     assert _slot_state(app, ids[0])[0] == 0 and _slot_state(app, ids[1])[0] == 1
     hist = p.get(f"/api/bookings/{r.json()['id']}/history").json()
-    assert hist[0]["action"] == "rescheduled_to"
+    assert [event["action"] for event in hist] == ["book", "rescheduled"]
+    assert r.json()["id"] == bid
 
 
 def test_cancel_then_other_student_books(clients):
@@ -301,4 +302,5 @@ def test_staff_can_move_student_without_reason(clients):
     moved = result.json()
     assert moved["slot"]["id"] == second and moved["student_id"] == student.me["id"]
     history = professor.get(f"/api/bookings/{moved['id']}/history").json()
-    assert history[0]["action"] == "rescheduled_to"
+    assert [event["action"] for event in history] == ["book", "rescheduled"]
+    assert moved["id"] == original

@@ -21,15 +21,16 @@ function item(root, b) {
     await render(root);
   }));
   return h("div", { class: `card booking ${b.status}`, dataset: { bookingId: b.id } },
-    h("div", { class: "row" }, h("strong", {}, fmtDateTime(b.slot.start_at)), badge(STATUS_LABEL[b.status], b.status)),
+    h("div", { class: "row" }, h("strong", {}, fmtDateTime(b.slot.start_at)), badge(b.status === "cancelled" && b.cancel_reason === "예약 변경" ? "변경 전 기록" : STATUS_LABEL[b.status], b.status)),
     h("span", { class: "muted" }, b.slot.kind === "group" ? "단체 상담" : "개인 상담",
       b.slot.location ? ` · ${b.slot.location}` : ""),
     h("p", { class: "muted" },
       `${({career: "진로", employment: "취업", academics: "학업", campus: "학교생활", other: "기타"})[b.consultation_type] || "기타"}` +
       ` · ${b.consultation_mode === "online" ? "온라인" : "대면"}`),
     b.topic ? h("p", {}, b.topic) : null,
-    b.cancel_reason ? h("p", { class: "muted" }, `취소 사유: ${b.cancel_reason}`) : null,
+    b.cancel_reason ? h("p", { class: "muted" }, b.cancel_reason === "예약 변경"
+      ? "이전 방식으로 변경된 예약의 과거 기록입니다." : `취소 사유: ${b.cancel_reason}`) : null,
     b.status === "booked" ? h("div", { class: "actions" }, cancelBtn,
-      h("a", { class: "btn", href: "#/booking" }, "시간 변경"),
+      h("a", { class: "btn", href: "#/booking" }, "취소 없이 시간 변경"),
       h("button", { class: "btn", onclick: () => downloadConsultationIcs(b) }, "내 달력에 추가")) : null);
 }

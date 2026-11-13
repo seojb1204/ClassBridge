@@ -97,7 +97,14 @@ def test_slot_cancel_vs_student_action_has_no_duplicate_alert(pg_app, reschedule
         queue = list(db.scalars(select(Notification)))
         assert len(queue) == 2  # created + exactly one cancellation/change
         assert db.get(Slot, slots[0]).booked_count == 0
-        assert db.get(Booking, booking).status == "cancelled"
+        current = db.get(Booking, booking)
+        if reschedule and queue[-1].payload["kind"] == "changed":
+            assert current.status == "booked" and current.slot_id == slots[1]
+            assert db.get(Slot, slots[1]).booked_count == 1
+        else:
+            assert current.status == "cancelled" and current.slot_id == slots[0]
+            assert db.get(Slot, slots[1]).booked_count == 0
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
 
 
 @pytest.mark.parametrize("revision", [0, 1])
@@ -557,3 +564,39 @@ def test_historical_expiry_upgrade_preserves_refs_and_unique_seat_rule(pg_app):
     assert student.post("/api/bookings", json={"slot_id": slots[1]}).status_code == 201
     with pytest.raises(RuntimeError, match="Cannot downgrade"):
         command.downgrade(_alembic(PG_URL), "0009")
+
+
+def test_concurrent_same_booking_moves_preserve_identity_and_reject_stale(pg_app):
+    from app.models import BookingEvent
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = login(pg_app, "move-race@example.test")
+    slots = make_slots(prof, end="11:30")
+    bid = student.post("/api/bookings", json={"slot_id": slots[0]}).json()["id"]
+    def move(i):
+        with pg_app.state.SessionLocal() as db:
+            booking_service.reschedule(db, _user(db, student.me["id"]), bid, slots[i + 1], expected_slot_id=slots[0])
+    assert sorted(_race(2, move)) == ["booking_changed", "ok"]
+    with pg_app.state.SessionLocal() as db:
+        booking = db.get(Booking, bid)
+        assert booking.slot_id in slots[1:] and booking.status == "booked"
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
+        assert sum(db.get(Slot, sid).booked_count for sid in slots) == 1
+        assert db.get(Slot, slots[0]).booked_count == 0
+        assert db.scalar(select(func.count()).select_from(BookingEvent).where(BookingEvent.action == "rescheduled")) == 1
+
+
+def test_concurrent_moves_to_last_seat_keep_losing_booking(pg_app):
+    prof = login(pg_app, "prof@test.ac.kr")
+    students = [login(pg_app, f"seat-move-{i}@example.test") for i in range(2)]
+    slots = make_slots(prof, end="11:30")
+    bids = [s.post("/api/bookings", json={"slot_id": slots[i]}).json()["id"] for i, s in enumerate(students)]
+    def move(i):
+        with pg_app.state.SessionLocal() as db:
+            booking_service.reschedule(db, _user(db, students[i].me["id"]), bids[i], slots[2], expected_slot_id=slots[i])
+    assert sorted(_race(2, move)) == ["ok", "slot_full"]
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Slot, slots[2]).booked_count == 1
+        assert sum(db.get(Slot, sid).booked_count for sid in slots) == 2
+        assert db.scalar(select(func.count()).select_from(Booking)) == 2
+        assert all(db.get(Booking, bid).status == "booked" for bid in bids)
+        assert sum(db.get(Booking, bid).slot_id == slots[i] for i, bid in enumerate(bids)) == 1

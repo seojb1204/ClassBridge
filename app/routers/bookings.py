@@ -71,6 +71,11 @@ def booking_policy(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = D
 
 
 # ── 상담 시간 ──
+@router.get("/slots/available-days")
+def available_days(p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
+    return svc.available_days(db, p.user)
+
+
 @router.get("/slots", response_model=list[SlotOut])
 def list_slots(start: date = Query(...), days: int = Query(7, ge=1, le=62),
                p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
@@ -140,7 +145,8 @@ def cancel_booking(booking_id: int, body: BookingCancelIn, p: Principal = Depend
 @router.post("/bookings/{booking_id}/reschedule")
 def reschedule_booking(booking_id: int, body: BookingRescheduleIn,
                        p: Principal = Depends(require(P.SLOT_VIEW)), db: Session = Depends(get_db)):
-    return _out(p, db, svc.reschedule(db, p.user, booking_id, body.new_slot_id, body.reason))
+    return _out(p, db, svc.reschedule(db, p.user, booking_id, body.new_slot_id, body.reason,
+                                      expected_slot_id=body.expected_slot_id))
 
 
 # ── 상담 정보 (교수자·관리자, 읽기 전용) ──

@@ -143,6 +143,8 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
         page = session.page
         page.emulate_media(reduced_motion="reduce")
         page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
+        page.route("**/api/slots/available-days", lambda route: route.fulfill(
+            json=[{"date": day, "count": 6} for day in days]))
         page.route("**/api/announcement", lambda route: route.fulfill(json={"announcement": {
             "title": "먼저 읽을 공지", "body": "상담 준비 안내입니다.\n" * 18, "published": True, "revision": 1}}))
         page.reload()

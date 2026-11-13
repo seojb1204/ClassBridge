@@ -36,8 +36,9 @@ def message_for(row):
     lines = [label, f"학생 이름: {p['student_name']}", f"예약번호: #{row.booking_id}",
              f"상담: {format_time(p['start'])} ~ {format_time(p['end'])} (한국시간)"]
     if "old_id" in p:
-        lines += [f"변경 전 예약번호: #{p['old_id']}",
-                  f"변경 전: {format_time(p['old_start'])} ~ {format_time(p['old_end'])} (한국시간)"]
+        if p["old_id"] != row.booking_id:  # Preserve legacy cross-ID change messages.
+            lines.append(f"변경 전 예약번호: #{p['old_id']}")
+        lines.append(f"변경 전: {format_time(p['old_start'])} ~ {format_time(p['old_end'])} (한국시간)")
     lines += ["자세한 내용은 로그인 후 예약 관리에서 확인하세요.", p["url"],
               "학생 이름은 신청서에 입력된 값이며 별도로 신원을 인증한 정보가 아닙니다."]
     msg.set_content("\n".join(lines))
