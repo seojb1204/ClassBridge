@@ -97,7 +97,14 @@ def test_slot_cancel_vs_student_action_has_no_duplicate_alert(pg_app, reschedule
         queue = list(db.scalars(select(Notification)))
         assert len(queue) == 2  # created + exactly one cancellation/change
         assert db.get(Slot, slots[0]).booked_count == 0
-        assert db.get(Booking, booking).status == "cancelled"
+        current = db.get(Booking, booking)
+        if reschedule and queue[-1].payload["kind"] == "changed":
+            assert current.status == "booked" and current.slot_id == slots[1]
+            assert db.get(Slot, slots[1]).booked_count == 1
+        else:
+            assert current.status == "cancelled" and current.slot_id == slots[0]
+            assert db.get(Slot, slots[1]).booked_count == 0
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
 
 
 @pytest.mark.parametrize("revision", [0, 1])

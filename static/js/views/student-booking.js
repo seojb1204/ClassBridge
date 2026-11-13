@@ -38,6 +38,8 @@ export async function render(root) {
 async function draw(root, revealDay = false) {
   if (location.hash !== "#/booking") return;
   const version = ++drawVersion, path = location.hash;
+  // Do not let a quick tap select a slot from the previous date while loading.
+  root.querySelectorAll("button[data-slot-id]").forEach((button) => { button.disabled = true; });
   const [slots, mine, policy, announcement, availableDays] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),

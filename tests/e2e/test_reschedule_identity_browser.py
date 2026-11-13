@@ -38,7 +38,7 @@ def test_one_click_same_id_change_beyond_new_booking_horizon(server, browser, vi
     if panel.get_by_role("button", name="전체 일정 보기", exact=True).count():
         panel.get_by_role("button", name="전체 일정 보기", exact=True).click()
     panel.get_by_role("button", name=f"{far_day.month}월 {far_day.day}일", exact=False).click()
-    student.page.locator(".slot.open").first.click()
+    student.page.locator(f'.slot.open[data-slot-id="{slots[1]}"]').click()
     modal = student.page.locator(".modal")
     modal.get_by_text("변경 전:", exact=False).wait_for()
     modal.get_by_text("변경 후:", exact=False).wait_for()
