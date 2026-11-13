@@ -11,7 +11,7 @@ TOKENS = dict(re.findall(r'--([\w-]+): (#[0-9a-f]{6})', CSS))
 def luminance(color):
     channels = [int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
     channels = [v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4 for v in channels]
-    return sum(v * w for v, w in zip(channels, [.2126, .7152, .0722]))
+    return sum(v * w for v, w in zip(channels, [.2126, .7152, .0722], strict=True))
 
 
 def contrast(a, b):
