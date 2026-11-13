@@ -162,7 +162,11 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
     from playwright.sync_api import expect
 
     base, _ = server
-    session = Session(browser, base, "prof@test.ac.kr", {"width": width, "height": 640}, service_workers="block")
+    class TouchBrowser:
+        def new_context(self, **kwargs):
+            return browser.new_context(**kwargs, is_mobile=True, has_touch=True)
+
+    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": width, "height": 640}, service_workers="block")
     p = session.page
     def tall_calendar(route):
         start = date.fromisoformat(parse_qs(urlparse(route.request.url).query)["start"][0])
@@ -176,11 +180,12 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
 
     p.route("**/api/slots?*", tall_calendar)
     p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
-    p.reload()
+    session.go("/bookings")
     session.go("/slots")
     p.get_by_role("button", name=mode, exact=True).click()
     grid = p.locator(".mobile-grid-wrap")
     expect(grid.locator(".slot")).to_have_count(7 if mode == "주간" else 3)
+    p.wait_for_timeout(500)
     # Keep both outer directions scrollable independently of fixture event count.
     p.evaluate("""() => {
         const spacer = document.createElement('div');
@@ -209,11 +214,13 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
             p.wait_for_timeout(20)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
         p.wait_for_timeout(300)
-        assert (p.evaluate("scrollY") - before) * direction > 20, {
+        diagnostics = {
             "direction": direction, "before": before, "after": p.evaluate("scrollY"),
             "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
             "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
         }
+        print(diagnostics)
+        assert (p.evaluate("scrollY") - before) * direction > 20
     expect(p.get_by_role("button", name=mode, exact=True)).to_have_attribute("aria-pressed", "true")
     cdp.detach()
     session.close()
