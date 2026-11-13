@@ -22,7 +22,7 @@ let registrationKind = "consultation";
 export function renderRegistration(root) {
   const consultation = createForm(root);
   const lecture = lectureCreateForm((value) => {
-    weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true;
+    weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true; showForm = false;
     location.hash = "#/slots";
   });
   const panel = h("section", { class: "panel", id: "slot-create-panel" });
@@ -74,7 +74,7 @@ async function draw(root, revealDay = false) {
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("p", { class: "muted" }, "강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼에서, 상담 시간 등록은 메뉴에서 할 수 있습니다."),
+    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼이나 상담 등록 메뉴에서 할 수 있습니다."),
     announcementPanel(announcement, () => draw(root)),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
