@@ -81,7 +81,7 @@ def test_late_booking_response_cannot_replace_new_inbox(server, browser, viewpor
         json={'items': [item], 'unread': 0, 'has_more': False}))
     s.go('/inbox')
     pending = []
-    s.page.route('**/api/bookings?*', pending.append)
+    s.page.route('**/api/bookings?*', lambda route: pending.append(route))
     with s.page.expect_request('**/api/bookings?*'):
         s.page.get_by_role('link', name='내용 확인', exact=True).click()
     s.page.wait_for_url('**/#/bookings')
