@@ -219,9 +219,9 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
             "direction": direction, "before": before, "after": p.evaluate("scrollY"),
             "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
             "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
-            "viewport": p.evaluate("({width:innerWidth, height:innerHeight, visual:visualViewport.toJSON?.(), scrollHeight:document.documentElement.scrollHeight})"),
+            "viewport": p.evaluate("({width:innerWidth, height:innerHeight, visual:visualViewport.toJSON?.(), scrollHeight:document.documentElement.scrollHeight})"),  # noqa: E501
             "box": box,
-            "chain": grid.evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),
+            "chain": grid.evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),  # noqa: E501
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
