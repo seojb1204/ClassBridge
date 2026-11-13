@@ -139,3 +139,18 @@ def test_survey_latest_tab_wins(server, browser):  # noqa: F811
     assert page.get_by_text('오래된 휴지통 응답', exact=True).count() == 0
     assert page.get_by_role('button', name='설문 목록', exact=True).get_attribute('aria-pressed') == 'true'
     user.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_disabled_email_status_has_no_null_text(server, browser, viewport):  # noqa: F811
+    base, _ = server
+    user = Session(browser, base, 'admin@test.ac.kr', viewport, service_workers='block')
+    user.page.route('**/api/admin/notifications', lambda route: route.fulfill(json={
+        'enabled': False, 'email_paused': True, 'push_enabled': False, 'push_devices': 0, 'items': []}))
+    user.go('/admin/settings')
+    panel = user.page.locator('section.panel').filter(has_text='예약 알림 상태')
+    assert 'null' not in panel.inner_text()
+    assert panel.get_by_role('button', name='예약 이메일 재개').count() == 0
+    panel.get_by_role('button', name='상태 새로고침').click()
+    assert 'null' not in panel.inner_text()
+    user.close()

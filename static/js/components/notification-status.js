@@ -1,6 +1,6 @@
 import { get, post, put } from "../api.js";
 import { notificationHelp } from './notification-help.js';
-import { confirmAction, errorToast, h, toast } from "../ui.js";
+import { confirmAction, errorToast, h, mount, toast } from "../ui.js";
 
 const labels = { pending: "발송 대기", sending: "발송 중", sent: "서비스 접수 완료", uncertain: "발송 여부 확인 필요", reauth: "인증·키 확인 필요", failed: "발송 실패", skipped: "발송 제외" };
 export async function notificationStatus() {
@@ -8,7 +8,7 @@ export async function notificationStatus() {
   async function draw() {
     try {
       const status = await get("/api/admin/notifications");
-      box.replaceChildren(h("h2", {}, "예약 알림 상태"),
+      mount(box, h("h2", {}, "예약 알림 상태"),
         h("p", {}, `이메일 ${status.email_paused ? "일시 중지" : status.enabled ? "사용" : "미설정"} · 휴대폰 ${status.push_enabled ? "사용" : "미설정"} · 수신 가능한 기기 ${status.push_devices}개`),
         h("p", { class: "hint" }, "접수 완료는 메일함·휴대폰의 실제 수신을 보장하지 않습니다. 인증 오류는 서버 설정을 고친 뒤 재시도하세요. 발송 여부가 불명확하면 발신함·수신 기기를 먼저 확인하세요."),
         status.enabled ? h("button", { class: "btn", onclick: async () => {
@@ -27,7 +27,7 @@ export async function notificationStatus() {
               try { await post(`/api/admin/notifications/${item.id}/resolve`, { action, acknowledge: true }); await draw(); toast("처리했습니다", "success"); }
               catch (e) { errorToast(e); }
             } }, label))) : null)));
-    } catch (e) { box.replaceChildren(h("p", {}, "알림 상태를 불러오지 못했습니다.")); errorToast(e); }
+    } catch (e) { mount(box, h("p", {}, "알림 상태를 불러오지 못했습니다.")); errorToast(e); }
   }
   await draw();
   return box;
