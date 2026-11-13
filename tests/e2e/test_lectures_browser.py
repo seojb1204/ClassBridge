@@ -190,6 +190,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
     assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
     cdp = p.context.new_cdp_session(p)
+    cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
     for direction in (1, -1):
         grid.evaluate("""(e, down) => {
             window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 100);
@@ -198,13 +199,21 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
         p.wait_for_timeout(100)
         before = p.evaluate("scrollY")
         box = grid.bounding_box()
-        # Genuine Chromium touch scroll gesture at the already reached inner edge.
-        cdp.send("Input.synthesizeScrollGesture", {
-            "x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2,
-            "yDistance": -direction * 140, "gestureSourceType": "touch",
-            "speed": 600,
-        })
-        p.wait_for_function("([before, direction]) => (scrollY - before) * direction > 20", arg=[before, direction])
+        # Dispatch native touch input with touch emulation explicitly enabled.
+        x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        for step in range(1, 11):
+            cdp.send("Input.dispatchTouchEvent", {
+                "type": "touchMove", "touchPoints": [{"x": x, "y": y - direction * step * 14}],
+            })
+            p.wait_for_timeout(20)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        p.wait_for_timeout(300)
+        assert (p.evaluate("scrollY") - before) * direction > 20, {
+            "direction": direction, "before": before, "after": p.evaluate("scrollY"),
+            "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
+            "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
+        }
     expect(p.get_by_role("button", name=mode, exact=True)).to_have_attribute("aria-pressed", "true")
     cdp.detach()
     session.close()
