@@ -95,3 +95,42 @@ def test_domain_restriction(tmp_path):
     c = TestClient(app)
     assert c.post("/auth/dev/login", json={"email": "x@gmail.com"}).status_code == 403
     assert c.post("/auth/dev/login", json={"email": "x@test.ac.kr"}).status_code == 200
+
+
+def test_unified_deadline_ignores_stored_cancellation_setting(app, clients):
+    from app.models import AppSetting
+    with app.state.SessionLocal.begin() as db:
+        db.add(AppSetting(key="cancel_deadline_hours", value=3))
+    policy = clients["s1"].get("/api/booking-policy").json()
+    assert policy["booking_deadline_minutes"] == policy["cancel_deadline_minutes"] == 30
+    assert policy["cancel_deadline_hours"] == 0.5
+    settings = clients["admin"].get("/api/admin/settings").json()
+    assert "cancel_deadline_hours" not in {s["key"] for s in settings["specs"]}
+    assert "취소·변경" in next(s["label"] for s in settings["specs"] if s["key"] == "booking_deadline_minutes")
+
+
+def test_unified_deadline_legacy_write_conflict_is_atomic(clients):
+    a = clients["admin"]
+    assert a.put("/api/admin/settings", json={"booking_deadline_minutes": 30,
+                                            "cancel_deadline_hours": 3}).status_code == 400
+    assert a.put("/api/admin/settings", json={"cancel_deadline_hours": 0.5}).status_code == 200
+    assert a.put("/api/admin/settings", json={"booking_deadline_hours": 1}).status_code == 200
+    policy = clients["s1"].get("/api/booking-policy").json()
+    assert policy["booking_deadline_minutes"] == policy["cancel_deadline_minutes"] == 60
+    assert a.put("/api/admin/settings", json={"booking_deadline_minutes": 30,
+                                            "cancel_deadline_hours": 0.5}).status_code == 200
+
+
+def test_unified_deadline_legacy_precedence_and_storage_preserved(app, clients):
+    from app.models import AppSetting
+    with app.state.SessionLocal.begin() as db:
+        db.add(AppSetting(key="cancel_deadline_hours", value=7))
+        db.add(AppSetting(key="booking_deadline_hours", value=2))
+    assert clients["s1"].get("/api/booking-policy").json()["cancel_deadline_minutes"] == 120
+    with app.state.SessionLocal.begin() as db:
+        db.add(AppSetting(key="booking_deadline_minutes", value=30))
+    policy = clients["s1"].get("/api/booking-policy").json()
+    assert policy["booking_deadline_minutes"] == policy["cancel_deadline_minutes"] == 30
+    with app.state.SessionLocal() as db:
+        assert db.get(AppSetting, "cancel_deadline_hours").value == 7
+        assert db.get(AppSetting, "booking_deadline_hours").value == 2

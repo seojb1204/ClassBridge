@@ -28,7 +28,7 @@ def overview(db: Session, days: int) -> dict:
         .where(*scoped)
         .group_by(Booking.status)
     ).all()
-    statuses = {key: 0 for key in ("booked", "completed", "no_show", "cancelled")}
+    statuses = {key: 0 for key in ("booked", "completed", "no_show", "cancelled", "expired")}
     statuses.update({status: count for status, count in status_rows})
 
     type_rows = db.execute(

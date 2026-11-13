@@ -71,7 +71,8 @@ def test_policy_endpoint_reflects_admin_settings(clients):
     initial = s.get("/api/booking-policy")
     assert initial.status_code == 200
     assert initial.json() == {
-        "booking_window_days": 30, "booking_deadline_minutes": 30, "booking_deadline_hours": 0.5, "cancel_deadline_hours": 3
+        "booking_window_days": 30, "booking_deadline_minutes": 30, "booking_deadline_hours": 0.5,
+        "cancel_deadline_minutes": 30, "cancel_deadline_hours": 0.5
     }
     changed = admin.put("/api/admin/settings", json={"booking_deadline_hours": 5})
     assert changed.status_code == 200, changed.text

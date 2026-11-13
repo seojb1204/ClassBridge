@@ -125,11 +125,11 @@ export async function render(root) {
   if (viewMode === "calendar") return renderCalendarView(root);
   detach?.();
   detach = null;
-  const q = new URLSearchParams({ from_date: todayKst() });
+  const q = new URLSearchParams(filter.status === "expired" ? {} : { from_date: todayKst() });
   if (filter.status) q.set("status", filter.status);
   const list = await get(`/api/bookings?${q}`);
   const status = select([["", "전체"], ["booked", "예약됨"], ["completed", "완료"], ["no_show", "미참석"],
-    ["cancelled", "취소됨"]], filter.status);
+    ["expired", "기간 종료·결과 미확인"], ["cancelled", "취소됨"]], filter.status);
   const apply = () => { filter = { status: status.value }; render(root); };
   status.addEventListener("change", apply);
   const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
@@ -144,7 +144,7 @@ export async function render(root) {
     staffToday(),
     viewSwitcher(root),
     h("div", { class: "filters" }, field("상태", status)),
-    h("p", { class: "muted" }, `오늘 이후 · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
+    h("p", { class: "muted" }, `${filter.status === "expired" ? "과거 포함 · 결과 확인 필요" : "오늘 이후"} · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
     list.length ? results : empty("해당 조건의 예약이 없습니다."));
 }
 
@@ -222,7 +222,7 @@ function actions(root, b) {
     }));
     out.push(btn);
   };
-  if (["booked", "completed", "no_show"].includes(b.status) && started) {
+  if (["booked", "expired", "completed", "no_show"].includes(b.status) && started) {
     if (b.status !== "completed") act("완료", async () => { await post(`/api/bookings/${b.id}/outcome`, { outcome: "completed" }); toast("완료 처리", "success"); });
     if (b.status !== "no_show") act("미참석", async () => { await post(`/api/bookings/${b.id}/outcome`, { outcome: "no_show" }); toast("미참석 처리", "success"); });
   }

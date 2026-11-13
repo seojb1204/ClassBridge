@@ -115,3 +115,38 @@ pg_restore --clean --if-exists --no-owner --dbname="$RESTORE_DATABASE_URL" class
 - [ ] 쿠키 `Secure; HttpOnly; SameSite=Lax`
 - [ ] `/docs` 비노출(운영)
 - [ ] 개발 로그인 `/auth/dev/login` → 404
+
+### Unified booking deadline and historical unresolved appointments (0010)
+
+- `booking_deadline_minutes` is the single student deadline for booking, cancellation,
+  and rescheduling (default 30 minutes). Exactly 30 minutes before is allowed; one
+  second later is not. Rescheduling must meet the deadline for **both the original
+  and new appointment**. Staff overrides remain unchanged.
+- Existing explicit minute settings take precedence, followed by non-default legacy
+  `booking_deadline_hours`, then the 30-minute default. Retired
+  `cancel_deadline_hours` values remain stored for history but no longer govern a
+  separate policy. Old clients submitting conflicting cancellation values receive
+  a validation error instead of silently restoring a three-hour policy. The policy
+  response retains legacy hour aliases derived from the unified minute value.
+- Migration 0010 only expands the booking status constraint. It does not change
+  bookings. However, **starting the new app** makes the completion worker classify
+  still-booked appointments ending on/before the persisted auto-completion activation
+  marker as `expired` (기간 종료·결과 미확인). This is a deliberate data transition,
+  not a claim of attendance or absence; obtain explicit approval before deployment.
+  Existing IDs, notes, event history, slots and notification history remain intact.
+  Each changed booking receives one `booking.expired` audit entry. No cancellation
+  or completion notification is sent for this housekeeping transition.
+- This releases the student's one-active-booking constraint without deleting history.
+  Professors/admins can filter the booking list by 결과 미확인 (includes past dates)
+  and explicitly record completed/no-show after checking the actual outcome. The
+  unresolved state is excluded from the completed/no-show rate denominator.
+- Before an approved deployment: confirm current affected counts and activation
+  marker using a read-only aggregate, retain a recoverable database backup, run
+  PostgreSQL migration and regression CI, then apply schema and start the app.
+  Check aggregate unresolved counts and a read-only health/readiness smoke test.
+  Never log private notes or student identifiers during these checks.
+- Rollback: do not downgrade schema while `expired` rows exist. The downgrade guard
+  refuses to invent outcomes or reactivate old bookings. Keep the expanded schema
+  and deploy a compatible forward fix; do not roll back to code that cannot display
+  unresolved appointments. SQLite migration rebuilds in an explicit transaction,
+  validates foreign keys before commit, and restores FK enforcement afterward.

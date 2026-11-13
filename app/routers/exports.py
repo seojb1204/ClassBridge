@@ -21,7 +21,8 @@ from app.services.booking_service import kst_range
 from app.timeutil import to_kst as as_kst
 
 router = APIRouter(prefix="/api/exports", tags=["exports"])
-LABELS = {"booked": "예약 중", "completed": "상담 완료", "no_show": "미참석", "cancelled": "취소",
+LABELS = {"expired": "기간 종료·결과 미확인", "booked": "예약 중", "completed": "상담 완료", "no_show": "미참석",
+          "cancelled": "취소",
           "career": "진로", "employment": "취업", "academics": "학업", "campus": "학교생활", "other": "기타",
           "in_person": "대면", "online": "온라인"}
 

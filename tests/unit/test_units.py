@@ -18,7 +18,7 @@ from app.services import booking_policy as bp
 from app.services.survey_service import QuestionInput, _validate_answer, validate_questions
 
 NOW = datetime(2026, 11, 2, 0, 0, tzinfo=timezone.utc)
-POL = bp.Policy(booking_window_days=30, booking_deadline_minutes=30, cancel_deadline_hours=3)
+POL = bp.Policy(booking_window_days=30, booking_deadline_minutes=30)
 
 
 # ── 권한 ──
@@ -79,9 +79,9 @@ def test_booking_deadline_boundaries():
 
 
 def test_cancel_deadline_boundaries():
-    bp.check_student_cancel_time(NOW + timedelta(hours=3), NOW, POL)
+    bp.check_student_cancel_time(NOW + timedelta(minutes=30), NOW, POL)
     with pytest.raises(Conflict):
-        bp.check_student_cancel_time(NOW + timedelta(hours=2), NOW, POL)
+        bp.check_student_cancel_time(NOW + timedelta(minutes=29, seconds=59), NOW, POL)
 
 
 def test_transitions():

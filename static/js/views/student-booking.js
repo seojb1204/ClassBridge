@@ -55,7 +55,7 @@ async function draw(root, revealDay = false) {
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
-        `시작 ${policy.booking_deadline_minutes}분 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다.`)),
+        `시작 ${policy.booking_deadline_minutes}분 전까지 예약할 수 있습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
     active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
       h("strong", {}, fmtDateTime(active.slot.start_at)),
       " · 내 예약을 누르면 취소할 수 있고, 다른 가능 시간을 누르면 변경할 수 있습니다.",
@@ -81,7 +81,7 @@ async function openSlot(root, s, active, policy) {
     const result = await modal("내 상담 예약", h("div", { class: "booking-detail" },
       h("p", {}, h("strong", {}, fmtDateTime(s.start_at))),
       h("p", { class: "muted" }, "예약 확정 · " + (s.kind === "group" ? "단체 상담" : "개인 상담")),
-      h("p", {}, `예약 취소는 상담 시작 ${policy.cancel_deadline_hours}시간 전까지 가능합니다. 이 예약을 취소하시겠습니까?`)), [
+      h("p", {}, `예약 취소는 상담 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 이 예약을 취소하시겠습니까?`)), [
       { label: "돌아가기", value: null },
       { label: "예약 취소", danger: true, handler: async () => {
         try {

@@ -20,8 +20,7 @@ class Spec:
 
 SPECS: dict[str, Spec] = {
     "booking_window_days": Spec(30, 1, 180, "예약 가능 범위(일)"),
-    "booking_deadline_minutes": Spec(30, 0, 4320, "예약 신청 마감(상담 시작 N분 전)"),
-    "cancel_deadline_hours": Spec(3, 0, 72, "학생 취소 마감(상담 시작 N시간 전)"),
+    "booking_deadline_minutes": Spec(30, 0, 4320, "예약 신청·취소·변경 마감(상담 시작 N분 전)"),
     "default_break_minutes": Spec(0, 0, 120, "상담 간 기본 휴식(분)"),
     "survey_min_results": Spec(5, 1, 50, "설문 결과 공개 최소 응답 수"),
 }
@@ -29,6 +28,11 @@ SPECS: dict[str, Spec] = {
 
 def get_settings(db: Session) -> dict[str, int]:
     stored = settings_repo.get_all(db)
+    # The booking deadline is now canonical for all three actions. Retired
+    # cancel_deadline_hours values (including custom values) stay in storage
+    # for history, but cannot override the unified policy. Existing explicit
+    # booking minutes, then non-default legacy booking hours, take precedence.
+
     legacy = stored.get("booking_deadline_hours")
     if type(legacy) is int and 0 <= legacy <= 72 and legacy != 3:
         stored.setdefault("booking_deadline_minutes", legacy * 60)
@@ -51,6 +55,14 @@ def update_settings(db: Session, actor_id: int, changes: dict[str, object]) -> d
             raise BadRequest("예약 신청 마감 시간을 확인해 주세요")
         changes["booking_deadline_minutes"] = legacy * 60
     before = get_settings(db)
+    # Old clients may submit the retired cancellation setting. Never let a
+    # stale separate value silently change the unified policy.
+    if "cancel_deadline_hours" in changes:
+        legacy_cancel = changes.pop("cancel_deadline_hours")
+        target = changes.get("booking_deadline_minutes", before["booking_deadline_minutes"])
+        if (type(legacy_cancel) not in (int, float)
+                or legacy_cancel * 60 != target):
+            raise BadRequest("취소·변경 마감은 예약 신청 마감(분)과 같습니다. 통합 마감 설정을 사용해 주세요")
     for key, value in changes.items():
         spec = SPECS.get(key)
         if spec is None:
