@@ -20,12 +20,12 @@ export function inboxBell() {
     if (pending) return;
     pending = true;
     try {
-      const data = await get("/api/inbox");
+      const data = await get("/api/inbox?limit=5");
       setCount(data.unread);
       const refreshButton = h("button", { class: "btn small", type: "button", onclick: refresh }, "새로고침");
       mount(panel, h("div", { class: "inbox-popover-head" }, h("h2", {}, "알림 모아보기"),
         h("button", { class: "btn small", type: "button", onclick: () => close(true) }, "닫기")),
-        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 열거나 새로고침할 때 갱신`),
+        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 최근 도착순 · 열거나 새로고침할 때 갱신`),
         ...data.items.slice(0, 5).map(item => {
           const read = h("button", { class: "btn small", type: "button", disabled: item.read }, item.read ? "읽음" : "읽음 표시");
           read.onclick = async () => {
@@ -34,7 +34,7 @@ export function inboxBell() {
             catch (err) { read.disabled = false; toast(err.message, "error"); }
           };
           return h("article", { class: "inbox-preview" }, h("h3", {}, item.title), h("p", {}, item.body),
-            h("small", {}, item.created_on), h("div", { class: "actions" },
+            h("small", {}, `알림 도착일 ${item.arrived_on || item.created_on}`), h("div", { class: "actions" },
               h("a", { class: "btn small", href: item.url, onclick: () => close() }, "내용 확인"), read));
         }),
         !data.items.length ? h("p", {}, "새 알림이 없습니다.") : null,

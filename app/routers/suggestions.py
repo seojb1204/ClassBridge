@@ -82,10 +82,29 @@ def submit_anonymous(body: SuggestionIn, request: Request, db: Session = Depends
 
 @router.get("", response_model=list[SuggestionOut], dependencies=[Depends(feature_on)])
 def search(status: str | None = None, category: str | None = None, limit: int = 100, offset: int = 0,
-           trash: bool = False,
+           trash: bool = False, order: Literal["newest", "oldest"] = "newest",
            p: Principal = Depends(require(P.SUGGESTION_READ)),
                      db: Session = Depends(get_db)):
-    return with_replies(db, repo.search(db, status, category, min(max(limit, 1), 100), max(offset, 0), trash=trash))
+    return with_replies(db, repo.search(db, status, category, min(max(limit, 1), 100), max(offset, 0),
+                                       trash=trash, order=order))
+
+
+class SearchIn(BaseModel):
+    query: str = Field(default="", max_length=200)
+    status: Literal["new", "reviewed", "archived"] | None = None
+    category: Category | None = None
+    order: Literal["newest", "oldest"] = "newest"
+    trash: bool = False
+    limit: int = Field(default=50, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+
+@router.post("/search", dependencies=[Depends(feature_on)])
+def search_content(body: SearchIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
+                   db: Session = Depends(get_db)):
+    # Search terms stay out of URLs/access logs; never persist them or send to AI.
+    return with_replies(db, repo.search(db, body.status, body.category, body.limit, body.offset,
+                                       trash=body.trash, query=body.query, order=body.order))
 
 
 @router.get("/stats", dependencies=[Depends(feature_on)])

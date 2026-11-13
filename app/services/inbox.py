@@ -28,4 +28,5 @@ def public_item(row):
             "body": "새 건의가 접수되었습니다. 건의함에서 확인하세요." if suggestion
                 else "상담 예약 관련 변경이 있습니다. 예약 관리에서 확인하세요.",
             "url": "/#/suggestions" if suggestion else "/#/bookings",
-            "created_on": row.created_on.isoformat(), "read": row.read_at is not None}
+            "created_on": row.created_on.isoformat(), "arrived_on": kst_date(row.available_at).isoformat(),
+            "read": row.read_at is not None}
