@@ -214,12 +214,14 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
             })
             p.wait_for_timeout(40)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-        p.wait_for_function("([before, direction]) => (scrollY - before) * direction > 20",
-                            arg=[before, direction], timeout=5000)
+        p.wait_for_timeout(800)
         diagnostics = {
             "direction": direction, "before": before, "after": p.evaluate("scrollY"),
             "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
             "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
+            "viewport": p.evaluate("({width:innerWidth, height:innerHeight, visual:visualViewport.toJSON?.(), scrollHeight:document.documentElement.scrollHeight})"),
+            "box": box,
+            "chain": grid.evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
