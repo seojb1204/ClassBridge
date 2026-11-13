@@ -151,3 +151,44 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     p.locator(".calendar-week").wait_for()
     assert p.locator(".week-grid .day-head").count() == 7
     session.close()
+
+
+@pytest.mark.parametrize("mode", ["주간", "3일"])
+@pytest.mark.parametrize("width", [360, 390])
+def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, width):  # noqa: F811
+    from playwright.sync_api import expect
+
+    base, _ = server
+    session = Session(browser, base, "prof@test.ac.kr", {"width": width, "height": 640}, service_workers="block")
+    p = session.page
+    session.go("/slots")
+    p.get_by_role("button", name=mode, exact=True).click()
+    grid = p.locator(".mobile-grid-wrap")
+    grid.wait_for()
+    # Keep both outer directions scrollable independently of fixture event count.
+    p.evaluate("""() => {
+        const spacer = document.createElement('div');
+        spacer.style.height = '1200px'; document.body.append(spacer);
+    }""")
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
+    assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
+    cdp = p.context.new_cdp_session(p)
+    for direction in (1, -1):
+        grid.evaluate("""(e, down) => {
+            window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 100);
+            e.scrollTop = down ? e.scrollHeight : 0;
+        }""", direction == 1)
+        p.wait_for_timeout(100)
+        before = p.evaluate("scrollY")
+        box = grid.bounding_box()
+        # Genuine Chromium touch scroll gesture at the already reached inner edge.
+        cdp.send("Input.synthesizeScrollGesture", {
+            "x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2,
+            "yDistance": -direction * 140, "gestureSourceType": "touch",
+            "speed": 600,
+        })
+        p.wait_for_function("([before, direction]) => (scrollY - before) * direction > 20", arg=[before, direction])
+    expect(p.get_by_role("button", name=mode, exact=True)).to_have_attribute("aria-pressed", "true")
+    cdp.detach()
+    session.close()
