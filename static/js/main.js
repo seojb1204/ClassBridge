@@ -142,5 +142,10 @@ async function start() {
   await resolve();
 }
 
+document.querySelector(".skip-link")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  document.getElementById("view").focus();
+});
+
 initializePwa();
 start();
