@@ -22,7 +22,7 @@ function editorFields(refresh, row = null) {
       if (!title.reportValidity() || !date.reportValidity() || !start.reportValidity() || !end.reportValidity() || !weeks.reportValidity()) return false;
       const value = { title: title.value, location: location.value, date: date.value, start_time: start.value, end_time: end.value, weeks: row ? 1 : Number(weeks.value) };
       await (row ? patch(`/api/lectures/${row.id}`, value) : post('/api/lectures', value));
-      await refresh(); return true;
+      await refresh(value); return true;
     } catch (e) { errorToast(e); return false; }
   };
   return { body, save, cancelScope };

@@ -21,7 +21,10 @@ let registrationKind = "consultation";
 
 export function renderRegistration(root) {
   const consultation = createForm(root);
-  const lecture = lectureCreateForm(() => { location.hash = "#/slots"; });
+  const lecture = lectureCreateForm((value) => {
+    weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true;
+    location.hash = "#/slots";
+  });
   const panel = h("section", { class: "panel", id: "slot-create-panel" });
   const buttons = [["consultation", "상담 가능 시간"], ["lecture", "강의"]].map(([kind, label]) =>
     h("button", { class: "btn", "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind) }, label));
