@@ -1269,7 +1269,7 @@ def test_unresolved_history_filter_includes_past_and_allows_staff_correction(ser
     page.route("**/api/bookings?*", bookings)
     staff.go("/bookings")
     page.get_by_role("button", name="예약 목록", exact=True).click()
-    page.get_by_label("상태", exact=True).select_option("expired")
+    page.get_by_label("예약 상태", exact=True).select_option("expired")
     page.locator(".badge.expired").wait_for(state="attached")
     assert "from_date=" not in requests[-1]
     assert page.get_by_text("과거 포함 · 결과 확인 필요 · 1건 (한국시간)", exact=True).count() == 1

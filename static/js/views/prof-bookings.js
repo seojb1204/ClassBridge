@@ -130,6 +130,7 @@ export async function render(root) {
   const list = await get(`/api/bookings?${q}`);
   const status = select([["", "전체"], ["booked", "예약됨"], ["completed", "완료"], ["no_show", "미참석"],
     ["expired", "기간 종료·결과 미확인"], ["cancelled", "취소됨"]], filter.status);
+  status.setAttribute("aria-label", "예약 상태");
   const apply = () => { filter = { status: status.value }; render(root); };
   status.addEventListener("change", apply);
   const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
