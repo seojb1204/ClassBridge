@@ -1,3 +1,4 @@
+import { startRegistrationAt } from "./prof-slots.js";
 import { loadLectures, lectureEditor } from "../components/lecture-editor.js";
 import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
@@ -111,6 +112,8 @@ async function renderCalendarView(root) {
     h("button", { class: "btn", onclick: () => lectureEditor(() => renderCalendarView(root)) }, "+ 강의 추가"),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
     renderCalendar({ weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
+      onTimeSelect: startRegistrationAt,
+      onWeekChange: (w) => { weekStart = w; selectedDay = w; return renderCalendarView(root); },
       onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
       onSlot: (slot) => slot.event_type === "lecture" ? lectureEditor(() => renderCalendarView(root), slot) : showStaffSlot(root, slot, bookings) }),

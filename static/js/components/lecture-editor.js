@@ -3,13 +3,13 @@ import { h, field, modal, errorToast, select, busy, toast } from '../ui.js';
 import { kstParts, todayKst } from '../time.js';
 
 export function loadLectures(start) { return get(`/api/lectures?start=${start}&days=7`); }
-function editorFields(refresh, row = null) {
+function editorFields(refresh, row = null, seed = null) {
   const a = row ? kstParts(row.start_at) : null, b = row ? kstParts(row.end_at) : null;
   const title = h('input', { value: row?.title || '', maxlength: 120, required: true });
   const location = h('input', { value: row?.location || '', maxlength: 200 });
-  const date = h('input', { type: 'date', value: a?.date || todayKst(), required: true });
-  const start = h('input', { type: 'time', value: a?.time || '09:00', required: true });
-  const end = h('input', { type: 'time', value: b?.time || '10:00', required: true });
+  const date = h('input', { type: 'date', value: a?.date || seed?.date || todayKst(), required: true });
+  const start = h('input', { type: 'time', value: a?.time || seed?.start || '09:00', required: true });
+  const end = h('input', { type: 'time', value: b?.time || seed?.end || '10:00', required: true });
   const weeks = h('input', { type: 'number', min: 1, max: 26, value: 1 });
   const cancelScope = select([['once', '이번 강의만'], ['series', '반복 강의 전체']]);
   const body = h('div', {}, field('강의명', title), field('날짜', date),
@@ -28,8 +28,8 @@ function editorFields(refresh, row = null) {
   return { body, save, cancelScope };
 }
 
-export function lectureCreateForm(refresh) {
-  const { body, save } = editorFields(refresh);
+export function lectureCreateForm(refresh, seed = null) {
+  const { body, save } = editorFields(refresh, null, seed);
   const button = h('button', { class: 'btn primary', type: 'submit' }, '강의 저장');
   const form = h('form', { class: 'lecture-create-form' }, body, button);
   form.addEventListener('submit', busy(button, async (event) => {
