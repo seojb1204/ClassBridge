@@ -5,7 +5,7 @@
   --primary: #a64419; --primary-weak: #f9e8d9; --mine: #28604d; --mine-weak: #e8f1e8;
   --danger: #a52e32; --danger-weak: #fbe9e6; --warn: #80520b; --closed: #eee9e1;
   --available: #78320f; --available-bg: #fbebdf; --available-line: #c59475;
-  --ink-soft: #746654; --control-line: #9c8f7e; --reserved-line: #b56b47;
+  --control-line: #9c8f7e; --reserved-line: #b56b47;
   --reserved-text: #783515; --reserved-hover: #f3d9c2; --available-hover: #f5dac7;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
   --radius: 6px; --shadow: none;
@@ -334,8 +334,8 @@ code { font-size: .78rem; word-break: break-all; }
 .available-days { padding: 10px 12px; margin: 8px 0; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--text); }
 .available-days h2 { font: inherit; font-size: .875rem; font-weight: 600; margin: 0 0 6px; }
 .available-days > p { font-size: .875rem; margin: 4px 0; }
-.available-day-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
-.available-day-buttons .btn { white-space: normal; text-align: left; font-size: .8125rem; padding: 4px 8px; min-height: 44px; background: var(--bg); }
+.available-day-buttons { display: flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.available-day-buttons .btn { flex: 0 0 auto; white-space: nowrap; text-align: left; font-size: .8125rem; padding: 4px 8px; min-height: 44px; background: var(--bg); }
 .available-days > .btn { margin-top: 6px; min-height: 44px; }
 #slot-create-panel .notice { margin: 10px 0 0; overflow-wrap: anywhere; }
 #slot-create-panel [hidden] { display: none !important; }

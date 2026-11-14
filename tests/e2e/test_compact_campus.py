@@ -27,7 +27,7 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     page.reload()
     s.go(path)
     support = page.locator('.calendar-support')
-    if support.count() and not support.get_attribute('open'):
+    if support.count() and not support.evaluate('e => e.open'):
         support.locator('summary').click()
     notice = page.locator('.announcement-panel')
     notice.wait_for()
@@ -47,6 +47,7 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     assert body.bounding_box()['height'] <= 44
     buttons = availability.locator('.available-day-buttons button')
     assert buttons.count() == 3
+    assert availability.bounding_box()['height'] < 170
     for button in buttons.all():
         assert button.bounding_box()['height'] >= 44
     availability.get_by_role('button', name='전체 일정 보기').click()
