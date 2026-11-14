@@ -32,3 +32,24 @@ def test_notification_worker_links_are_fixed_authenticated_routes(clients):
     assert '"/#/inbox"' in worker
     assert '.includes(payload.url) ? payload.url : "/#/bookings"' in worker
     assert 'config.session !== payload.session' in worker
+
+
+def test_editorial_icons_and_apple_home_screen(clients):
+    client = clients["prof"]
+    page = client.get("/").text
+    manifest = client.get("/static/manifest.webmanifest").json()
+    assert manifest["theme_color"] == manifest["background_color"] == "#f7f3ec"
+    assert manifest["id"] == "/"  # Preserve existing installed-app identity.
+    assert manifest["name"] == "ClassBridge 교수자"
+    assert manifest["short_name"] == "ClassBridge"
+    assert all("app-editorial-v1-" in icon["src"] for icon in manifest["icons"])
+    assert any(icon["purpose"] == "maskable" for icon in manifest["icons"])
+    assert 'rel="apple-touch-icon" sizes="180x180" href="/static/icons/app-editorial-v1-180.png"' in page
+    assert 'sizes="32x32" href="/static/icons/app-editorial-v1-32.png"' in page
+    for size in (32, 180):
+        response = client.get(f"/static/icons/app-editorial-v1-{size}.png")
+        assert response.status_code == 200
+        assert struct.unpack("!II", response.content[16:24]) == (size, size)
+    svg = client.get("/static/icons/app-editorial-v1.svg").text
+    assert '#a64419' in svg and '#f7f3ec' in svg
+    assert '#3155ef' not in svg

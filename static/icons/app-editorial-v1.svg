@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">ClassBridge calendar</title>
+  <!-- Editorial Campus palette. All essential artwork fits the maskable 80% circle. -->
+  <path fill="#a64419" d="M0 0h512v512H0z"/>
+  <g fill="none" stroke="#f7f3ec" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="138" y="156" width="236" height="216" rx="16"/>
+    <path d="M138 216h236M194 132v48M318 132v48"/>
+  </g>
+  <g fill="#f7f3ec">
+    <rect x="180" y="248" width="32" height="32" rx="4"/>
+    <rect x="240" y="248" width="32" height="32" rx="4"/>
+    <rect x="300" y="248" width="32" height="32" rx="4"/>
+    <rect x="180" y="308" width="32" height="32" rx="4"/>
+    <rect x="240" y="308" width="32" height="32" rx="4"/>
+  </g>
+</svg>
