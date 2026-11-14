@@ -754,9 +754,9 @@ def test_mobile_student_flow(server, browser):
     st.page.locator(".day-chips").wait_for()
     assert st.page.locator(".day-chips").is_visible()
     slot = _find_slot(st, mobile=True)
-    st.page.get_by_role("button", name="3일", exact=True).click()
+    st.page.get_by_role("button", name="주간", exact=True).click()
     st.page.locator(".week-grid").wait_for(state="visible")
-    assert st.page.locator(".week-grid .day-head").count() == 3
+    assert st.page.locator(".week-grid .day-head").count() == 7
     assert st.page.locator(".week-grid .slot.open").count() > 0
     st.page.get_by_role("button", name="목록", exact=True).click()
     st.page.locator(".daily .cards").wait_for(state="visible")
@@ -814,9 +814,9 @@ def test_mobile_staff_insights_and_timetable(server, browser):
         day_chip = prof.page.locator(".chip").filter(
             has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
     day_chip.first.click()
-    prof.page.get_by_role("button", name="3일", exact=True).click()
+    prof.page.get_by_role("button", name="주간", exact=True).click()
     prof.page.locator(".week-grid").wait_for(state="visible")
-    assert prof.page.locator(".week-grid .day-head").count() == 3
+    assert prof.page.locator(".week-grid .day-head").count() == 7
     assert prof.page.locator(".week-grid .slot").count() >= 1
     prof.page.get_by_role("button", name="목록", exact=True).click()
     prof.page.locator(".daily .cards").wait_for(state="visible")

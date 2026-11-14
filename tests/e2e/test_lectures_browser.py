@@ -74,7 +74,7 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     ("grid-student@test.ac.kr", "/booking"),
 ])
 @pytest.mark.parametrize("viewport", [MOBILE, {"width": 360, "height": 640}])
-def test_mobile_calendar_week_three_list_and_details(server, browser, email, path, viewport):  # noqa: F811
+def test_mobile_calendar_week_list_and_details(server, browser, email, path, viewport):  # noqa: F811
     from datetime import date, timedelta
     from urllib.parse import parse_qs, urlparse
 
@@ -126,15 +126,8 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     p.get_by_role("button", name="다음 주", exact=True).click()
     expect(p.locator(".week-grid .day-head").first).not_to_have_text(before)
     assert p.locator(".week-grid .day-head").count() == 7
-    p.get_by_role("button", name="3일", exact=True).click()
-    p.locator(".calendar-three").wait_for()
-    assert p.locator(".week-grid .day-head").count() == 3
-    assert p.locator(".week-grid .slot.open").count() == 3
-    p.get_by_role("button", name="다음 3일", exact=True).click()
-    p.get_by_role("button", name="이전 3일", exact=True).wait_for(state="visible")
-    expect(p.get_by_role("button", name="이전 3일", exact=True)).to_be_enabled()
-    assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
-    session.shot(f"calendar_three_{email.split('@')[0]}_{viewport['width']}")
+    expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
+    expect(p.get_by_role("group", name="일정 보기 방식").get_by_role("button")).to_have_count(2)
     p.get_by_role("button", name="목록", exact=True).click()
     p.locator(".day-chips").wait_for()
     assert p.locator(".day-chips .chip").count() == 7
@@ -153,9 +146,8 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     session.close()
 
 
-@pytest.mark.parametrize("mode", ["주간", "3일"])
 @pytest.mark.parametrize("width", [390, 360])
-def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, width):  # noqa: F811
+def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width):  # noqa: F811
     from datetime import date, timedelta
     from urllib.parse import parse_qs, urlparse
 
@@ -182,9 +174,9 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
     p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
     session.go("/bookings")
     session.go("/slots")
-    p.get_by_role("button", name=mode, exact=True).click()
+    p.get_by_role("button", name="주간", exact=True).click()
     grid = p.locator(".mobile-grid-wrap")
-    expect(grid.locator(".slot")).to_have_count(7 if mode == "주간" else 3)
+    expect(grid.locator(".slot")).to_have_count(7)
     p.wait_for_timeout(500)
     # Keep both outer directions scrollable independently of fixture event count.
     p.evaluate("""() => {
@@ -225,6 +217,6 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, mode, 
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
-    expect(p.get_by_role("button", name=mode, exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(p.get_by_role("button", name="주간", exact=True)).to_have_attribute("aria-pressed", "true")
     cdp.detach()
     session.close()
