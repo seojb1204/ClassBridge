@@ -259,6 +259,8 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
     before = p.locator(".week-nav strong").inner_text()
     transform = drag(-45)
     assert (transform == "none") if reduced_motion else (transform != "none")
+    if not reduced_motion:
+        assert 30 < abs(float(transform.split(",")[4])) < 40
     expect(p.locator(".week-nav strong")).to_have_text(before)
     expect(p.locator("dialog[open]")).to_have_count(0)
     # Formerly sufficient 150px pulls now spring back in both directions.
@@ -268,7 +270,10 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
         expect(p.locator("dialog[open]")).to_have_count(0)
         if not reduced_motion:
             offset = float(transform.split(",")[4])
-            assert 0 < abs(offset) < 30
+            # Follow the finger visibly (about 62px/82px), without changing
+            # the release threshold or letting the calendar leave the screen.
+            assert abs(distance) * .5 < abs(offset) < abs(distance)
+            assert (offset > 0) == (distance > 0)
         expect(grid.locator(".week-grid")).to_have_css("transform", "none")
     drag(-230)
     expect(p.locator(".week-nav strong")).not_to_have_text(before)

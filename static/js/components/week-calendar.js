@@ -210,9 +210,9 @@ function enableWeekSwipe(wrap, grid, o) {
     if (g.axis !== "x") return;
     g.dx = dx;
     suppressUntil = performance.now() + 600;
-    // Strong elastic hold: feedback starts immediately, but the current week
-    // stays visually anchored even during a deliberate long drag.
-    const offset = Math.sign(dx) * 52 * (1 - Math.exp(-Math.abs(dx) / 220));
+    // Follow the finger more generously while keeping a bounded elastic pull.
+    // Visual travel is independent of the deliberate week-change threshold.
+    const offset = Math.sign(dx) * 140 * (1 - Math.exp(-Math.abs(dx) / 170));
     grid.style.transition = "none";
     grid.style.transform = reduced() ? "" : `translateX(${offset}px)`;
   });
