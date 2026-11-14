@@ -236,7 +236,8 @@ function enableWeekSwipe(wrap, grid, o) {
   };
   wrap.addEventListener("pointerup", e => finish(e));
   wrap.addEventListener("pointercancel", e => finish(e, true));
-  wrap.addEventListener("lostpointercapture", e => finish(e, true));
+  // Ignore bubbled loss of a card's implicit capture when taking over its drag.
+  wrap.addEventListener("lostpointercapture", e => { if (e.target === wrap) finish(e, true); });
 }
 
 function renderDaily(o, byDay) {
