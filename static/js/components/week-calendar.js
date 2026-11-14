@@ -191,7 +191,7 @@ function enableWeekSwipe(wrap, grid, o) {
   let gesture = null, busy = false, suppressUntil = 0;
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
-    grid.style.transition = reduced() ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)";
+    grid.style.transition = reduced() ? "none" : "transform 260ms cubic-bezier(.16,1,.3,1)";
     grid.style.transform = "";
   };
   wrap.addEventListener("pointerdown", e => {
@@ -210,8 +210,9 @@ function enableWeekSwipe(wrap, grid, o) {
     if (g.axis !== "x") return;
     g.dx = dx;
     suppressUntil = performance.now() + 600;
-    // Increasing resistance, capped displacement: never throw the week offscreen.
-    const offset = Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 130));
+    // Strong elastic hold: feedback starts immediately, but the current week
+    // stays visually anchored even during a deliberate long drag.
+    const offset = Math.sign(dx) * 52 * (1 - Math.exp(-Math.abs(dx) / 220));
     grid.style.transition = "none";
     grid.style.transform = reduced() ? "" : `translateX(${offset}px)`;
   });
@@ -224,7 +225,9 @@ function enableWeekSwipe(wrap, grid, o) {
     gesture = null;
     if (g.axis !== "x" || cancelled) { settle(); return; }
     suppressUntil = performance.now() + 600;
-    const threshold = Math.min(110, Math.max(80, wrap.clientWidth * .28));
+    // Require a deliberate pull over half the calendar width. No velocity
+    // shortcut: a quick flick must not accidentally change the week.
+    const threshold = Math.min(210, Math.max(160, wrap.clientWidth * .52));
     settle();
     if (Math.abs(g.dx) < threshold) return;
     busy = true;
