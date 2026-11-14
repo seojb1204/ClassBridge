@@ -547,3 +547,14 @@ textarea { line-height: 1.75; }
   .mobile-grid-wrap .slot.open:hover, .mobile-grid-wrap .slot.open:focus-visible { background: var(--available-hover); }
   .mobile-grid-wrap .slot.lecture { background: #e6ece3; color: #29442c; border-color: #7d9276; }
 }
+
+/* Horizontal week gestures do not consume vertical scroll or pinch zoom. */
+.week-swipe { touch-action: pan-y pinch-zoom; }
+.week-swipe > .week-grid { will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .week-swipe > .week-grid { transition: none !important; transform: none !important; will-change: auto; }
+}
+
+/* Empty timetable hit areas retain grid sizing; event cards paint above them. */
+.week-grid button.calendar-time-cell { padding: 0; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); border-radius: 0; background: transparent; min-width: 0; cursor: pointer; }
+.week-grid button.calendar-time-cell:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }

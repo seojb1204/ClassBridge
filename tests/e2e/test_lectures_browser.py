@@ -220,3 +220,52 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     expect(p.get_by_role("button", name="주간", exact=True)).to_have_attribute("aria-pressed", "true")
     cdp.detach()
     session.close()
+
+
+@pytest.mark.parametrize("reduced_motion", [False, True])
+def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion):  # noqa: F811
+    from playwright.sync_api import expect
+
+    base, _ = server
+
+    class TouchBrowser:
+        def new_context(self, **kwargs):
+            return browser.new_context(**kwargs, is_mobile=True, has_touch=True,
+                                       reduced_motion="reduce" if reduced_motion else "no-preference")
+
+    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": 390, "height": 844}, service_workers="block")
+    p = session.page
+    session.go("/slots")
+    grid = p.locator(".mobile-grid-wrap")
+    expect(grid).to_be_visible()
+    cdp = p.context.new_cdp_session(p)
+    cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
+
+    def drag(dx):
+        grid.scroll_into_view_if_needed()
+        box = grid.bounding_box()
+        x, y = box["x"] + box["width"] / 2, box["y"] + min(box["height"] / 2, 150)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        for step in range(1, 11):
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + dx * step / 10, "y": y}]})
+            p.wait_for_timeout(20)
+        transform = grid.locator(".week-grid").evaluate("e => getComputedStyle(e).transform")
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        p.wait_for_timeout(450)
+        return transform
+
+    before = p.locator(".week-nav strong").inner_text()
+    transform = drag(-45)
+    assert (transform == "none") if reduced_motion else (transform != "none")
+    expect(p.locator(".week-nav strong")).to_have_text(before)
+    expect(p.locator("dialog[open]")).to_have_count(0)
+    drag(-150)
+    expect(p.locator(".week-nav strong")).not_to_have_text(before)
+    expect(p.locator("dialog[open]")).to_have_count(0)
+    drag(150)
+    expect(p.locator(".week-nav strong")).to_have_text(before)
+    p.get_by_role("button", name="다음 주", exact=True).click()
+    expect(p.locator(".week-nav strong")).not_to_have_text(before)
+    expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
+    cdp.detach()
+    session.close()

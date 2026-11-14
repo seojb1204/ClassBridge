@@ -20,13 +20,22 @@ let showCancelled = false;
 
 let revealCreated = false;
 let registrationKind = "consultation";
+let registrationSeed = null;
+
+export function startRegistrationAt(seed) {
+  registrationSeed = seed;
+  registrationKind = "consultation";
+  location.hash = "#/slots/new";
+}
 
 export function renderRegistration(root) {
-  const consultation = createForm(root);
+  const seed = registrationSeed;
+  registrationSeed = null;
+  const consultation = createForm(root, seed);
   const lecture = lectureCreateForm((value) => {
     weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true; showForm = false;
     location.hash = "#/slots";
-  });
+  }, seed);
   const panel = h("section", { class: "panel", id: "slot-create-panel" });
   const buttons = [["consultation", "상담 가능 시간"], ["lecture", "강의"]].map(([kind, label]) =>
     h("button", { class: "btn", "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind) }, label));
@@ -86,6 +95,8 @@ async function draw(root, revealDay = false) {
     h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,
       onchange: (e) => { showCancelled = e.target.checked; draw(root); } }), "취소된 상담 시간 보기"),
     renderCalendar({ weekStart, slots: [...(showCancelled ? slots : slots.filter(s => s.status !== "cancelled")), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+      onTimeSelect: startRegistrationAt,
+      onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : editSlot(root, s),
@@ -97,11 +108,11 @@ async function draw(root, revealDay = false) {
   if (revealDay) revealSelectedDay(root);
 }
 
-function createForm(root) {
-  const date = h("input", { type: "text", placeholder: "예: 11월 20일", required: true, value: addDays(todayKst(), 1) });
-  const start = h("input", { type: "text", placeholder: "예: 10 00", required: true, value: "10:00" });
-  const end = h("input", { type: "text", placeholder: "예: 3시", required: true, value: "12:00" });
-  const dur = h("input", { type: "number", min: 5, max: 240, value: 30 });
+function createForm(root, seed = null) {
+  const date = h("input", { type: "text", placeholder: "예: 11월 20일", required: true, value: seed?.date || addDays(todayKst(), 1) });
+  const start = h("input", { type: "text", placeholder: "예: 10 00", required: true, value: seed?.start || "10:00" });
+  const end = h("input", { type: "text", placeholder: "예: 3시", required: true, value: seed?.end || "12:00" });
+  const dur = h("input", { type: "number", min: 5, max: 240, value: seed?.duration || 30 });
   const brk = h("input", { type: "number", min: 0, max: 120, value: 0 });
   const kind = select([["individual", "개인 상담"], ["group", "단체 상담"]], "individual");
   kind.setAttribute("aria-label", "유형");
