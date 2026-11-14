@@ -105,7 +105,9 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     p.reload()
     session.go(path)
     p.locator(".calendar-week .week-grid").wait_for()
-    assert p.get_by_role("button", name="주간", exact=True).get_attribute("aria-pressed") == "true"
+    assert p.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
+    assert p.locator(".calendar-view-switch button").all_text_contents() == ["달력형", "목록형"]
+    assert p.get_by_role("grid", name="달력형 주간 시간표", exact=True).is_visible()
     assert p.locator(".week-grid .day-head").count() == 7
     expect(p.locator(".week-grid .slot.open")).to_have_count(7)
     assert p.locator(".week-grid .slot.open").first.bounding_box()["height"] >= 44
@@ -128,7 +130,7 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     assert p.locator(".week-grid .day-head").count() == 7
     expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
     expect(p.get_by_role("group", name="일정 보기 방식").get_by_role("button")).to_have_count(2)
-    p.get_by_role("button", name="목록", exact=True).click()
+    p.get_by_role("button", name="목록형", exact=True).click()
     p.locator(".day-chips").wait_for()
     assert p.locator(".day-chips .chip").count() == 7
     p.locator(".day-chips .chip").last.click()
@@ -140,7 +142,7 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     assert p.locator(".daily .card.slot.open").first.bounding_box()["height"] >= 44
     assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
     session.shot(f"calendar_list_{email.split('@')[0]}_{viewport['width']}")
-    p.get_by_role("button", name="주간", exact=True).click()
+    p.get_by_role("button", name="달력형", exact=True).click()
     p.locator(".calendar-week").wait_for()
     assert p.locator(".week-grid .day-head").count() == 7
     session.close()
@@ -174,7 +176,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
     session.go("/bookings")
     session.go("/slots")
-    p.get_by_role("button", name="주간", exact=True).click()
+    p.get_by_role("button", name="달력형", exact=True).click()
     grid = p.locator(".mobile-grid-wrap")
     expect(grid.locator(".slot")).to_have_count(7)
     p.wait_for_timeout(500)
@@ -217,7 +219,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
-    expect(p.get_by_role("button", name="주간", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(p.get_by_role("button", name="달력형", exact=True)).to_have_attribute("aria-pressed", "true")
     cdp.detach()
     session.close()
 

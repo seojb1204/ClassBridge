@@ -89,7 +89,7 @@ export function renderCalendar(o) {
 function renderMobile(o, byDay) {
   const mode = ["week", "list", "timeline"].includes(o.mobileView) ? o.mobileView : "week";
   const toggle = h("div", { class: "mobile-view-toggle calendar-view-switch", role: "group", "aria-label": "일정 보기 방식" },
-    ...[["week", "주간"], ["list", "목록"]].map(([value, label]) =>
+    ...[["week", "달력형"], ["list", "목록형"]].map(([value, label]) =>
       h("button", { type: "button", class: mode === value ? "btn primary" : "btn",
         "aria-pressed": String(mode === value), onclick: () => o.onViewChange?.(value) }, label)));
   if (mode === "list" || mode === "timeline") {
@@ -99,7 +99,7 @@ function renderMobile(o, byDay) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle,
     h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[6])}`),
-    h("p", { class: "hint calendar-help" }, "좌우로 충분히 밀면 이전·다음 주로 이동합니다. 작은 일정은 목록에서 자세히 볼 수 있어요."),
+    h("p", { class: "hint calendar-help" }, "좌우로 충분히 밀면 이전·다음 주로 이동합니다. 작은 일정은 목록형에서 자세히 볼 수 있어요."),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
@@ -119,7 +119,7 @@ function renderWeekly(o, byDay) {
     maxH = Math.min(24, Math.max(...ends) + 1);
   }
   const rows = ((maxH - minH) * 60) / STEP;
-  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "주간 시간표" });
+  const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "달력형 주간 시간표" });
   grid.style.gridTemplateRows = `auto repeat(${rows}, ${rowPx}px)`;
   if (o.compactGrid) grid.style.gridTemplateColumns = `36px repeat(${days.length}, minmax(0, 1fr))`;
   grid.append(h("div", { class: "corner" }));
@@ -277,7 +277,7 @@ function renderDaily(o, byDay) {
   const changeView = (value) => o.onViewChange?.(value);
   const toggle = h("div", { class: "mobile-view-toggle", role: "group", "aria-label": "일정 보기 방식" },
     h("button", { type: "button", class: mode === "list" ? "btn primary" : "btn",
-      "aria-pressed": String(mode === "list"), onclick: () => changeView("list") }, "목록 보기"),
+      "aria-pressed": String(mode === "list"), onclick: () => changeView("list") }, "목록형 보기"),
     h("button", { type: "button", class: mode === "timeline" ? "btn primary" : "btn",
       "aria-pressed": String(mode === "timeline"), onclick: () => changeView("timeline") }, "일간 시간표 보기"));
   const cards = h("div", { class: "cards" }, list.map((s) =>
