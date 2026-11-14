@@ -4,7 +4,9 @@
   --bg: #f7f3ec; --panel: #fffcf7; --text: #292721; --muted: #665f55; --line: #ddd3c5;
   --primary: #a64419; --primary-weak: #f9e8d9; --mine: #28604d; --mine-weak: #e8f1e8;
   --danger: #a52e32; --danger-weak: #fbe9e6; --warn: #80520b; --closed: #eee9e1;
-  --available: #28604d; --available-bg: #edf3e9; --available-line: #50745b;
+  --available: #78320f; --available-bg: #fbebdf; --available-line: #c59475;
+  --ink-soft: #746654; --control-line: #9c8f7e; --reserved-line: #b56b47;
+  --reserved-text: #783515; --reserved-hover: #f3d9c2; --available-hover: #f5dac7;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
   --radius: 6px; --shadow: none;
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
@@ -47,10 +49,10 @@ h3 { font-size: 1rem; margin: 0 0 .5rem; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; min-height: 38px;
   padding: .45rem .9rem; border: 1px solid var(--line); background: var(--panel); color: var(--text);
   border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
-.btn:hover { border-color: #c5ccd8; }
+.btn:hover { border-color: var(--control-line); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-.btn.danger { color: var(--danger); border-color: #f2c4c4; }
+.btn.danger { color: var(--danger); border-color: var(--danger); }
 .btn.small { min-height: 32px; padding: .25rem .6rem; font-size: .85rem; }
 .btn.big { min-height: 48px; font-size: 1rem; width: 100%; }
 .link { background: none; border: 0; color: var(--primary); cursor: pointer; font: inherit; padding: .2rem .3rem; }
@@ -103,18 +105,18 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .cell { border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .slot { margin: 1px 3px; border-radius: 6px; border: 0; padding: .2rem .4rem; text-align: left; cursor: pointer;
   display: flex; flex-direction: column; overflow: hidden; font: inherit; font-size: .78rem; z-index: 1; line-height: 1.25; }
-.slot.open { background: var(--available-bg); color: #105640; border: 1px solid var(--available-line); }
-.slot.open:hover, .slot.open:focus-visible { background: #cdebdc; }
-.slot.reserved { background: #e9edff; color: #243e9f; border: 1px solid #b3bff5; }
-.slot.reserved:hover, .slot.reserved:focus-visible { background: #dce3ff; }
-.daily .card.slot.reserved { background: #e9edff; color: #243e9f; border: 2px solid #b3bff5; }
+.slot.open { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-line); }
+.slot.open:hover, .slot.open:focus-visible { background: var(--available-hover); }
+.slot.reserved { background: var(--primary-weak); color: var(--reserved-text); border: 1px solid var(--reserved-line); }
+.slot.reserved:hover, .slot.reserved:focus-visible { background: var(--reserved-hover); }
+.daily .card.slot.reserved { background: var(--primary-weak); color: var(--reserved-text); border: 2px solid var(--reserved-line); }
 .slot.mine { background: var(--booking-mine); color: #fff; }
 .slot.mine:hover, .slot.mine:focus-visible { background: var(--booking-mine-hover); }
-.slot.closed { background: var(--closed); color: #515b6b; border: 1px dashed var(--muted); }
-.slot.cancelled { background: repeating-linear-gradient(45deg, #f4f5f8, #f4f5f8 6px, #eceef3 6px, #eceef3 12px); color: #515b6b; text-decoration: line-through; }
+.slot.closed { background: var(--closed); color: var(--muted); border: 1px dashed var(--muted); }
+.slot.cancelled { background: repeating-linear-gradient(45deg, var(--bg), var(--bg) 6px, var(--closed) 6px, var(--closed) 12px); color: var(--muted); text-decoration: line-through; }
 .slot-time { font-weight: 700; }
 .slot-meta, .slot-count, .slot-loc { opacity: 1; }
-.slot:focus-visible { outline: 3px solid #1d2433; outline-offset: 2px; }
+.slot:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
 
 /* 모바일 일별 */
 .day-chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; margin-bottom: .75rem; }
@@ -137,7 +139,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .mobile-view-toggle .btn { flex: 1; min-height: 44px; }
 .day-timeline { position: relative; margin: .5rem 0 1rem; background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.day-timeline-hour { position: absolute; left: 0; right: 0; border-top: 1px solid #e5e9f1;
+.day-timeline-hour { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line);
   height: 1px; pointer-events: none; }
 .day-timeline-hour span { display: inline-block; position: absolute; top: -10px; left: 6px;
   font-size: .73rem; color: var(--muted); font-variant-numeric: tabular-nums;
@@ -146,9 +148,9 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
   margin: 0; min-height: 44px; overflow: hidden; border-radius: 8px; padding: .3rem .55rem;
   text-align: left; font: inherit; font-size: .82rem; line-height: 1.2; cursor: pointer;
   display: flex; flex-direction: column; gap: .1rem; z-index: 1; }
-.day-timeline-slot:focus-visible { outline: 3px solid #1d2433; outline-offset: 2px; }
+.day-timeline-slot:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
 .day-timeline-slot.slot.open { border: 2px solid var(--available-line); }
-.day-timeline-slot.slot.reserved { border: 2px solid #b3bff5; }
+.day-timeline-slot.slot.reserved { border: 2px solid var(--reserved-line); }
 .day-timeline-slot.slot.mine { border: 2px solid var(--booking-mine); }
 .day-timeline-slot .slot-meta { font-size: .73rem; white-space: nowrap;
   text-overflow: ellipsis; overflow: hidden; }
@@ -243,7 +245,7 @@ code { font-size: .78rem; word-break: break-all; }
 .calendar-toggle .btn[aria-pressed="true"] { background: var(--primary-weak); border-color: var(--primary); color: var(--primary); }
 .booking-detail { display: grid; gap: .65rem; }
 .toasts { position: fixed; bottom: 1rem; right: 1rem; display: flex; flex-direction: column; gap: .5rem; z-index: 60; }
-.toast { background: #1d2433; color: #fff; padding: .7rem 1rem; border-radius: 10px; box-shadow: var(--shadow); max-width: 360px; }
+.toast { background: var(--text); color: #fff; padding: .7rem 1rem; border-radius: 10px; box-shadow: var(--shadow); max-width: 360px; }
 .toast-success { background: var(--mine); }
 .toast-error { background: var(--danger); }
 
@@ -265,7 +267,7 @@ code { font-size: .78rem; word-break: break-all; }
     min-height: 66px; background: var(--panel); border-top: 1px solid var(--line); padding: .25rem .4rem max(.25rem, env(safe-area-inset-bottom)); }
   .mobile-tabs a, .mobile-tabs button { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
     align-items: center; gap: .1rem; min-height: 46px; border: 0; border-radius: 8px; background: transparent;
-    font: inherit; color: #475467; text-decoration: none; font-size: .78rem; cursor: pointer; }
+    font: inherit; color: var(--muted); text-decoration: none; font-size: .78rem; cursor: pointer; }
   .mobile-tabs a.active { color: var(--primary); background: var(--primary-weak); font-weight: 700; }
   .mobile-tabs a:focus-visible, .mobile-tabs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
   .inline-form input[type="date"] { flex: 0 0 auto; }
@@ -305,12 +307,15 @@ code { font-size: .78rem; word-break: break-all; }
 }
 .support-count[hidden] { display: none; }
 /* Representative booking notice: plain text, readable on narrow screens. */
-.announcement-panel { margin: 0 0 16px; padding: 16px; border: 1px solid #a8c6c0; border-left: 4px solid #166b59; border-radius: 10px; background: #f1f8f5; color: #183d35; min-width: 0; overflow-wrap: anywhere; }
-.announcement-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.announcement-panel { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.announcement-head { display: flex; flex-wrap: wrap; gap: 6px; font-size: .875rem; align-items: center; }
 .announcement-head .btn { margin-left: auto; }
-.announcement-panel h2 { font-size: 1.05rem; margin: 12px 0 6px; }
-.announcement-body { white-space: pre-wrap; line-height: 1.65; margin: 6px 0 0; }
-.booking-guide { margin: 0 0 16px; color: #46536b; }
+.announcement-panel h2 { font: inherit; font-weight: 600; margin: 4px 0; }
+.announcement-body { white-space: pre-wrap; line-height: 1.5; font-size: .875rem; margin: 4px 0 0; }
+.announcement-body.is-collapsed { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.announcement-panel > p.muted { font-size: .875rem; margin: 4px 0; }
+.announcement-toggle { min-height: 44px; margin-top: 2px; padding: 4px 0; font-size: .875rem; text-decoration: underline; text-underline-offset: .2em; }
+.booking-guide { margin: 0 0 16px; color: var(--muted); }
 .booking-guide summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
 .booking-guide p { line-height: 1.6; }
 .survey-qr { text-align: center; }
@@ -326,20 +331,22 @@ code { font-size: .78rem; word-break: break-all; }
 /* Distinct navigation shapes and an availability summary above the notice. */
 #nav > a:not(.mobile-help-link) { display: inline-flex; align-items: center; gap: 6px; }
 .nav-icon { flex: 0 0 auto; vertical-align: middle; }
-.available-days { padding: 16px; margin: 12px 0; border: 1px solid #b8d4cc; border-left: 4px solid #176d59; border-radius: 12px; background: #f2faf7; }
-.available-days h2 { font-size: 1rem; margin: 0 0 12px; }
-.available-day-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.available-day-buttons .btn { white-space: normal; text-align: left; }
+.available-days { padding: 10px 12px; margin: 8px 0; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--text); }
+.available-days h2 { font: inherit; font-size: .875rem; font-weight: 600; margin: 0 0 6px; }
+.available-days > p { font-size: .875rem; margin: 4px 0; }
+.available-day-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
+.available-day-buttons .btn { white-space: normal; text-align: left; font-size: .8125rem; padding: 4px 8px; min-height: 44px; background: var(--bg); }
+.available-days > .btn { margin-top: 6px; min-height: 44px; }
 #slot-create-panel .notice { margin: 10px 0 0; overflow-wrap: anywhere; }
 #slot-create-panel [hidden] { display: none !important; }
 
 .schedule-preview{width:100%;min-width:0}
 .preview-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;margin:12px 0}
-.preview-month button{min-width:0;min-height:48px;padding:4px 0;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#174a78}
+.preview-month button{min-width:0;min-height:48px;padding:4px 0;border:1px solid var(--control-line);border-radius:8px;background:#fff;color:var(--text)}
 .preview-month button strong,.preview-month button small{display:block}
-.preview-month button[aria-pressed="true"]{background:#e0e7ff;border:2px solid #4338ca;color:#312e81}
-.preview-month button:disabled{color:#94a3b8;background:#f8fafc;border-color:transparent}
-.preview-times{max-height:220px;overflow:auto;border-top:1px solid #dbe2ed;padding-top:8px}
+.preview-month button[aria-pressed="true"]{background:var(--primary-weak);border:2px solid var(--primary);color:var(--primary)}
+.preview-month button:disabled{color:var(--muted);background:var(--closed);border-color:transparent}
+.preview-times{max-height:220px;overflow:auto;border-top:1px solid var(--line);padding-top:8px}
 .notification-summary{font-size:.9rem}.notification-summary>div{margin:8px 0}.notification-summary small{display:block}
 .week-grid{scroll-margin-top:80px}
 
@@ -441,7 +448,7 @@ textarea { line-height: 1.75; }
 .slot { border-radius: 4px; }
 .slot.reserved, .daily .card.slot.reserved { background: #f9e8d9; color: #783515; border-color: #b56b47; }
 .slot.reserved:hover, .slot.reserved:focus-visible { background: #f3d9c2; }
-.slot.open { color: #244c39; }
+.slot.open { color: var(--available); }
 .daily .card.slot { border-width: 1px; border-left-width: 4px; }
 .chip { border-radius: 5px; min-height: 62px; background: var(--panel); }
 .chip strong { font-family: var(--editorial); font-size: 1.2rem; }
@@ -536,7 +543,7 @@ textarea { line-height: 1.75; }
 }
 
 @media (max-width: 720px) {
-  .mobile-grid-wrap .slot.open { background: #fbebdf; color: #78320f; border: 1px solid #c59475; }
-  .mobile-grid-wrap .slot.open:hover, .mobile-grid-wrap .slot.open:focus-visible { background: #f5dac7; }
+  .mobile-grid-wrap .slot.open { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-line); }
+  .mobile-grid-wrap .slot.open:hover, .mobile-grid-wrap .slot.open:focus-visible { background: var(--available-hover); }
   .mobile-grid-wrap .slot.lecture { background: #e6ece3; color: #29442c; border-color: #7d9276; }
 }

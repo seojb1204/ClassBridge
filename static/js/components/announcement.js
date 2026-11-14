@@ -12,14 +12,22 @@ export function announcementPanel(value, refresh) {
   const manage = can("announcement:manage");
   if (value === undefined) return h("p", { class: "muted" }, "공지를 불러오지 못했습니다. 새로고침해 주세요.");
   if (!manage && !value) return null;
+  const body = value.body ? h("p", { class: "announcement-body" }, value.body) : null;
+  const collapsible = body && (value.body.length > 120 || value.body.split("\n").length > 2);
+  if (collapsible) body.classList.add("is-collapsed");
+  const toggle = collapsible ? h("button", { type: "button", class: "link announcement-toggle", "aria-expanded": "false", onclick: (e) => {
+    const expanded = e.currentTarget.getAttribute("aria-expanded") !== "true";
+    body.classList.toggle("is-collapsed", !expanded);
+    e.currentTarget.setAttribute("aria-expanded", String(expanded));
+    e.currentTarget.textContent = expanded ? "공지 접기" : "공지 전체 보기";
+  } }, "공지 전체 보기") : null;
   return h("section", { class: "announcement-panel", "aria-label": "공지사항" },
     h("div", { class: "announcement-head" }, h("strong", {}, "공지사항"),
       manage ? h("span", { class: "muted" }, value.published ? "게시 중" : "학생에게 숨김") : null,
       manage ? h("button", { class: "btn small", onclick: () => edit(value, refresh) },
         value.revision ? "공지 수정" : "공지 작성") : null),
     value.title ? h("h2", {}, value.title) : null,
-    value.body ? h("p", { class: "announcement-body" }, value.body)
-      : h("p", { class: "muted" }, "학생 예약 화면 위에 표시할 대표 공지를 작성하세요."));
+    body || h("p", { class: "muted" }, "학생 예약 화면 위에 표시할 대표 공지를 작성하세요."), toggle);
 }
 
 async function edit(value, refresh) {
