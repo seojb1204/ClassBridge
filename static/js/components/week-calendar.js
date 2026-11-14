@@ -75,6 +75,7 @@ function slotLabel(s) {
  * @param {(slot)=>Node|null} [o.extra] 슬롯 카드에 추가로 붙일 노드
  * @param {boolean} [o.mobileListOnly] 모바일에서 목록만 표시
  * @param {"week"|"list"|"timeline"} [o.mobileView] 모바일 보기
+ * @param {(week:string)=>Promise<void>|void} [o.onWeekChange] 주 이동
  * @param {(mode:string)=>void} [o.onViewChange] 모바일 보기 전환
  */
 export function renderCalendar(o) {
@@ -98,7 +99,7 @@ function renderMobile(o, byDay) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle,
     h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[6])}`),
-    h("p", { class: "hint calendar-help" }, "한 주의 강의·상담을 함께 봅니다. 작은 일정은 목록에서 자세히 볼 수 있어요."),
+    h("p", { class: "hint calendar-help" }, "좌우로 충분히 밀면 이전·다음 주로 이동합니다. 작은 일정은 목록에서 자세히 볼 수 있어요."),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
@@ -135,7 +136,18 @@ function renderWeekly(o, byDay) {
     label.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
     grid.append(label);
     for (let d = 0; d < days.length; d++) {
-      const cell = h("div", { class: "cell" });
+      const selectTime = (event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        // Keyboard activation selects the labelled hour; touch picks a quarter.
+        const minute = event.detail && rect.height
+          ? Math.max(0, Math.min(3, Math.floor((event.clientY - rect.top) / rect.height * 4))) * 15 : 0;
+        const start = hr * 60 + minute, end = Math.min(23 * 60 + 59, start + 30);
+        const clock = n => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+        o.onTimeSelect?.({ date: days[d], start: clock(start), end: clock(end), duration: end - start });
+      };
+      const cell = h(o.onTimeSelect ? "button" : "div", { class: "cell calendar-time-cell",
+        ...(o.onTimeSelect ? { type: "button", onclick: selectTime,
+          "aria-label": `${fmtDate(days[d])} ${String(hr).padStart(2, "0")}:00 시간 선택` } : {}) });
       cell.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
       cell.style.gridColumn = String(d + 2);
       grid.append(cell);
@@ -166,8 +178,65 @@ function renderWeekly(o, byDay) {
       grid.append(btn);
     }
   }
-  return h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
+  const wrap = h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
     ...(o.compactGrid ? { tabindex: "0", role: "region", "aria-label": "시간표 스크롤 영역" } : {}) }, grid);
+  if (o.compactGrid && o.onWeekChange) enableWeekSwipe(wrap, grid, o);
+  return wrap;
+}
+
+// Own only clearly horizontal touch/pen gestures. The browser retains vertical
+// scrolling (including chaining), pinch zoom, and ordinary event-card taps.
+function enableWeekSwipe(wrap, grid, o) {
+  wrap.classList.add("week-swipe");
+  let gesture = null, busy = false, suppressUntil = 0;
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const settle = () => {
+    grid.style.transition = reduced() ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)";
+    grid.style.transform = "";
+  };
+  wrap.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" || busy) return;
+    if (!e.isPrimary || gesture) { gesture = null; settle(); return; }
+    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null };
+  });
+  wrap.addEventListener("pointermove", e => {
+    const g = gesture;
+    if (!g || e.pointerId !== g.id) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 12) {
+      g.axis = Math.abs(dx) > Math.abs(dy) * 1.3 ? "x" : "y";
+      if (g.axis === "x") wrap.setPointerCapture(e.pointerId);
+    }
+    if (g.axis !== "x") return;
+    g.dx = dx;
+    suppressUntil = performance.now() + 600;
+    // Increasing resistance, capped displacement: never throw the week offscreen.
+    const offset = Math.sign(dx) * 72 * (1 - Math.exp(-Math.abs(dx) / 130));
+    grid.style.transition = "none";
+    grid.style.transform = reduced() ? "" : `translateX(${offset}px)`;
+  });
+  wrap.addEventListener("click", e => {
+    if (performance.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  const finish = (e, cancelled = false) => {
+    const g = gesture;
+    if (!g || e.pointerId !== g.id) return;
+    gesture = null;
+    if (g.axis !== "x" || cancelled) { settle(); return; }
+    suppressUntil = performance.now() + 600;
+    const threshold = Math.min(110, Math.max(80, wrap.clientWidth * .28));
+    settle();
+    if (Math.abs(g.dx) < threshold) return;
+    busy = true;
+    setTimeout(async () => {
+      if (!wrap.isConnected) return;
+      try { await o.onWeekChange(addDays(o.weekStart, g.dx < 0 ? 7 : -7)); }
+      finally { busy = false; }
+    }, reduced() ? 0 : 160);
+  };
+  wrap.addEventListener("pointerup", e => finish(e));
+  wrap.addEventListener("pointercancel", e => finish(e, true));
+  wrap.addEventListener("lostpointercapture", e => finish(e, true));
 }
 
 function renderDaily(o, byDay) {

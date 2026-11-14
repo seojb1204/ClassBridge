@@ -65,6 +65,8 @@ async function draw(root, revealDay = false) {
     legend(),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
     renderCalendar({ weekStart, slots, selectedDay, mobileView,
+      onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
+      onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
