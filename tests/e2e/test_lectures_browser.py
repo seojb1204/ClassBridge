@@ -222,8 +222,9 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     session.close()
 
 
+@pytest.mark.parametrize("width", [360, 390])
 @pytest.mark.parametrize("reduced_motion", [False, True])
-def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion):  # noqa: F811
+def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, width):  # noqa: F811
     from playwright.sync_api import expect
 
     base, _ = server
@@ -233,7 +234,7 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion): 
             return browser.new_context(**kwargs, is_mobile=True, has_touch=True,
                                        reduced_motion="reduce" if reduced_motion else "no-preference")
 
-    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": 390, "height": 844}, service_workers="block")
+    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": width, "height": 844}, service_workers="block")
     p = session.page
     session.go("/slots")
     grid = p.locator(".mobile-grid-wrap")
@@ -244,7 +245,8 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion): 
     def drag(dx):
         grid.scroll_into_view_if_needed()
         box = grid.bounding_box()
-        x, y = box["x"] + box["width"] / 2, box["y"] + min(box["height"] / 2, 150)
+        x = box["x"] + (box["width"] - 25 if dx < 0 else 25)
+        y = box["y"] + min(box["height"] / 2, 150)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
         for step in range(1, 11):
             cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + dx * step / 10, "y": y}]})
@@ -259,10 +261,19 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion): 
     assert (transform == "none") if reduced_motion else (transform != "none")
     expect(p.locator(".week-nav strong")).to_have_text(before)
     expect(p.locator("dialog[open]")).to_have_count(0)
-    drag(-150)
+    # Formerly sufficient 150px pulls now spring back in both directions.
+    for distance in (-100, 100, -150, 150):
+        transform = drag(distance)
+        expect(p.locator(".week-nav strong")).to_have_text(before)
+        expect(p.locator("dialog[open]")).to_have_count(0)
+        if not reduced_motion:
+            offset = float(transform.split(",")[4])
+            assert 0 < abs(offset) < 30
+        expect(grid.locator(".week-grid")).to_have_css("transform", "none")
+    drag(-230)
     expect(p.locator(".week-nav strong")).not_to_have_text(before)
     expect(p.locator("dialog[open]")).to_have_count(0)
-    drag(150)
+    drag(230)
     expect(p.locator(".week-nav strong")).to_have_text(before)
     p.get_by_role("button", name="다음 주", exact=True).click()
     expect(p.locator(".week-nav strong")).not_to_have_text(before)
