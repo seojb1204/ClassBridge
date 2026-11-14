@@ -74,7 +74,7 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     ("grid-student@test.ac.kr", "/booking"),
 ])
 @pytest.mark.parametrize("viewport", [MOBILE, {"width": 360, "height": 640}])
-def test_mobile_calendar_week_three_list_and_details(server, browser, email, path, viewport):  # noqa: F811
+def test_mobile_calendar_week_list_and_details(server, browser, email, path, viewport):  # noqa: F811
     from datetime import date, timedelta
     from urllib.parse import parse_qs, urlparse
 
@@ -126,15 +126,8 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     p.get_by_role("button", name="다음 주", exact=True).click()
     expect(p.locator(".week-grid .day-head").first).not_to_have_text(before)
     assert p.locator(".week-grid .day-head").count() == 7
-    p.get_by_role("button", name="3일", exact=True).click()
-    p.locator(".calendar-three").wait_for()
-    assert p.locator(".week-grid .day-head").count() == 3
-    assert p.locator(".week-grid .slot.open").count() == 3
-    p.get_by_role("button", name="다음 3일", exact=True).click()
-    p.get_by_role("button", name="이전 3일", exact=True).wait_for(state="visible")
-    expect(p.get_by_role("button", name="이전 3일", exact=True)).to_be_enabled()
-    assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
-    session.shot(f"calendar_three_{email.split('@')[0]}_{viewport['width']}")
+    expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
+    expect(p.get_by_role("group", name="일정 보기 방식").get_by_role("button")).to_have_count(2)
     p.get_by_role("button", name="목록", exact=True).click()
     p.locator(".day-chips").wait_for()
     assert p.locator(".day-chips .chip").count() == 7
@@ -150,4 +143,80 @@ def test_mobile_calendar_week_three_list_and_details(server, browser, email, pat
     p.get_by_role("button", name="주간", exact=True).click()
     p.locator(".calendar-week").wait_for()
     assert p.locator(".week-grid .day-head").count() == 7
+    session.close()
+
+
+@pytest.mark.parametrize("width", [390, 360])
+def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width):  # noqa: F811
+    from datetime import date, timedelta
+    from urllib.parse import parse_qs, urlparse
+
+    from playwright.sync_api import expect
+
+    base, _ = server
+    class TouchBrowser:
+        def new_context(self, **kwargs):
+            return browser.new_context(**kwargs, is_mobile=True, has_touch=True)
+
+    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": width, "height": 640}, service_workers="block")
+    p = session.page
+    def tall_calendar(route):
+        start = date.fromisoformat(parse_qs(urlparse(route.request.url).query)["start"][0])
+        start -= timedelta(days=start.weekday())
+        route.fulfill(json=[{
+            "id": 99000 + i, "start_at": f"{start + timedelta(days=i)}T09:00:00+09:00",
+            "end_at": f"{start + timedelta(days=i)}T17:00:00+09:00",
+            "kind": "individual", "capacity": 1, "remaining": 1, "status": "open",
+            "bookable": True, "mine": False, "location": "", "note": "", "reason": "",
+        } for i in range(7)])
+
+    p.route("**/api/slots?*", tall_calendar)
+    p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
+    session.go("/bookings")
+    session.go("/slots")
+    p.get_by_role("button", name="주간", exact=True).click()
+    grid = p.locator(".mobile-grid-wrap")
+    expect(grid.locator(".slot")).to_have_count(7)
+    p.wait_for_timeout(500)
+    # Keep both outer directions scrollable independently of fixture event count.
+    p.evaluate("""() => {
+        const spacer = document.createElement('div');
+        spacer.style.height = '1200px'; document.body.append(spacer);
+    }""")
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
+    assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
+    assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
+    cdp = p.context.new_cdp_session(p)
+    cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
+    for direction in (1, -1):
+        grid.evaluate("""(e, down) => {
+            window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 100);
+            e.scrollTop = down ? e.scrollHeight : 0;
+        }""", direction == 1)
+        p.wait_for_timeout(500)
+        before = p.evaluate("scrollY")
+        box = grid.bounding_box()
+        # Dispatch native touch input with touch emulation explicitly enabled.
+        x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        p.wait_for_timeout(80)
+        for step in range(1, 11):
+            cdp.send("Input.dispatchTouchEvent", {
+                "type": "touchMove", "touchPoints": [{"x": x, "y": y - direction * step * 14}],
+            })
+            p.wait_for_timeout(40)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        p.wait_for_timeout(800)
+        diagnostics = {
+            "direction": direction, "before": before, "after": p.evaluate("scrollY"),
+            "inner": grid.evaluate("e => [e.scrollTop, e.scrollHeight, e.clientHeight]"),
+            "hit": p.evaluate("([x,y]) => document.elementFromPoint(x,y)?.outerHTML", [x, y]),
+            "viewport": p.evaluate("({width:innerWidth, height:innerHeight, visual:visualViewport.toJSON?.(), scrollHeight:document.documentElement.scrollHeight})"),  # noqa: E501
+            "box": box,
+            "chain": p.locator(".mobile-grid-wrap .slot").nth(1).evaluate("e => {let a=[];for(;e;e=e.parentElement){let c=getComputedStyle(e);a.push([e.tagName,e.className,c.overflowY,c.overscrollBehaviorY,c.touchAction,e.scrollTop,e.scrollHeight,e.clientHeight])}return a}"),  # noqa: E501
+        }
+        print(diagnostics)
+        assert (p.evaluate("scrollY") - before) * direction > 20
+    expect(p.get_by_role("button", name="주간", exact=True)).to_have_attribute("aria-pressed", "true")
+    cdp.detach()
     session.close()
