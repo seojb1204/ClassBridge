@@ -31,3 +31,7 @@ Ruff passed, JS syntax and Python test-file compilation passed.
 Real Galaxy S24+ / Samsung Internet / installed PWA remain unverified.
 
 Local pytest: 374 passed, 160 skipped (browser/PostgreSQL not run).
+
+## Native Chromium verification (review PR59)
+
+GitHub CI reproduced browser-owned cancellation for a vertical-first (10px horizontal, 12px vertical) gesture. With `touch-action: pan-y`, Chromium cancels the pointer stream immediately. This must remain native vertical scrolling, not a forced week change. Horizontal-dominant (12px, 10px) and central-start gestures completed both directions in Chromium at 360/390 viewport widths. The regression now separately asserts native cancellation preserves the week; existing boundary scroll-chain tests remain unchanged. Physical Android/iOS testing remains outstanding. No merge or deployment authorized by this review.

@@ -358,7 +358,7 @@ def test_mobile_week_swipe_center_and_diagonal_start(server, browser, width):  #
         p.wait_for_timeout(450)
 
     before = p.locator(".week-nav strong").inner_text()
-    for center, diagonal in [(True, None), (False, (12, 10)), (False, (10, 12))]:
+    for center, diagonal in [(True, None), (False, (12, 10))]:
         drag(-1, center=center, diagonal=diagonal)
         diagnostics = p.evaluate("window.swipeEvents")
         detail = f"center={center}, diagonal={diagonal}, events={diagnostics}"
@@ -366,5 +366,12 @@ def test_mobile_week_swipe_center_and_diagonal_start(server, browser, width):  #
         expect(p.locator("dialog[open]")).to_have_count(0)
         drag(1, center=center, diagonal=diagonal)
         expect(p.locator(".week-nav strong")).to_have_text(before)
+    # With pan-y, a vertical-first gesture belongs to the browser. Do not
+    # override pointercancel or navigate while the user is scrolling vertically.
+    drag(-1, diagonal=(10, 12))
+    events = p.evaluate("window.swipeEvents")
+    assert any(event["type"] == "pointercancel" for event in events), events
+    expect(p.locator(".week-nav strong")).to_have_text(before)
+    expect(p.locator("dialog[open]")).to_have_count(0)
     cdp.detach()
     session.close()
