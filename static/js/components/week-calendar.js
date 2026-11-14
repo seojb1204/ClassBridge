@@ -191,7 +191,14 @@ function enableWeekSwipe(wrap, grid, o) {
   const hint = h("div", { class: "week-swipe-hint", "aria-hidden": "true", hidden: true },
     h("span", { class: "week-swipe-arrow" }), h("span", { class: "week-swipe-label" }));
   wrap.prepend(hint);
-  const threshold = () => Math.min(210, Math.max(160, wrap.clientWidth * .52));
+  const threshold = (g, dx) => {
+    const usual = Math.min(210, Math.max(160, wrap.clientWidth * .52));
+    // Keep the existing edge-to-edge trigger. From the middle, require a
+    // deliberate 85% of the available runway rather than an unreachable pull.
+    // Never make a tiny near-edge flick sufficient, and never use velocity.
+    const available = dx < 0 ? g.runwayLeft : g.runwayRight;
+    return Math.min(usual, Math.max(120, available * .85));
+  };
   let gesture = null, busy = false, suppressUntil = 0;
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
@@ -202,14 +209,20 @@ function enableWeekSwipe(wrap, grid, o) {
   wrap.addEventListener("pointerdown", e => {
     if (e.pointerType === "mouse" || busy) return;
     if (!e.isPrimary || gesture) { gesture = null; settle(); return; }
-    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null };
+    const rect = wrap.getBoundingClientRect();
+    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null,
+      runwayLeft: Math.max(0, e.clientX - rect.left),
+      runwayRight: Math.max(0, rect.right - e.clientX) };
   });
   wrap.addEventListener("pointermove", e => {
     const g = gesture;
     if (!g || e.pointerId !== g.id) return;
     const dx = e.clientX - g.x, dy = e.clientY - g.y;
     if (!g.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 12) {
-      g.axis = Math.abs(dx) > Math.abs(dy) * 1.3 ? "x" : "y";
+      // A small diagonal wobble is undecided, not permanently vertical.
+      // Clearly vertical movement stays native; pointercancel still cancels.
+      if (Math.abs(dx) > Math.abs(dy) * 1.3) g.axis = "x";
+      else if (Math.abs(dy) > Math.abs(dx) * 1.3) g.axis = "y";
       if (g.axis === "x") wrap.setPointerCapture(e.pointerId);
     }
     if (g.axis !== "x") return;
@@ -221,7 +234,7 @@ function enableWeekSwipe(wrap, grid, o) {
     const previous = dx > 0;
     hint.hidden = false;
     hint.dataset.direction = previous ? "previous" : "next";
-    hint.dataset.ready = String(Math.abs(dx) >= threshold());
+    hint.dataset.ready = String(Math.abs(dx) >= threshold(g, dx));
     hint.classList.toggle("is-reduced", reduced());
     hint.classList.toggle("is-narrow", !reduced() && Math.abs(offset) < 60);
     hint.style.width = `${reduced() ? 86 : Math.abs(offset)}px`;
@@ -241,10 +254,10 @@ function enableWeekSwipe(wrap, grid, o) {
     gesture = null;
     if (g.axis !== "x" || cancelled) { settle(); return; }
     suppressUntil = performance.now() + 600;
-    // Require a deliberate pull over half the calendar width. No velocity
-    // shortcut: a quick flick must not accidentally change the week.
+    // Commit only after the deliberate distance shown by the ready hint.
+    // No velocity shortcut: a quick flick must not change the week.
     settle();
-    if (Math.abs(g.dx) < threshold()) return;
+    if (Math.abs(g.dx) < threshold(g, g.dx)) return;
     busy = true;
     setTimeout(async () => {
       if (!wrap.isConnected) return;
