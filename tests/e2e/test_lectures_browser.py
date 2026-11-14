@@ -330,7 +330,19 @@ def test_mobile_week_swipe_center_and_diagonal_start(server, browser, width):  #
     cdp = p.context.new_cdp_session(p)
     grid = p.locator(".mobile-grid-wrap")
 
+    p.evaluate("""() => {
+      window.swipeEvents = [];
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) {
+        document.addEventListener(type, e => window.swipeEvents.push({
+          type, x: e.clientX, y: e.clientY, target: e.target.className,
+          transform: document.querySelector('.week-grid')?.style.transform,
+          ready: document.querySelector('.week-swipe-hint')?.dataset.ready
+        }), true);
+      }
+    }""")
+
     def drag(sign, center=False, diagonal=None):
+        p.evaluate("window.swipeEvents = []")
         grid.scroll_into_view_if_needed()
         box = grid.bounding_box()
         start = box["width"] / 2 if center else (25 if sign > 0 else box["width"] - 25)
@@ -348,7 +360,9 @@ def test_mobile_week_swipe_center_and_diagonal_start(server, browser, width):  #
     before = p.locator(".week-nav strong").inner_text()
     for center, diagonal in [(True, None), (False, (12, 10)), (False, (10, 12))]:
         drag(-1, center=center, diagonal=diagonal)
-        expect(p.locator(".week-nav strong")).not_to_have_text(before)
+        diagnostics = p.evaluate("window.swipeEvents")
+        detail = f"center={center}, diagonal={diagonal}, events={diagnostics}"
+        expect(p.locator(".week-nav strong"), detail).not_to_have_text(before)
         expect(p.locator("dialog[open]")).to_have_count(0)
         drag(1, center=center, diagonal=diagonal)
         expect(p.locator(".week-nav strong")).to_have_text(before)
