@@ -311,3 +311,67 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
     expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
     cdp.detach()
     session.close()
+
+
+@pytest.mark.parametrize("width", [360, 390])
+def test_mobile_week_swipe_center_and_diagonal_start(server, browser, width):  # noqa: F811
+    """Native browser arbitration, not just handler replay. Run before deploying."""
+    from playwright.sync_api import expect
+
+    base, _ = server
+
+    class TouchBrowser:
+        def new_context(self, **kwargs):
+            return browser.new_context(**kwargs, is_mobile=True, has_touch=True)
+
+    session = Session(TouchBrowser(), base, "prof@test.ac.kr", {"width": width, "height": 844}, service_workers="block")
+    p = session.page
+    session.go("/slots")
+    cdp = p.context.new_cdp_session(p)
+    grid = p.locator(".mobile-grid-wrap")
+
+    p.evaluate("""() => {
+      window.swipeEvents = [];
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) {
+        document.addEventListener(type, e => window.swipeEvents.push({
+          type, x: e.clientX, y: e.clientY, target: e.target.className,
+          transform: document.querySelector('.week-grid')?.style.transform,
+          ready: document.querySelector('.week-swipe-hint')?.dataset.ready
+        }), true);
+      }
+    }""")
+
+    def drag(sign, center=False, diagonal=None):
+        p.evaluate("window.swipeEvents = []")
+        grid.scroll_into_view_if_needed()
+        box = grid.bounding_box()
+        start = box["width"] / 2 if center else (25 if sign > 0 else box["width"] - 25)
+        distance = box["width"] / 2 - 5 if center else 230
+        x, y = box["x"] + start, box["y"] + min(box["height"] / 2, 150)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        moves = [(sign * diagonal[0], diagonal[1])] if diagonal else []
+        moves += [(sign * distance * step / 10, diagonal[1] if diagonal else 0) for step in range(1, 11)]
+        for dx, dy in moves:
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + dx, "y": y + dy}]})
+            p.wait_for_timeout(20)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        p.wait_for_timeout(450)
+
+    before = p.locator(".week-nav strong").inner_text()
+    for center, diagonal in [(True, None), (False, (12, 10))]:
+        drag(-1, center=center, diagonal=diagonal)
+        diagnostics = p.evaluate("window.swipeEvents")
+        detail = f"center={center}, diagonal={diagonal}, events={diagnostics}"
+        expect(p.locator(".week-nav strong"), detail).not_to_have_text(before)
+        expect(p.locator("dialog[open]")).to_have_count(0)
+        drag(1, center=center, diagonal=diagonal)
+        expect(p.locator(".week-nav strong")).to_have_text(before)
+    # With pan-y, a vertical-first gesture belongs to the browser. Do not
+    # override pointercancel or navigate while the user is scrolling vertically.
+    drag(-1, diagonal=(10, 12))
+    events = p.evaluate("window.swipeEvents")
+    assert any(event["type"] == "pointercancel" for event in events), events
+    expect(p.locator(".week-nav strong")).to_have_text(before)
+    expect(p.locator("dialog[open]")).to_have_count(0)
+    cdp.detach()
+    session.close()
