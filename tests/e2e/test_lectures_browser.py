@@ -242,7 +242,7 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
     cdp = p.context.new_cdp_session(p)
     cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
 
-    def drag(dx):
+    def drag(dx, cancel=False, retract=False):
         grid.scroll_into_view_if_needed()
         box = grid.bounding_box()
         x = box["x"] + (box["width"] - 25 if dx < 0 else 25)
@@ -251,9 +251,29 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
         for step in range(1, 11):
             cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + dx * step / 10, "y": y}]})
             p.wait_for_timeout(20)
+        if retract:
+            expect(grid.locator(".week-swipe-hint")).to_have_attribute("data-ready", "true")
+            target = 45 if dx > 0 else -45
+            for step in range(1, 11):
+                position = dx + (target - dx) * step / 10
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + position, "y": y}]})
+                p.wait_for_timeout(20)
+            dx = target
         transform = grid.locator(".week-grid").evaluate("e => getComputedStyle(e).transform")
-        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        hint = grid.locator(".week-swipe-hint")
+        expect(hint).to_be_visible()
+        expect(hint).to_have_attribute("aria-hidden", "true")
+        expect(hint).to_have_attribute("data-direction", "previous" if dx > 0 else "next")
+        expect(hint.locator(".week-swipe-label")).to_have_text("이전 주로" if dx > 0 else "다음 주로")
+        expect(hint.locator(".week-swipe-arrow")).to_have_text("←" if dx > 0 else "→")
+        expect(hint).to_have_attribute("data-ready", "true" if abs(dx) == 230 else "false")
+        assert hint.evaluate("e => getComputedStyle(e).pointerEvents") == "none"
+        if abs(dx) == 150:
+            expect(hint.locator(".week-swipe-label")).to_be_visible()
+            session.shot(f"week_hint_{width}_{dx}_{reduced_motion}")
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchCancel" if cancel else "touchEnd", "touchPoints": []})
         p.wait_for_timeout(450)
+        expect(grid.locator(".week-swipe-hint")).to_be_hidden()
         return transform
 
     before = p.locator(".week-nav strong").inner_text()
@@ -275,6 +295,10 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
             assert abs(distance) * .5 < abs(offset) < abs(distance)
             assert (offset > 0) == (distance > 0)
         expect(grid.locator(".week-grid")).to_have_css("transform", "none")
+    drag(-230, retract=True)
+    expect(p.locator(".week-nav strong")).to_have_text(before)
+    drag(-230, cancel=True)
+    expect(p.locator(".week-nav strong")).to_have_text(before)
     drag(-230)
     expect(p.locator(".week-nav strong")).not_to_have_text(before)
     expect(p.locator("dialog[open]")).to_have_count(0)

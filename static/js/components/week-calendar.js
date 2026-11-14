@@ -188,9 +188,14 @@ function renderWeekly(o, byDay) {
 // scrolling (including chaining), pinch zoom, and ordinary event-card taps.
 function enableWeekSwipe(wrap, grid, o) {
   wrap.classList.add("week-swipe");
+  const hint = h("div", { class: "week-swipe-hint", "aria-hidden": "true", hidden: true },
+    h("span", { class: "week-swipe-arrow" }), h("span", { class: "week-swipe-label" }));
+  wrap.prepend(hint);
+  const threshold = () => Math.min(210, Math.max(160, wrap.clientWidth * .52));
   let gesture = null, busy = false, suppressUntil = 0;
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
+    hint.hidden = true;
     grid.style.transition = reduced() ? "none" : "transform 260ms cubic-bezier(.16,1,.3,1)";
     grid.style.transform = "";
   };
@@ -213,6 +218,17 @@ function enableWeekSwipe(wrap, grid, o) {
     // Follow the finger more generously while keeping a bounded elastic pull.
     // Visual travel is independent of the deliberate week-change threshold.
     const offset = Math.sign(dx) * 140 * (1 - Math.exp(-Math.abs(dx) / 170));
+    const previous = dx > 0;
+    hint.hidden = false;
+    hint.dataset.direction = previous ? "previous" : "next";
+    hint.dataset.ready = String(Math.abs(dx) >= threshold());
+    hint.classList.toggle("is-reduced", reduced());
+    hint.classList.toggle("is-narrow", !reduced() && Math.abs(offset) < 60);
+    hint.style.width = `${reduced() ? 86 : Math.abs(offset)}px`;
+    // Position in the visible scroll viewport, even after vertical scrolling.
+    hint.style.top = `${wrap.scrollTop + wrap.clientHeight / 2}px`;
+    hint.querySelector(".week-swipe-arrow").textContent = previous ? "←" : "→";
+    hint.querySelector(".week-swipe-label").textContent = previous ? "이전 주로" : "다음 주로";
     grid.style.transition = "none";
     grid.style.transform = reduced() ? "" : `translateX(${offset}px)`;
   });
@@ -227,9 +243,8 @@ function enableWeekSwipe(wrap, grid, o) {
     suppressUntil = performance.now() + 600;
     // Require a deliberate pull over half the calendar width. No velocity
     // shortcut: a quick flick must not accidentally change the week.
-    const threshold = Math.min(210, Math.max(160, wrap.clientWidth * .52));
     settle();
-    if (Math.abs(g.dx) < threshold) return;
+    if (Math.abs(g.dx) < threshold()) return;
     busy = true;
     setTimeout(async () => {
       if (!wrap.isConnected) return;
