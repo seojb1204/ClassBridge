@@ -1124,7 +1124,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.toast('12개 등록')
     prof.page.locator('.daily-title:focus').wait_for()
     assert prof.page.locator('#slot-create-panel').count() == 0
-    prof.page.get_by_role('button', name='목록', exact=True).click()
+    prof.page.get_by_role('button', name='목록형', exact=True).click()
     prof.page.locator('.daily .card.slot.open').first.wait_for()
     assert prof.page.locator('.daily .card.slot.open').count() == 6
     prof.page.locator('.calendar-support > summary').click()
