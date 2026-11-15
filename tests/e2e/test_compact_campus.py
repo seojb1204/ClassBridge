@@ -36,15 +36,14 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
         assert panel.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgb(255, 252, 247)'
         assert panel.evaluate('e => getComputedStyle(e).borderLeftColor') == 'rgb(221, 211, 197)'
     body = notice.locator('.announcement-body')
-    assert body.bounding_box()['height'] <= 44
-    toggle = notice.get_by_role('button', name='공지 전체 보기')
-    assert toggle.get_attribute('aria-expanded') == 'false'
+    assert body.bounding_box()['height'] > 100
+    toggle = notice.get_by_role('button', name='공지 접기')
+    assert toggle.get_attribute('aria-expanded') == 'true'
     s.shot(f'compact_support_{email.split("@")[0]}_{width}')
     toggle.click()
-    assert notice.get_by_role('button', name='공지 접기').get_attribute('aria-expanded') == 'true'
-    assert body.bounding_box()['height'] > 100
-    notice.get_by_role('button', name='공지 접기').click()
     assert body.bounding_box()['height'] <= 44
+    notice.get_by_role('button', name='공지 전체 보기').click()
+    assert body.bounding_box()['height'] > 100
     buttons = availability.locator('.available-day-buttons button')
     assert buttons.count() == 3
     assert availability.bounding_box()['height'] < 170

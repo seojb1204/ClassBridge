@@ -1,6 +1,7 @@
+import { prefetchWeeks } from "../calendar-prefetch.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 // 학생: 상담 시간표 보기 · 예약 · 변경
-import { get, post } from "../api.js";
+import { calendarGet as get, clearCalendarCache, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
 import { onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
@@ -52,7 +53,7 @@ async function draw(root, revealDay = false) {
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
     h("div", { class: "actions" },
       h("small", { class: "muted refresh-status" }, "30초마다 갱신 · 최종 확인 " + new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' })),
-      h("button", { class: "btn small", onclick: () => draw(root).catch(errorToast) }, "예약 현황 새로고침")),
+      h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침")),
     announcementPanel(announcement),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
@@ -72,6 +73,7 @@ async function draw(root, revealDay = false) {
       onSlot: (s) => openSlot(root, s, active, policy) }),
   );
   if (revealDay) revealSelectedDay(root);
+  prefetchWeeks(weekStart, ['slots']);
 }
 
 function legend() {

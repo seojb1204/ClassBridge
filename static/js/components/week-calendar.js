@@ -56,6 +56,7 @@ function slotClass(s) {
 
 function slotLabel(s) {
   if (s.event_type === "lecture") return `강의 · ${s.title}`;
+  if (s.staffBookingNames) return `${s.staffBookingNames} · ${s.reason || "예약"}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
   if (s.managerState === "free") return "빈 상담";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";
@@ -162,7 +163,7 @@ function renderWeekly(o, byDay) {
         "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, o.compactGrid
-          ? (s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
+          ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
             : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
           : slotLabel(s)),
         o.extra && !o.compactGrid ? o.extra(s) : null);

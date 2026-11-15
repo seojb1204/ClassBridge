@@ -1,9 +1,10 @@
+import { prefetchWeeks } from "../calendar-prefetch.js";
 import { loadLectures, lectureEditor, lectureCreateForm } from "../components/lecture-editor.js";
 import { schedulePreview } from "../components/schedule-preview.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
-import { del, get, patch, post } from "../api.js";
+import { del, calendarGet as get, patch, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
 import { isMobile, onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { addDays, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
@@ -12,7 +13,7 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
-let supportOpen = false;
+let supportOpen = true;
 let detach = null;
 let drawVersion = 0;
 let showForm = null;
@@ -81,11 +82,10 @@ async function draw(root, revealDay = false) {
   if (version !== drawVersion || location.hash !== path) return;
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
-      h("button", { class: "btn primary lecture-add", onclick: () => { registrationKind = "lecture"; location.hash = "#/slots/new"; } }, "+ 강의 추가"),
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 위 버튼이나 상담 등록 메뉴에서 할 수 있습니다."),
+    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 ‘상담·강의 등록’ 메뉴에서 할 수 있습니다."),
     h("details", { class: "calendar-support", open: supportOpen,
       ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
       h("summary", {}, "공지 · 예약 가능한 날짜"),
@@ -106,6 +106,7 @@ async function draw(root, revealDay = false) {
       h("h2", {}, "상담 시간 등록"), createForm(root)) : null,
   );
   if (revealDay) revealSelectedDay(root);
+  prefetchWeeks(weekStart, ['slots', 'lectures']);
 }
 
 function createForm(root, seed = null) {

@@ -1,4 +1,4 @@
-import { get } from "../api.js";
+import { calendarGet as get } from "../api.js";
 import { fmtDate } from "../time.js";
 import { h } from "../ui.js";
 
