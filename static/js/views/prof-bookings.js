@@ -143,6 +143,7 @@ export async function render(root) {
     await renderCalendarView(root);
     watchRefresh(root, () => {
       if (viewMode !== "calendar") return;
+      todayPanel = null;
       clearCalendarCache();
       return renderCalendarView(root);
     });
