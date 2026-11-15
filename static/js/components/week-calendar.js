@@ -56,7 +56,8 @@ function slotClass(s) {
 
 function slotLabel(s) {
   if (s.event_type === "lecture") return `강의 · ${s.title}`;
-  if (s.staffBookingNames) return `${s.staffBookingNames} · ${s.reason || "예약"}`;
+  if (s.staffBookingNames) return s.reason === "마감"
+    ? s.staffBookingNames : `${s.staffBookingNames} · ${s.reason || "예약"}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
   if (s.managerState === "free") return "빈 상담";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";

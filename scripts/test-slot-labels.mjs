@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync('static/js/components/week-calendar.js','utf8');
+const fn=source.slice(source.indexOf('function slotLabel('),source.indexOf('\n/**',source.indexOf('function slotLabel(')));
+const c={};vm.runInNewContext(fn+';this.label=slotLabel;',c);
+assert.equal(c.label({staffBookingNames:'방민서',reason:'마감'}),'방민서');
+assert.equal(c.label({staffBookingNames:'가, 나',reason:'마감'}),'가, 나');
+assert.equal(c.label({staffBookingNames:'방민서',reason:'강의 시간'}),'방민서 · 강의 시간');
+assert.equal(c.label({staffBookingNames:'방민서',reason:''}),'방민서 · 예약');
+assert.equal(c.label({reason:'마감'}),'마감 · 개인');
+assert.equal(c.label({event_type:'lecture',title:'강의',reason:'마감'}),'강의 · 강의');
+assert.equal(c.label({status:'cancelled'}),'취소됨');
+const slots=fs.readFileSync('static/js/views/prof-slots.js','utf8');
+assert.ok(!slots.includes('showCancelled'));
+assert.ok(!slots.includes('취소된 상담 시간 보기'));
+assert.ok(slots.includes('slots.filter(s => s.status !== "cancelled")'));
+console.log('10 slot-label and cancellation regressions passed');
