@@ -56,6 +56,7 @@ function slotClass(s) {
 
 function slotLabel(s) {
   if (s.event_type === "lecture") return `강의 · ${s.title}`;
+  if (s.staffBookingNames) return `${s.staffBookingNames} · ${s.reason || "예약"}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
   if (s.managerState === "free") return "빈 상담";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";
@@ -162,7 +163,7 @@ function renderWeekly(o, byDay) {
         "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, o.compactGrid
-          ? (s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
+          ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
             : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
           : slotLabel(s)),
         o.extra && !o.compactGrid ? o.extra(s) : null);
@@ -200,6 +201,29 @@ function enableWeekSwipe(wrap, grid, o) {
     return Math.min(usual, Math.max(120, available * .85));
   };
   let gesture = null, busy = false, suppressUntil = 0;
+  // Chromium can latch an edge-start drag to the inner calendar on narrow
+  // screens. Hand off only outward vertical movement; never horizontal/pinch.
+  let edgeTouch = null;
+  wrap.addEventListener("touchstart", e => {
+    const t = e.touches.length === 1 ? e.touches[0] : null;
+    edgeTouch = t ? { x: t.clientX, y: t.clientY, lastY: t.clientY } : null;
+  }, { passive: true });
+  wrap.addEventListener("touchmove", e => {
+    if (!edgeTouch || e.touches.length !== 1) { edgeTouch = null; return; }
+    const t = e.touches[0], dx = t.clientX - edgeTouch.x, dy = t.clientY - edgeTouch.y;
+    const delta = edgeTouch.lastY - t.clientY;
+    edgeTouch.lastY = t.clientY;
+    const outward = (delta < 0 && wrap.scrollTop <= 1) ||
+      (delta > 0 && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1);
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.3 && outward && e.cancelable) {
+      e.preventDefault();
+      suppressUntil = performance.now() + 600;
+      window.scrollBy(0, delta);
+    }
+  }, { passive: false });
+  const endEdgeTouch = () => { edgeTouch = null; };
+  wrap.addEventListener("touchend", endEdgeTouch, { passive: true });
+  wrap.addEventListener("touchcancel", endEdgeTouch, { passive: true });
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
     hint.hidden = true;

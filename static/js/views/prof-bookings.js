@@ -1,9 +1,11 @@
+import { watchRefresh } from "../live-refresh.js";
+import { prefetchWeeks } from "../calendar-prefetch.js";
 import { startRegistrationAt } from "./prof-slots.js";
 import { loadLectures, lectureEditor } from "../components/lecture-editor.js";
 import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
-import { get, post, put } from "../api.js";
+import { calendarGet, clearCalendarCache, get, post, put } from "../api.js";
 import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
@@ -16,6 +18,8 @@ let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
 let detach = null;
+let calendarVersion = 0;
+let todayPanel = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
@@ -94,22 +98,26 @@ async function renderCalendarView(root) {
   selectedDay ||= todayKst();
   detach?.();
   detach = onLayoutChange(() => { if (viewMode === "calendar") renderCalendarView(root); });
+  const version = ++calendarVersion, requestedWeek = weekStart;
   const [slots, bookings, lectures] = await Promise.all([
-    get(`/api/slots?start=${weekStart}&days=7`),
-    get(`/api/bookings?start=${weekStart}&days=7`), loadLectures(weekStart),
+    calendarGet(`/api/slots?start=${requestedWeek}&days=7`),
+    calendarGet(`/api/bookings?start=${requestedWeek}&days=7`), loadLectures(requestedWeek),
   ]);
+  if (version !== calendarVersion || weekStart !== requestedWeek || viewMode !== "calendar" || location.hash !== "#/bookings" || !root.isConnected) return;
   const enhanced = slots.map((slot) => {
+    const related = bookings.filter(b => b.slot.id === slot.id && b.status !== "cancelled");
+    const names = related.map(b => b.applicant_name || b.student_name || "이름 미입력");
     const count = bookings.filter((b) => b.slot.id === slot.id && b.status === "booked").length;
     return { ...slot, managerState: slot.status === "cancelled" ? null : count ? "reserved" : slot.bookable ? "free" : null,
-      bookingCount: count };
+      bookingCount: count, staffBookingNames: names.join(", ") };
   });
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
       h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약")),
-    staffToday(),
+    todayPanel ||= staffToday(),
     viewSwitcher(root),
-    h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 상담 시간을 누르면 학생과 기록을 확인할 수 있습니다."),
-    h("button", { class: "btn", onclick: () => lectureEditor(() => renderCalendarView(root)) }, "+ 강의 추가"),
+    h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 시간 칸에서 예약 학생 이름을 확인하고 누르면 상세 기록을 볼 수 있습니다."),
+    h("button", { class: "btn small", onclick: () => { clearCalendarCache(); todayPanel = null; renderCalendarView(root).catch(errorToast); } }, "예약 현황 새로고침"),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
     renderCalendar({ weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
       onTimeSelect: startRegistrationAt,
@@ -118,16 +126,29 @@ async function renderCalendarView(root) {
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
       onSlot: (slot) => slot.event_type === "lecture" ? lectureEditor(() => renderCalendarView(root), slot) : showStaffSlot(root, slot, bookings) }),
   );
+  prefetchWeeks(requestedWeek, ['slots', 'bookings', 'lectures']);
 }
 
 
 export async function render(root) {
+  calendarVersion++;
+  clearCalendarCache();
+  todayPanel = null;
   if (viewMode === 'activity') {
     detach?.(); detach = null;
     mount(root, h('div', { class: 'page-head' }, h('h1', {}, '예약 관리')), viewSwitcher(root), bookingActivity());
     return;
   }
-  if (viewMode === "calendar") return renderCalendarView(root);
+  if (viewMode === "calendar") {
+    await renderCalendarView(root);
+    watchRefresh(root, () => {
+      if (viewMode !== "calendar") return;
+      todayPanel = null;
+      clearCalendarCache();
+      return renderCalendarView(root);
+    });
+    return;
+  }
   detach?.();
   detach = null;
   const q = new URLSearchParams(filter.status === "expired" ? {} : { from_date: todayKst() });

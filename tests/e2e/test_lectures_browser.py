@@ -13,7 +13,8 @@ def test_staff_manual_lecture_same_calendar(server, browser, viewport):  # noqa:
     staff = Session(browser, base, "prof@test.ac.kr", viewport, service_workers="block")
     p = staff.page
     staff.go("/slots")
-    p.get_by_role("button", name="+ 강의 추가", exact=True).click()
+    staff.go("/slots/new")
+    p.get_by_role("button", name="강의", exact=True).click()
     dialog = p.locator(".lecture-create-form")
     dialog.get_by_label("강의명", exact=True).fill("수동 강의 브라우저 " + str(viewport["width"]))
     dialog.get_by_label("시작 (한국 시간)", exact=True).fill("20:05" if viewport == PC else "21:05")
@@ -48,11 +49,9 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     staff = Session(browser, base, email, viewport, service_workers="block")
     p = staff.page
     staff.go("/slots")
-    button = p.get_by_role("button", name="+ 강의 추가", exact=True)
-    box = button.bounding_box()
-    nav = p.locator("#mobile-tabs").bounding_box()
-    assert box and nav and box["y"] + box["height"] < nav["y"]
-    button.click()
+    assert p.get_by_role("button", name="+ 강의 추가", exact=True).count() == 0
+    staff.go("/slots/new")
+    p.get_by_role("button", name="강의", exact=True).click()
     p.locator(".lecture-create-form").wait_for()
     assert p.get_by_role("button", name="강의", exact=True).get_attribute("aria-pressed") == "true"
     p.get_by_label("강의명", exact=True).fill("취소할 입력")

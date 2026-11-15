@@ -1,4 +1,4 @@
-import { get, post, patch } from '../api.js';
+import { calendarGet as get, post, patch } from '../api.js';
 import { h, field, modal, errorToast, select, busy, toast } from '../ui.js';
 import { kstParts, todayKst } from '../time.js';
 
