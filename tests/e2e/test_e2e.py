@@ -1137,12 +1137,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.page.get_by_role('button', name='이 시간 취소', exact=True).click()
     prof.page.get_by_role('button', name='취소하기', exact=True).click()
     prof.toast('취소했습니다')
-    prof.page.get_by_label('취소된 상담 시간 보기', exact=True).check()
-    cancelled = prof.page.locator('.card.slot.cancelled').first
-    cancelled.wait_for()
-    cancelled.click()
-    prof.page.get_by_role('button', name='삭제', exact=True).click()
-    prof.toast('빈 상담 시간을 삭제했습니다')
+    assert prof.page.get_by_label('취소된 상담 시간 보기', exact=True).count() == 0
     assert prof.page.locator('.card.slot.cancelled').count() == 0
     assert prof.page.evaluate('document.documentElement.scrollWidth') <= MOBILE['width'] + 1
     prof.shot('mobile_schedule_summary')

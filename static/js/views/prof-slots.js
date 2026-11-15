@@ -17,7 +17,6 @@ let supportOpen = true;
 let detach = null;
 let drawVersion = 0;
 let showForm = null;
-let showCancelled = false;
 
 let revealCreated = false;
 let registrationKind = "consultation";
@@ -93,9 +92,7 @@ async function draw(root, revealDay = false) {
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
     weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    h("label", { class: "check" }, h("input", { type: "checkbox", checked: showCancelled,
-      onchange: (e) => { showCancelled = e.target.checked; draw(root); } }), "취소된 상담 시간 보기"),
-    renderCalendar({ weekStart, slots: [...(showCancelled ? slots : slots.filter(s => s.status !== "cancelled")), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    renderCalendar({ weekStart, slots: [...slots.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },

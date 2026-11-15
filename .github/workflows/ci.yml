@@ -29,6 +29,8 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt ruff pip-audit
       - run: python -m playwright install --with-deps chromium
+      - name: Slot labels and cancelled toggle regression
+        run: node scripts/test-slot-labels.mjs
       - name: Calendar cache regression
         run: node scripts/test-calendar-cache.mjs
       - name: Lint
