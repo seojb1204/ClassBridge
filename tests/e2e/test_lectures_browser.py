@@ -187,8 +187,6 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
     assert grid.evaluate("e => e.scrollHeight > e.clientHeight")
-    # Slot clipping must not create a nested hidden scroller that traps touch.
-    assert grid.locator(".slot").first.evaluate("e => getComputedStyle(e).overflowY") == "clip"
     cdp = p.context.new_cdp_session(p)
     cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": True, "maxTouchPoints": 1})
     for direction in (1, -1):

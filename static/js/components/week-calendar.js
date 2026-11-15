@@ -201,6 +201,29 @@ function enableWeekSwipe(wrap, grid, o) {
     return Math.min(usual, Math.max(120, available * .85));
   };
   let gesture = null, busy = false, suppressUntil = 0;
+  // Chromium can latch an edge-start drag to the inner calendar on narrow
+  // screens. Hand off only outward vertical movement; never horizontal/pinch.
+  let edgeTouch = null;
+  wrap.addEventListener("touchstart", e => {
+    const t = e.touches.length === 1 ? e.touches[0] : null;
+    edgeTouch = t ? { x: t.clientX, y: t.clientY, lastY: t.clientY } : null;
+  }, { passive: true });
+  wrap.addEventListener("touchmove", e => {
+    if (!edgeTouch || e.touches.length !== 1) { edgeTouch = null; return; }
+    const t = e.touches[0], dx = t.clientX - edgeTouch.x, dy = t.clientY - edgeTouch.y;
+    const delta = edgeTouch.lastY - t.clientY;
+    edgeTouch.lastY = t.clientY;
+    const outward = (delta < 0 && wrap.scrollTop <= 1) ||
+      (delta > 0 && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1);
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.3 && outward && e.cancelable) {
+      e.preventDefault();
+      suppressUntil = performance.now() + 600;
+      window.scrollBy(0, delta);
+    }
+  }, { passive: false });
+  const endEdgeTouch = () => { edgeTouch = null; };
+  wrap.addEventListener("touchend", endEdgeTouch, { passive: true });
+  wrap.addEventListener("touchcancel", endEdgeTouch, { passive: true });
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
     hint.hidden = true;
