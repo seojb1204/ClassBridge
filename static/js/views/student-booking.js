@@ -16,6 +16,7 @@ let drawVersion = 0;
 let mobileView = "week";
 
 export async function render(root) {
+  clearCalendarCache(); // Fresh route entry; week-to-week draws still reuse prefetch.
   if (!weekStart) {
     weekStart = mondayOf(todayKst());
     selectedDay = todayKst();

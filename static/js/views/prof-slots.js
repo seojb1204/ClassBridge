@@ -4,7 +4,7 @@ import { schedulePreview } from "../components/schedule-preview.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-input.js";
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
-import { del, calendarGet as get, patch, post } from "../api.js";
+import { del, calendarGet as get, clearCalendarCache, patch, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
 import { isMobile, onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { addDays, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
@@ -53,6 +53,7 @@ export function renderRegistration(root) {
 }
 
 export async function render(root) {
+  clearCalendarCache(); // Fresh route entry; week-to-week draws still reuse prefetch.
   weekStart ||= mondayOf(todayKst());
   selectedDay ||= todayKst();
   if (showForm === null) {
