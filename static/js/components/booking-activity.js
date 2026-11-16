@@ -15,7 +15,7 @@ export function bookingActivity() {
   const filter = select([['all', '전체 활동'], ['cancel', '예약 취소'], ['change', '일정 변경']], 'all');
   const list = h('tbody');
   const table = h('table', { class: 'activity-table', 'aria-label': '최신순 예약 활동' },
-    h('thead', {}, h('tr', {}, ['활동 시각 ↓ 최신순', '예약자', '상담 일정', '활동', '상세'].map(label => h('th', { scope: 'col' }, label)))), list);
+    h('thead', {}, h('tr', {}, ['활동 시각', '예약자', '상담 일정', '활동', '상세'].map(label => h('th', { scope: 'col' }, label)))), list);
   const status = h('p', { class: 'muted', role: 'status' });
   let cursor = null, generation = 0, loading = false;
   const more = h('button', { class: 'btn', hidden: true, onclick: () => load(false) }, '이전 기록 더 보기');
@@ -53,7 +53,7 @@ export function bookingActivity() {
   }
   filter.addEventListener('change', () => load(true));
   box.append(h('h2', {}, '예약 활동 기록 · 최신순'),
-    h('p', { class: 'hint' }, '학생의 취소도 보존됩니다. 일정 변경은 단순 취소와 구분됩니다. 처리 시각은 한국시간이며, 이름·상담 일시는 현재 저장된 정보입니다.'),
+    h('p', { class: 'hint' }, '학생의 취소도 보존됩니다. 일정 변경은 단순 취소와 구분됩니다. 기록 생성 순서의 최신 항목이 위에 표시됩니다. 처리 시각은 한국시간이며, 이름·상담 일시는 현재 저장된 정보입니다.'),
     h('div', { class: 'filters' }, field('활동 종류', filter), refresh), status, table, more);
   load(true);
   return box;

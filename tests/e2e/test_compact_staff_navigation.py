@@ -51,3 +51,36 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
         s.shot(f'compact_staff_{width}')
     finally:
         s.close()
+
+
+@pytest.mark.parametrize('email,staff', [('prof@test.ac.kr', True), ('compact-student@test.ac.kr', False)])
+def test_role_navigation_and_disabled_features(server, browser, email, staff):  # noqa: F811
+    base, _ = server
+    s = Session(browser, base, email, {'width': 1280, 'height': 900}, service_workers='block')
+    page = s.page
+    try:
+        def me_without_optional_features(route):
+            response = route.fetch()
+            data = response.json()
+            data['features'] = {'surveys': False, 'suggestions': False}
+            route.fulfill(json=data)
+        page.route('**/api/me', me_without_optional_features)
+        page.reload()
+        page.wait_for_selector('body[data-ready]:not([data-ready=""])', state='attached')
+        nav = page.locator('#nav')
+        assert nav.locator('a[href="#/admin/users"]').count() == 0
+        assert nav.locator('a[href="#/surveys"]').count() == 0
+        assert nav.locator('a[href="#/suggestions"]').count() == 0
+        if staff:
+            nav.locator('summary').filter(has_text='상담 정보').click()
+            nav.get_by_role('link', name='내 알림', exact=True).click()
+            page.wait_for_selector('body[data-ready="/inbox"]', state='attached')
+            nav.locator('summary').filter(has_text='예약 관리').click()
+            nav.get_by_role('link', name='상담 시간', exact=True).click()
+            page.wait_for_selector('body[data-ready="/slots"]', state='attached')
+        else:
+            assert nav.locator('.nav-group').count() == 0
+            nav.get_by_role('link', name='내 예약', exact=True).click()
+            page.wait_for_selector('body[data-ready="/my-bookings"]', state='attached')
+    finally:
+        s.close()
