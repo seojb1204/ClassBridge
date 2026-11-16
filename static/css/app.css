@@ -4,9 +4,9 @@
   --bg: #f7f3ec; --panel: #fffcf7; --text: #292721; --muted: #665f55; --line: #ddd3c5;
   --primary: #a64419; --primary-weak: #f9e8d9; --mine: #28604d; --mine-weak: #e8f1e8;
   --danger: #a52e32; --danger-weak: #fbe9e6; --warn: #80520b; --closed: #eee9e1;
-  --available: #245343; --available-bg: #e5efe8; --available-line: #608774;
-  --control-line: #9c8f7e; --reserved-line: #b56b47;
-  --reserved-text: #783515; --reserved-hover: #f3d9c2; --available-hover: #d4e5da;
+  --available: #6b503b; --available-bg: #fff5e7; --available-line: #b89a7e;
+  --control-line: #9c8f7e; --reserved-line: #a64419; --reserved-bg: #a64419;
+  --reserved-text: #fff; --reserved-hover: #8d3a16; --available-hover: #f7e7d1;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
   --radius: 6px; --shadow: none;
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
@@ -33,7 +33,7 @@ h3 { font-size: 1rem; margin: 0 0 .5rem; }
 .calendar-status-legend { display: flex; gap: .5rem; flex-wrap: wrap; margin: .5rem 0 .75rem; }
 .calendar-status-legend span { padding: .25rem .65rem; border-radius: 6px; font-size: .85rem; font-weight: 600; }
 .calendar-status-legend .available { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-line); }
-.calendar-status-legend .reserved { background: var(--primary-weak); color: var(--reserved-text); border: 1px solid var(--reserved-line); }
+.calendar-status-legend .reserved { background: var(--reserved-bg); color: var(--reserved-text); border: 1px solid var(--reserved-line); }
 .reserved-day-count { display: block; color: var(--primary); font-size: .8rem; }
 .daily-title:focus { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 3px; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -111,9 +111,9 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
   display: flex; flex-direction: column; overflow: hidden; font: inherit; font-size: .78rem; z-index: 1; line-height: 1.25; }
 .slot.open { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-line); }
 .slot.open:hover, .slot.open:focus-visible { background: var(--available-hover); }
-.slot.reserved { background: var(--primary-weak); color: var(--reserved-text); border: 1px solid var(--reserved-line); }
+.slot.reserved { background: var(--reserved-bg); color: var(--reserved-text); border: 1px solid var(--reserved-line); }
 .slot.reserved:hover, .slot.reserved:focus-visible { background: var(--reserved-hover); }
-.daily .card.slot.reserved { background: var(--primary-weak); color: var(--reserved-text); border: 2px solid var(--reserved-line); }
+.daily .card.slot.reserved { background: var(--reserved-bg); color: var(--reserved-text); border: 2px solid var(--reserved-line); }
 .slot.mine { background: var(--booking-mine); color: #fff; }
 .slot.mine:hover, .slot.mine:focus-visible { background: var(--booking-mine-hover); }
 .slot.closed { background: var(--closed); color: var(--muted); border: 1px dashed var(--muted); }
@@ -450,8 +450,8 @@ textarea { line-height: 1.75; }
 .day-head { padding: .7rem .35rem; font-weight: 600; }
 .hour { font-size: .8rem; }
 .slot { border-radius: 4px; }
-.slot.reserved, .daily .card.slot.reserved { background: #f9e8d9; color: #783515; border-color: #b56b47; }
-.slot.reserved:hover, .slot.reserved:focus-visible { background: #f3d9c2; }
+.slot.reserved, .daily .card.slot.reserved { background: var(--reserved-bg); color: var(--reserved-text); border-color: var(--reserved-line); }
+.slot.reserved:hover, .slot.reserved:focus-visible { background: var(--reserved-hover); }
 .slot.open { color: var(--available); }
 .daily .card.slot { border-width: 1px; border-left-width: 4px; }
 .chip { border-radius: 5px; min-height: 62px; background: var(--panel); }

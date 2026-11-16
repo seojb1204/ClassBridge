@@ -1,4 +1,4 @@
-"""Calendar status colours remain distinct on desktop and both mobile views."""
+"""Approved warm B palette: reserved, available, and untouched blank calendar cells."""
 import os
 
 import pytest
@@ -31,14 +31,25 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
                  reason: '마감', bookingCount: 1}
             ];
             root.append(renderCalendar({weekStart: '2026-11-16', selectedDay: '2026-11-16',
-                mobileView: mode, dayCountMode: 'booked', slots, onSlot: () => {}, onDay: () => {}}));
+                onTimeSelect: () => {}, mobileView: mode, dayCountMode: 'booked',
+                slots, onSlot: () => {}, onDay: () => {}}));
         }""", mode)
         available = page.locator(".slot.open").first
         reserved = page.locator(".slot.reserved").first
         assert available.is_visible() and reserved.is_visible()
         color = "e => getComputedStyle(e).backgroundColor"
-        assert available.evaluate(color) == "rgb(229, 239, 232)"
-        assert reserved.evaluate(color) == "rgb(249, 232, 217)"
+        assert available.evaluate(color) == "rgb(255, 245, 231)"
+        assert reserved.evaluate(color) == "rgb(166, 68, 25)"
+        text_color = "e => getComputedStyle(e).color"
+        assert available.evaluate(text_color) == "rgb(107, 80, 59)"
+        assert reserved.evaluate(text_color) == "rgb(255, 255, 255)"
+        # Unconfigured time cells must stay transparent on the original paper panel,
+        # not turn into available (cream) slots or booked (terracotta) slots.
+        blank = page.locator(".calendar-time-cell").first
+        if blank.count():
+            assert blank.evaluate(color) == "rgba(0, 0, 0, 0)"
+            assert page.locator(".week-wrap").first.evaluate(color) == "rgb(255, 252, 247)"
+            assert "open" not in (blank.get_attribute("class") or "").split()
         assert "예약 학생" in reserved.inner_text()
         assert "마감" not in reserved.inner_text()
     finally:
