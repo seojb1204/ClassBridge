@@ -536,7 +536,8 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.locator(".modal button:text-is('기록 저장')").click()
     prof.toast("상담 기록을 저장")
     prof.go("/staff/insights")
-    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보").is_visible()
+    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
+    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).is_visible()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     note_card = prof.page.locator(".consult-note-card:has-text('학생 상담 테스트 기록')")
@@ -793,7 +794,8 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
     assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
-    prof.page.locator("#nav").get_by_role("link", name="상담 정보").click()
+    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
+    prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).click()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     assert prof.page.get_by_text("전체 상담 기록", exact=True).is_visible()
