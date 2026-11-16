@@ -16,8 +16,8 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
     try:
         s.go('/bookings')
         # The existing calendar control and calendar itself are not replaced by a list.
-        assert page.get_by_role('button', name='주간 예약 시간표', exact=True).is_visible()
-        assert page.locator('.week-wrap').is_visible()
+        page.get_by_role('button', name='주간 예약 시간표', exact=True).click()
+        page.locator('.week-wrap').wait_for(state='visible')
         if width <= 720:
             page.get_by_role('button', name='더보기 메뉴').click()
             assert page.locator('#nav summary').first.evaluate('e => e === document.activeElement')
@@ -82,5 +82,36 @@ def test_role_navigation_and_disabled_features(server, browser, email, staff):  
             assert nav.locator('.nav-group').count() == 0
             nav.get_by_role('link', name='내 예약', exact=True).click()
             page.wait_for_selector('body[data-ready="/my-bookings"]', state='attached')
+    finally:
+        s.close()
+
+
+def test_activity_retry_keeps_latest_first_and_pagination(server, browser):  # noqa: F811
+    base, _ = server
+    s = Session(browser, base, 'prof@test.ac.kr', {'width': 1280, 'height': 900}, service_workers='block')
+    page = s.page
+    try:
+        calls = []
+        event = {'booking_id': 7, 'action': 'cancel', 'actor_name': '테스트',
+                 'student_name': '학생', 'actor_is_student': True, 'at': '2026-11-17T01:00:00Z',
+                 'start_at': '2026-11-18T04:00:00Z', 'status': 'cancelled', 'detail': ''}
+        def events(route):
+            calls.append(route.request.url)
+            if len(calls) == 1:
+                route.fulfill(json={})  # malformed response exercises the recoverable error view
+            elif 'before_id=' in route.request.url:
+                route.fulfill(json={'items': [{**event, 'id': 10}], 'next_before_id': None})
+            else:
+                route.fulfill(json={'items': [{**event, 'id': 30}, {**event, 'id': 20}], 'next_before_id': 20})
+        page.route('**/api/staff/booking-events?*', events)
+        s.go('/bookings')
+        page.get_by_role('button', name='예약 활동 기록', exact=True).click()
+        page.get_by_text('기록을 불러오지 못했습니다.', exact=False).wait_for()
+        page.get_by_role('button', name='기록 새로고침').click()
+        page.locator('[data-event-id="30"]').wait_for()
+        page.get_by_role('button', name='이전 기록 더 보기').click()
+        page.locator('[data-event-id="10"]').wait_for()
+        ids = page.locator('.activity-table tbody tr').evaluate_all("rows => rows.map(r => r.dataset.eventId)")
+        assert ids == ['30', '20', '10']
     finally:
         s.close()
