@@ -13,7 +13,9 @@ export const eventLabels = {
 export function bookingActivity() {
   const box = h('section', { class: 'panel booking-activity', 'aria-label': '예약 활동 기록' });
   const filter = select([['all', '전체 활동'], ['cancel', '예약 취소'], ['change', '일정 변경']], 'all');
-  const list = h('div', { class: 'cards' });
+  const list = h('tbody');
+  const table = h('table', { class: 'activity-table', 'aria-label': '최신순 예약 활동' },
+    h('thead', {}, h('tr', {}, ['활동 시각 ↓ 최신순', '예약자', '상담 일정', '활동', '상세'].map(label => h('th', { scope: 'col' }, label)))), list);
   const status = h('p', { class: 'muted', role: 'status' });
   let cursor = null, generation = 0, loading = false;
   const more = h('button', { class: 'btn', hidden: true, onclick: () => load(false) }, '이전 기록 더 보기');
@@ -30,13 +32,16 @@ export function bookingActivity() {
       if (cursor) params.set('before_id', cursor);
       const data = await get(`/api/staff/booking-events?${params}`);
       if (version !== generation) return;
-      list.append(...data.items.map(item => h('article', { class: 'card', dataset: { eventId: item.id } },
-        h('strong', {}, eventLabels[item.action] || item.action),
-        h('p', {}, `학생: ${item.student_name} · 예약 #${item.booking_id}`),
-        h('p', {}, `처리자: ${item.actor_name} (${item.actor_is_student ? '예약 학생 본인' : '교수자·관리자'})`),
-        h('p', {}, '처리 시각: ' + new Date(item.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false })),
-        h('p', {}, `상담 일시: ${fmtDateTime(item.start_at)} · 현재 상태: ${{expired: "기간 종료·결과 미확인", booked:'예약됨',cancelled:'취소됨',completed:'완료',no_show:'미참석'}[item.status] || item.status}`),
-        item.detail ? h('p', {}, `기록 내용: ${item.detail}`) : null)));
+      list.append(...data.items.map(item => h('tr', { dataset: { eventId: item.id } },
+        h('td', { dataset: { label: '활동 시각' } }, new Date(item.at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false })),
+        h('td', { dataset: { label: '예약자' } }, item.student_name),
+        h('td', { dataset: { label: '상담 일정' } }, fmtDateTime(item.start_at)),
+        h('td', { dataset: { label: '활동' } }, eventLabels[item.action] || item.action),
+        h('td', {}, h('details', { class: 'activity-details' }, h('summary', {}, '상세 보기'),
+          h('p', {}, `예약 #${item.booking_id}`),
+          h('p', {}, `처리자: ${item.actor_name} (${item.actor_is_student ? '예약 학생 본인' : '교수자·관리자'})`),
+          h('p', {}, `현재 상태: ${{expired: "기간 종료·결과 미확인", booked:'예약됨',cancelled:'취소됨',completed:'완료',no_show:'미참석'}[item.status] || item.status}`),
+          item.detail ? h('p', {}, `기록 내용: ${item.detail}`) : null)))));
       cursor = data.next_before_id;
       more.hidden = !cursor;
       status.textContent = list.children.length ? `${list.children.length}건 표시 · 최신 기록부터` : '해당 예약 활동 기록이 없습니다.';
@@ -47,9 +52,9 @@ export function bookingActivity() {
     }
   }
   filter.addEventListener('change', () => load(true));
-  box.append(h('h2', {}, '예약 활동 기록'),
+  box.append(h('h2', {}, '예약 활동 기록 · 최신순'),
     h('p', { class: 'hint' }, '학생의 취소도 보존됩니다. 일정 변경은 단순 취소와 구분됩니다. 처리 시각은 한국시간이며, 이름·상담 일시는 현재 저장된 정보입니다.'),
-    h('div', { class: 'filters' }, field('활동 종류', filter), refresh), status, list, more);
+    h('div', { class: 'filters' }, field('활동 종류', filter), refresh), status, table, more);
   load(true);
   return box;
 }

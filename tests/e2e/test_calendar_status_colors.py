@@ -39,12 +39,12 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
         assert available.is_visible() and reserved.is_visible()
         color = "e => getComputedStyle(e).backgroundColor"
         assert available.evaluate(color) == "rgb(255, 245, 231)"
-        assert reserved.evaluate(color) == "rgb(166, 68, 25)"
+        assert reserved.evaluate(color) == "rgb(229, 241, 231)"
         text_color = "e => getComputedStyle(e).color"
         assert available.evaluate(text_color) == "rgb(107, 80, 59)"
-        assert reserved.evaluate(text_color) == "rgb(255, 255, 255)"
+        assert reserved.evaluate(text_color) == "rgb(49, 91, 66)"
         # Unconfigured time cells must stay transparent on the original paper panel,
-        # not turn into available (cream) slots or booked (terracotta) slots.
+        # not turn into available (cream) slots or booked (pale green) slots.
         blank = page.locator(".calendar-time-cell").first
         if blank.count():
             assert blank.evaluate(color) == "rgba(0, 0, 0, 0)"
