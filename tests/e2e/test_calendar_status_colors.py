@@ -31,7 +31,8 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
                  reason: '마감', bookingCount: 1}
             ];
             root.append(renderCalendar({weekStart: '2026-11-16', selectedDay: '2026-11-16',
-                onTimeSelect: () => {}, mobileView: mode, dayCountMode: 'booked', slots, onSlot: () => {}, onDay: () => {}}));
+                onTimeSelect: () => {}, mobileView: mode, dayCountMode: 'booked',
+                slots, onSlot: () => {}, onDay: () => {}}));
         }""", mode)
         available = page.locator(".slot.open").first
         reserved = page.locator(".slot.reserved").first
