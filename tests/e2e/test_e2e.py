@@ -1116,6 +1116,8 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     assert prof.page.locator('#nav a .nav-icon').count() >= 5
     prof.page.get_by_role('link', name='+ 일정 등록', exact=True).click()
     day = today_kst(utcnow()) + timedelta(days=10)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
     prof.page.get_by_label('한 문장으로 입력', exact=True).fill(f'{day.isoformat()} 3시~6시')
     prof.page.get_by_role('button', name='입력 내용 적용', exact=True).click()
     assert prof.page.get_by_label('시작', exact=True).input_value() == '15:00'

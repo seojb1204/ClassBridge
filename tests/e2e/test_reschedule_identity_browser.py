@@ -24,8 +24,16 @@ def test_one_click_same_id_change_beyond_new_booking_horizon(server, browser, vi
                                            headers={"X-CSRF-Token": csrf, "Content-Type": "application/json"})
         assert response.ok, response.text()
         return response.json()
-    near_day = today_kst(utcnow()) + timedelta(days=2 + (viewport == MOBILE))
+    near_day = today_kst(utcnow()) + timedelta(days=2)
+    while near_day.weekday() >= 5:
+        near_day += timedelta(days=1)
+    if viewport == MOBILE:
+        near_day += timedelta(days=1)
+        while near_day.weekday() >= 5:
+            near_day += timedelta(days=1)
     far_day = near_day + timedelta(days=60)
+    while far_day.weekday() >= 5:
+        far_day += timedelta(days=1)
     slots = []
     for day in (near_day, far_day):
         slots.append(post(prof, "/api/slots", {"start_date": day.isoformat(), "start_time": "10:00",
