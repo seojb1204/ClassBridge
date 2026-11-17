@@ -624,9 +624,14 @@ def test_professor_completes_consultation(server, browser):
 def test_admin_uses_professor_features_and_changes_role(server, browser):
     base, _ = server
     adm = Session(browser, base, "admin@test.ac.kr", PC)
-    nav = adm.page.locator("#nav").inner_text()
-    for label in ("상담 시간", "예약 관리", "상담 정보", "설문", "건의함", "계정·권한", "운영 설정", "작업 이력"):
-        assert label in nav
+    nav = adm.page.locator("#nav")
+    for group, labels in [("예약 관리", ("상담 시간", "예약 관리")),
+                          ("상담 정보", ("상담 정보", "내 알림")),
+                          ("설문·의견", ("설문", "건의함")),
+                          ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
+        nav.locator("summary").filter(has_text=re.compile("^" + re.escape(group) + "$" )).click()
+        for label in labels:
+            assert nav.get_by_role("link", name=label, exact=True).is_visible()
     _create_slots_via_ui(adm, start="15:00", end="16:00", kind="group", cap=3)
     adm.go("/admin/users")
     row = adm.page.locator("tr[data-user-email='student1@test.ac.kr']")
