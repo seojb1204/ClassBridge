@@ -108,7 +108,11 @@ async function draw(root, revealDay = false) {
 }
 
 function createForm(root, seed = null) {
-  const date = h("input", { type: "text", placeholder: "예: 11월 20일", required: true, value: seed?.date || addDays(todayKst(), 1) });
+  const date = h("input", { type: "date", "aria-label": "날짜(시작일)", required: true, value: seed?.date || addDays(todayKst(), 1) });
+  // Keep the platform calendar and keyboard support; tapping anywhere opens it where supported.
+  date.addEventListener("click", () => {
+    try { date.showPicker?.(); } catch { /* Native date input remains usable when unavailable. */ }
+  });
   const start = h("input", { type: "text", placeholder: "예: 10 00", required: true, value: seed?.start || "10:00" });
   const end = h("input", { type: "text", placeholder: "예: 3시", required: true, value: seed?.end || "12:00" });
   const dur = h("input", { type: "number", min: 5, max: 240, value: seed?.duration || 30 });
@@ -135,10 +139,12 @@ function createForm(root, seed = null) {
     return parsed;
   };
   const describe = (v) => `${v.date} · ${timeLabel(v.start)}~${timeLabel(v.end)}`;
-  for (const input of [date, start, end]) input.addEventListener("blur", () => {
+  const updateInterpretation = () => {
     try { interpreted.textContent = describe(readInputs()); }
     catch (error) { interpreted.textContent = error.message; }
-  });
+  };
+  for (const input of [date, start, end]) input.addEventListener("blur", updateInterpretation);
+  date.addEventListener("change", updateInterpretation);
   const applySentence = h("button", { class: "btn", type: "button", onclick: () => {
     try {
       const parsed = parseSchedule(sentence.value, todayKst());
@@ -156,7 +162,7 @@ function createForm(root, seed = null) {
   const btn = h("button", { class: "btn primary", type: "submit" }, "등록 미리보기");
   const form = h("form", { class: "grid-form" },
     h("div", { class: "field wide" }, field("한 문장으로 입력", sentence), applySentence, interpreted),
-    field("날짜(시작일)", date), field("시작", start), field("종료", end),
+    field("날짜(시작일)", date, "달력에서 날짜를 선택하세요. 주말에는 등록할 수 없습니다."), field("시작", start), field("종료", end),
     field("1회 시간(분)", dur), field("휴식(분)", brk), field("유형", kind), field("정원", cap),
     field("반복 방식", repeat), repeatWeeks,
     field("장소", loc), h("div", { class: "field wide" }, btn));

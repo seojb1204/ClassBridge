@@ -76,7 +76,14 @@ export function inboxBell() {
     button.setAttribute("aria-expanded", "true");
     refresh();
   };
-  wrap.addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden) { e.preventDefault(); close(true); } });
+  // A pending refresh can replace the focused child and move focus to body.
+  // Escape still belongs to the visible popover, not only its current descendants.
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || e.defaultPrevented || !wrap.isConnected || panel.hidden
+      || document.querySelector("#modal-root .modal")) return;
+    e.preventDefault();
+    close(true);
+  });
   document.addEventListener("click", e => { if (!wrap.contains(e.target)) close(); });
   window.addEventListener("hashchange", () => close());
   window.addEventListener("inbox-count", e => setCount(e.detail));
