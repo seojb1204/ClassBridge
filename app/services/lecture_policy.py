@@ -4,6 +4,7 @@ from sqlalchemy import select, text
 
 from app.core.errors import Conflict
 from app.models import Booking, Lecture, Slot
+from app.services.calendar_policy import ensure_weekday
 
 
 def lock_calendar(db):
@@ -20,6 +21,7 @@ def lecture_overlap(db, start, end, exclude_id=None):
 
 
 def ensure_lecture_allowed(db, start, end, exclude_id=None):
+    ensure_weekday(start, end)
     if lecture_overlap(db, start, end, exclude_id):
         raise Conflict("이미 등록된 강의와 시간이 겹칩니다", code="lecture_overlap")
     booking = db.scalar(

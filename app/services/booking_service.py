@@ -26,6 +26,7 @@ from app.repositories import bookings as repo
 from app.repositories import users as users_repo
 from app.services import booking_policy as policy_mod
 from app.services.booking_policy import Policy
+from app.services.calendar_policy import ensure_weekday, touches_weekend
 from app.services.lecture_policy import lecture_overlap, lock_calendar
 from app.services.notifications import enqueue
 from app.services.settings_service import get_settings
@@ -106,6 +107,8 @@ def list_slots_for(db: Session, viewer: User, start: datetime, end: datetime,
         reason = ""
         if s.status != "open":
             reason = "취소된 시간"
+        elif touches_weekend(s.start_at, s.end_at):
+            reason = "주말 예약 불가"
         elif any(a < s.end_at and b > s.start_at for a, b in lecture_times):
             reason = "강의 시간"
         elif remaining == 0:
@@ -175,6 +178,8 @@ def _planned_blocks(db: Session, spec: SlotSpec, now: datetime) -> list[tuple[da
     days = policy_mod.expand_days(spec.start_date, spec.weekdays, spec.repeat_weeks)
     blocks = policy_mod.generate_blocks(days, spec.start_time, spec.end_time,
                                         spec.duration_minutes, brk)
+    for st, en in blocks:
+        ensure_weekday(st, en)
     blocks = [b for b in blocks if b[0] > now]
     if not blocks:
         raise BadRequest("미래 시간만 등록할 수 있습니다")
@@ -303,6 +308,7 @@ def update_slot(db: Session, actor: User, slot_id: int, *, capacity: int | None 
                 raise Conflict("예약이 있는 상담의 시간은 바꿀 수 없습니다. 예약을 변경한 뒤 수정하세요")
             if ne <= ns:
                 raise BadRequest("종료 시각은 시작 시각보다 늦어야 합니다")
+            ensure_weekday(ns, ne)
             if repo.overlapping_open_slots(db, ns, ne, exclude_id=s.id):
                 raise Conflict("다른 상담 시간과 겹칩니다", code="slot_overlap")
             s.start_at, s.end_at = ns, ne
@@ -370,6 +376,7 @@ def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, 
                     *, rescheduling: bool = False) -> Slot:
     if slot is None or slot.status != "open":
         raise NotFound("예약 가능한 상담 시간이 아닙니다")
+    ensure_weekday(slot.start_at, slot.end_at)
     if lecture_overlap(db, slot.start_at, slot.end_at):
         raise Conflict("강의 시간에는 상담을 예약할 수 없습니다", code="lecture_overlap")
     if _is_staff(actor):
