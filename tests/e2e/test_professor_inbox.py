@@ -26,7 +26,7 @@ def test_professor_inbox_read_and_refresh(server, browser, viewport):  # noqa: F
     prof.go("/inbox")
     prof.page.get_by_role("heading", name="내 알림", exact=True).wait_for()
     prof.page.get_by_text("읽지 않은 알림 1건", exact=True).wait_for()
-    prof.page.get_by_text("알림 시각 2026-11-13 10:02 (한국시간)", exact=True).wait_for()
+    prof.page.get_by_label("알림 시각 2026-11-13 10:02 (한국시간)", exact=True).wait_for()
     prof.page.locator(".inbox-row-link").first.click()
     prof.page.wait_for_url("**/#/bookings")
     prof.go("/inbox")
@@ -60,7 +60,7 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
     bell.click()
     panel = staff.page.get_by_role('region', name='알림 모아보기')
     panel.get_by_text('새 상담 예약', exact=True).wait_for()
-    panel.get_by_text('알림 시각 2026-11-13 00:05 (한국시간)', exact=True).wait_for()
+    panel.get_by_label('알림 시각 2026-11-13 00:05 (한국시간)', exact=True).wait_for()
     panel.locator('.inbox-row-link').first.click()
     staff.page.wait_for_url('**/#/bookings')
     # URL changes before the asynchronous route/header render completes.
@@ -239,10 +239,13 @@ def test_notification_target_exact_cancelled_and_legacy(server, browser, viewpor
     page.route('**/api/bookings?*', lambda r: r.fulfill(json=[]))
     page.route('**/api/lectures?*', lambda r: r.fulfill(json=[]))
     staff.go('/inbox/777')
+    page.get_by_role('dialog', name='예약 취소', exact=True).wait_for()
+    assert page.locator('.notification-booking-summary textarea').count() == 0
+    page.get_by_role('button', name='기록·예약 관리', exact=True).click()
     page.get_by_role('dialog', name='예약·상담 상세').wait_for()
     assert page.locator('.booking-detail').get_by_text('정확한 예약자', exact=False).count() == 1
     assert page.locator('.booking-detail textarea').input_value() == '보존된 상담 기록'
-    assert page.locator('.notification-target').count() == 1
+    assert 'cancelled' not in page.locator('.booking-detail').inner_text()
     assert page.get_by_role('button', name='예약 취소', exact=True).count() == 0
     page.wait_for_timeout(3000)
     assert page.locator('.notification-target').count() == 0

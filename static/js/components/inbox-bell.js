@@ -1,4 +1,5 @@
 // Explicit refresh only. Never keep the database awake with background polling.
+import { inboxRow } from "./inbox-row.js";
 import { navIcon } from "./nav-icon.js";
 import { get } from "../api.js";
 import { h, mount, toast } from "../ui.js";
@@ -36,9 +37,9 @@ export function inboxBell() {
       };
       mount(panel, h("div", { class: "inbox-popover-head" }, h("h2", {}, "알림 모아보기"),
         h("button", { class: "btn small", type: "button", onclick: () => close(true) }, "닫기")),
-        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 최근 도착순 · 알림을 누르면 읽음 처리`),
+        h("p", { class: "hint" }, `미읽음 ${data.unread} · 최신순`),
         ...data.items.slice(0, 5).map(item => {
-          const link = h("a", { class: `inbox-row-link ${item.read ? "is-read" : "is-unread"}`, href: item.url });
+          const link = inboxRow(item);
           let opening = false;
           link.onclick = async event => {
             event.preventDefault();
@@ -54,10 +55,6 @@ export function inboxBell() {
             finally { opening = false; }
           };
           link.classList.add("inbox-preview");
-          link.append(
-            h("div", { class: "inbox-item-heading" }, h("h3", {}, item.title),
-              h("span", { class: "inbox-read-state" }, item.read ? "읽음" : "읽지 않음")), h("p", {}, item.body),
-            h("small", {}, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`), h("span", { class: "sr-only" }, "관련 내용 열기"));
           return link;
         }),
         !data.items.length ? h("p", {}, "새 알림이 없습니다.") : null,

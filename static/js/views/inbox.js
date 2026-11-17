@@ -1,3 +1,4 @@
+import { inboxRow } from "../components/inbox-row.js";
 import { get } from "../api.js";
 import { h, mount, toast } from "../ui.js";
 
@@ -17,7 +18,7 @@ export async function render(root) {
   let items = [], cursor = null, unreadOnly = false, pending = false, refreshAgain = false;
   function paint() {
     mount(list, ...items.map(item => {
-      const link = h("a", { class: `inbox-row-link ${item.read ? "is-read" : "is-unread"}`, href: item.url });
+      const link = inboxRow(item);
       let opening = false;
       link.onclick = async event => {
         event.preventDefault();
@@ -31,11 +32,6 @@ export async function render(root) {
       };
       link.classList.add("panel", "inbox-item");
       link.dataset.notificationId = item.id;
-      link.append(
-        h("div", { class: "inbox-item-heading" }, h("h2", {}, item.title),
-          h("span", { class: "inbox-read-state" }, item.read ? "읽음" : "읽지 않음")),
-        h("p", {}, item.body), h("small", { class: "muted" }, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`),
-        h("span", { class: "sr-only" }, "관련 내용 열기"));
       return link;
     }));
     if (!items.length) mount(list, h("p", { class: "empty" }, unreadOnly ? "읽지 않은 알림이 없습니다." : "새 알림이 없습니다. 기능 적용 후 접수된 알림부터 표시됩니다."));
@@ -90,7 +86,7 @@ export async function render(root) {
   all.onclick = () => filter(false); unread.onclick = () => filter(true);
   refresh.onclick = () => draw(true); more.onclick = () => draw(false);
   mount(root, h("h1", {}, "내 알림"),
-    h("p", { class: "inbox-intro" }, "최근 알림부터 표시합니다. 알림을 누르면 읽음으로 처리합니다."),
+    h("p", { class: "inbox-intro" }, "최신순 · 시각은 한국시간"),
     h("details", { class: "help-details" }, h("summary", {}, "알림 시각·갱신 안내"),
       h("p", {}, "새 건의는 접수 즉시 알림을 생성합니다. 모두 읽음으로 미확인 표시를 한 번에 지울 수 있습니다. 앱으로 돌아오거나 새로고침할 때 갱신합니다."),
       h("p", {}, "알림 시각은 앱에서 확인 가능해진 시각이며 실제 휴대폰 수신 시각이 아닙니다. 이전 지연 알림은 당시 예정 시각을 표시하며 제출 시각을 뜻하지 않습니다.")),
@@ -107,7 +103,7 @@ export async function renderTarget(root, { id }) {
   const back = h("a", { class: "btn", href: "#/inbox" }, "알림 목록으로");
   if (data.type === "booking" && data.booking) {
     const { openNotification } = await import("./prof-bookings.js");
-    if (root.isConnected) await openNotification(root, data.booking);
+    if (root.isConnected) await openNotification(root, data.booking, data.notification);
     return;
   }
   mount(root, h("h1", {}, data.notification.title),
