@@ -1329,3 +1329,33 @@ def test_flexible_sentence_populates_form_without_registering(server, browser):
     assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
     prof.page.get_by_role("button", name="등록 미리보기", exact=True).wait_for()
     prof.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_weekend_c_preserves_existing_events(server, browser, viewport):
+    base, _ = server
+    page = browser.new_page(viewport=viewport)
+    page.goto(base)
+    page.evaluate('''async () => {
+        document.head.innerHTML = '<link rel="stylesheet" href="/static/css/app.css">';
+        document.body.innerHTML = '';
+        const {renderCalendar} = await import('/static/js/components/week-calendar.js');
+        window.weekendActions = [];
+        document.body.append(renderCalendar({weekStart:'2026-11-16',
+          onTimeSelect: () => weekendActions.push('time'),
+          onSlot: s => weekendActions.push(s.id), slots:[
+          {id:99,event_type:'lecture',title:'주말 강의',start_at:'2026-11-21T10:00:00+09:00',end_at:'2026-11-21T11:00:00+09:00'},
+          {id:100,managerState:'reserved',bookingCount:1,capacity:1,start_at:'2026-11-22T10:00:00+09:00',end_at:'2026-11-22T11:00:00+09:00'}
+        ]}));
+    }''')
+    assert page.locator('.day-head.is-weekend').count() == 2
+    assert page.locator('.calendar-time-cell.is-weekend:disabled').count() > 0
+    assert page.locator('.calendar-time-cell:not(.is-weekend):disabled').count() == 0
+    page.locator('[data-slot-id="99"]').click()
+    page.locator('[data-slot-id="100"]').click()
+    assert page.evaluate('window.weekendActions') == [99, 100]
+    assert page.locator('.day-head.is-weekend').first.evaluate(
+        '(el) => getComputedStyle(el).backgroundColor') == 'rgb(249, 232, 217)'
+    SHOTS.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(SHOTS / f'weekend-c-{viewport["width"]}.png'), full_page=True)
+    page.close()
