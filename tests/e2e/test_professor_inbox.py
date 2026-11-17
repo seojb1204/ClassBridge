@@ -63,6 +63,8 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
     panel.get_by_text('알림 시각 2026-11-13 00:05 (한국시간)', exact=True).wait_for()
     panel.locator('.inbox-row-link').first.click()
     staff.page.wait_for_url('**/#/bookings')
+    # URL changes before the asynchronous route/header render completes.
+    staff.page.wait_for_selector('body[data-ready="/bookings"]', state='attached')
     staff.page.get_by_role('button', name='알림 열기', exact=True).click()
     staff.page.get_by_role('button', name='알림 열기', exact=True).wait_for()
     panel.get_by_role('button', name='닫기', exact=True).focus()
@@ -141,11 +143,15 @@ def test_content_open_marks_read_and_read_all_survives_reload(server, browser, v
     panel = staff.page.locator('#inbox-popover')
     panel.locator('.inbox-row-link').first.click()
     staff.page.wait_for_url('**/#/bookings')
+    # URL changes before the asynchronous route/header render completes.
+    staff.page.wait_for_selector('body[data-ready="/bookings"]', state='attached')
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 4건', exact=True).wait_for()
     assert items[0]['read'] and len(writes) == 1
     staff.go('/inbox')
     staff.page.locator('[data-notification-id="2"]').click()
     staff.page.wait_for_url('**/#/bookings')
+    # URL changes before the asynchronous route/header render completes.
+    staff.page.wait_for_selector('body[data-ready="/bookings"]', state='attached')
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 3건', exact=True).wait_for()
     staff.go('/inbox')
     staff.page.get_by_role('button', name='모두 읽음', exact=True).click()

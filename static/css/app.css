@@ -101,7 +101,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .lg.mine::before { background: var(--booking-mine); }
 .lg.closed::before { background: var(--closed); border: 1px dashed var(--muted); }
 .week-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-.week-grid { display: grid; grid-template-columns: 56px repeat(7, minmax(110px, 1fr)); min-width: 840px; position: relative; align-items: stretch; }
+.week-grid { display: grid; grid-template-columns: 56px repeat(5, minmax(110px, 1fr)); min-width: 606px; position: relative; align-items: stretch; }
 .day-head { grid-row: 1; padding: .5rem; text-align: center; border-bottom: 1px solid var(--line); background: var(--bg);
   position: sticky; top: 0; font-size: .9rem; }
 .corner { grid-row: 1; grid-column: 1; border-bottom: 1px solid var(--line); background: var(--bg); }
@@ -123,7 +123,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .slot:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
 
 /* 모바일 일별 */
-.day-chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; margin-bottom: .75rem; }
+.day-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: .3rem; margin-bottom: .75rem; }
 .chip { display: flex; flex-direction: column; align-items: center; padding: .4rem 0; border: 1px solid var(--line);
   background: var(--panel); border-radius: 10px; font: inherit; cursor: pointer; position: relative; min-height: 52px; }
 .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
@@ -642,3 +642,7 @@ textarea { line-height: 1.75; }
 .week-swipe { overflow-x: clip; }
 .week-slide-outgoing { user-select: none; }
 @media (prefers-reduced-motion: reduce) { .week-slide-outgoing { display: none; } }
+
+/* Legacy weekend records remain reachable without reintroducing weekend columns. */
+.legacy-weekend-events { margin-top: 1rem; padding: .8rem; border: 1px solid var(--line); border-radius: 10px; }
+.legacy-weekend-event { display: block; width: 100%; text-align: left; margin-top: .5rem; white-space: normal; }

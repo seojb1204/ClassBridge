@@ -60,7 +60,10 @@ def clients(app):
 
 
 def future_day(days: int = 2) -> date:
-    return today_kst(utcnow()) + timedelta(days=days)
+    day = today_kst(utcnow()) + timedelta(days=days)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+    return day
 
 
 def make_slots(client, day: date | None = None, start="10:00", end="11:00", duration=30,

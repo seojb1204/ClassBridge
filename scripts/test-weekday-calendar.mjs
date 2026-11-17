@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync('static/js/components/week-calendar.js','utf8').replace(/^import .*;\n/gm,'').replace(/export /g,'');
+const time=fs.readFileSync('static/js/time.js','utf8').replace(/export /g,'');
+const nodes=[];
+function h(tag,attrs={},...children){const n={tag,attrs,children:children.flat(),style:{},dataset:{},append(...x){this.children.push(...x)}};nodes.push(n);return n;}
+const c={window:{matchMedia:()=>({matches:false})},h};
+vm.runInNewContext(time+'\n'+source+'\nthis.render=renderCalendar',c);
+const calls=[];
+c.render({weekStart:'2026-11-16',slots:[],onTimeSelect:x=>calls.push(x)});
+assert.equal(nodes.filter(n=>n.attrs.class?.startsWith('day-head')).length,5);
+for(const n of nodes.filter(n=>n.attrs.class==='cell calendar-time-cell'))n.attrs.onclick({detail:0,currentTarget:{getBoundingClientRect:()=>({})}});
+assert.equal(calls.length,15);
+assert.ok(calls.every(x=>!['2026-11-21','2026-11-22'].includes(x.date)));
+assert.equal(nodes.filter(n=>n.attrs.class==='legacy-weekend-events').length,0);
+nodes.length=0;
+const clicked=[];
+const s={id:99,event_type:'lecture',title:'주말 강의',start_at:'2026-11-21T10:00:00+09:00',end_at:'2026-11-21T11:00:00+09:00'};
+c.render({weekStart:'2026-11-16',slots:[s],onSlot:x=>clicked.push(x)});
+const button=nodes.find(n=>n.attrs.dataset?.slotId===99);
+assert.ok(button);assert.equal(button.attrs.class,'btn legacy-weekend-event');button.attrs.onclick();assert.equal(clicked[0],s);
+console.log('7 weekday rendering, selection and legacy-access assertions passed');

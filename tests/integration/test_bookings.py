@@ -5,7 +5,6 @@ from datetime import timedelta
 
 from app.db import utcnow
 from app.models import Blackout, Slot
-from app.timeutil import today_kst
 from tests.conftest import future_day, make_slots
 
 
@@ -90,8 +89,7 @@ def test_cancel_deadline_thirty_minutes(app, clients):
 
 def test_booking_deadline_and_window(app, clients):
     p, s1, a = clients["prof"], clients["s1"], clients["admin"]
-    today = today_kst(utcnow())
-    far = make_slots(p, day=today + timedelta(days=40))
+    far = make_slots(p, day=future_day(40))
     r = s1.post("/api/bookings", json={"slot_id": far[0]})
     assert r.status_code == 409 and r.json()["error"] == "booking_window"
     a.put("/api/admin/settings", json={"booking_window_days": 60})

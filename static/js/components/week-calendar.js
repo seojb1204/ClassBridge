@@ -80,10 +80,26 @@ function slotLabel(s) {
  * @param {(week:string)=>Promise<void>|void} [o.onWeekChange] 주 이동
  * @param {(mode:string)=>void} [o.onViewChange] 모바일 보기 전환
  */
+function isWeekend(day) {
+  return ["토", "일"].includes(kstParts(`${day}T12:00:00+09:00`).weekday);
+}
+
+function legacyWeekendEvents(o) {
+  const events = o.slots.filter(s => isWeekend(kstParts(s.start_at).date));
+  if (!events.length) return null;
+  return h("section", { class: "legacy-weekend-events", "aria-label": "기존 주말 일정" },
+    h("h3", {}, "기존 주말 일정"),
+    h("p", { class: "hint" }, "새 주말 예약·강의 등록은 제한됩니다. 기존 일정은 확인하거나 취소할 수 있습니다."),
+    ...events.map(s => h("button", { type: "button", class: "btn legacy-weekend-event",
+      onclick: () => o.onSlot(s), dataset: { slotId: s.id } },
+      `${fmtDate(kstParts(s.start_at).date)} ${fmtTime(s.start_at)}–${fmtTime(s.end_at)} · ${slotLabel(s)}`)));
+}
+
 export function renderCalendar(o) {
   const byDay = {};
   for (const s of o.slots) (byDay[kstParts(s.start_at).date] ||= []).push(s);
-  return isMobile() ? renderMobile(o, byDay) : h("div", {}, o.navigation, renderWeekly(o, byDay));
+  const visible = { ...o, slots: o.slots.filter(s => !isWeekend(kstParts(s.start_at).date)) };
+  return h("div", {}, isMobile() ? renderMobile(visible, byDay) : h("div", {}, o.navigation, renderWeekly(visible, byDay)), legacyWeekendEvents(o));
 }
 
 // Keep the same event data and detail handlers in every view. Mobile defaults
@@ -98,15 +114,15 @@ function renderMobile(o, byDay) {
     return h("div", { class: "mobile-calendar" }, toggle, o.navigation,
       renderDaily({ ...o, mobileListOnly: mode === "list", hideViewToggle: true }, byDay));
   }
-  const days = Array.from({ length: 7 }, (_, i) => addDays(o.weekStart, i));
+  const days = Array.from({ length: 5 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle, o.navigation,
-    o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[6])}`),
+    o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[4])}`),
     h("p", { class: "hint calendar-help" }, "좌우로 밀거나 화살표를 눌러 주를 바꿀 수 있습니다. 작은 일정은 목록형에서 자세히 볼 수 있어요."),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
 function renderWeekly(o, byDay) {
-  const days = o.gridDays || Array.from({ length: 7 }, (_, d) => addDays(o.weekStart, d));
+  const days = o.gridDays || Array.from({ length: 5 }, (_, d) => addDays(o.weekStart, d));
   const rowPx = o.compactGrid ? 24 : 18;
   // The pixel size of a 15-minute interval must NOT change with the
   // consultation duration or the number of slots in the displayed week.
@@ -123,7 +139,7 @@ function renderWeekly(o, byDay) {
   const rows = ((maxH - minH) * 60) / STEP;
   const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "달력형 주간 시간표" });
   grid.style.gridTemplateRows = `auto repeat(${rows}, ${rowPx}px)`;
-  if (o.compactGrid) grid.style.gridTemplateColumns = `36px repeat(${days.length}, minmax(0, 1fr))`;
+  grid.style.gridTemplateColumns = `${o.compactGrid ? 36 : 56}px repeat(${days.length}, minmax(0, 1fr))`;
   grid.append(h("div", { class: "corner" }));
   for (let d = 0; d < days.length; d++) {
     const day = days[d];
@@ -335,10 +351,10 @@ function enableWeekSwipe(wrap, grid, o) {
 }
 
 function renderDaily(o, byDay) {
-  const sel = o.selectedDay && o.selectedDay >= o.weekStart && o.selectedDay <= addDays(o.weekStart, 6)
+  const sel = o.selectedDay && o.selectedDay >= o.weekStart && o.selectedDay <= addDays(o.weekStart, 4)
     ? o.selectedDay : o.weekStart;
   const chips = h("div", { class: "day-chips", role: "tablist" });
-  for (let d = 0; d < 7; d++) {
+  for (let d = 0; d < 5; d++) {
     const day = addDays(o.weekStart, d);
     const n = dayCount(o, byDay[day] || []);
     const reserved = o.dayCountMode === "booked";

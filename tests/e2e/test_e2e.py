@@ -449,6 +449,8 @@ class Session:
 
 
 SLOT_DAY = today_kst(utcnow()) + timedelta(days=2)
+while SLOT_DAY.weekday() >= 5:
+    SLOT_DAY += timedelta(days=1)
 
 
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
@@ -757,14 +759,14 @@ def test_mobile_student_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "mobile1@test.ac.kr", MOBILE)
     st.go("/booking")
-    assert st.page.locator(".week-grid .day-head").count() == 7
+    assert st.page.locator(".week-grid .day-head").count() == 5
     st.page.get_by_role("button", name="목록형", exact=True).click()
     st.page.locator(".day-chips").wait_for()
     assert st.page.locator(".day-chips").is_visible()
     slot = _find_slot(st, mobile=True)
     st.page.get_by_role("button", name="달력형", exact=True).click()
     st.page.locator(".week-grid").wait_for(state="visible")
-    assert st.page.locator(".week-grid .day-head").count() == 7
+    assert st.page.locator(".week-grid .day-head").count() == 5
     assert st.page.locator(".week-grid .slot.open").count() > 0
     st.page.get_by_role("button", name="목록형", exact=True).click()
     st.page.locator(".daily .cards").wait_for(state="visible")
@@ -813,7 +815,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     prof.go("/bookings")
     prof.page.get_by_role("button", name="주간 예약 시간표").click()
     prof.page.locator(".calendar-week").wait_for()
-    assert prof.page.locator(".week-grid .day-head").count() == 7
+    assert prof.page.locator(".week-grid .day-head").count() == 5
     prof.page.get_by_role("button", name="목록형", exact=True).click()
     prof.page.locator(".day-chips").wait_for()
     day_chip = prof.page.locator(".chip").filter(
@@ -825,7 +827,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     day_chip.first.click()
     prof.page.get_by_role("button", name="달력형", exact=True).click()
     prof.page.locator(".week-grid").wait_for(state="visible")
-    assert prof.page.locator(".week-grid .day-head").count() == 7
+    assert prof.page.locator(".week-grid .day-head").count() == 5
     assert prof.page.locator(".week-grid .slot").count() >= 1
     prof.page.get_by_role("button", name="목록형", exact=True).click()
     prof.page.locator(".daily .cards").wait_for(state="visible")
@@ -840,7 +842,7 @@ def test_mobile_professor_views(server, browser):
         prof.go(path)
         if path == "/slots":
             assert prof.page.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
-            assert prof.page.locator(".week-grid .day-head").count() == 7
+            assert prof.page.locator(".week-grid .day-head").count() == 5
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
@@ -1329,3 +1331,34 @@ def test_flexible_sentence_populates_form_without_registering(server, browser):
     assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
     prof.page.get_by_role("button", name="등록 미리보기", exact=True).wait_for()
     prof.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_weekday_calendar_preserves_legacy_weekend_access(server, browser, viewport):
+    base, _ = server
+    page = browser.new_page(viewport=viewport)
+    page.goto(base)
+    page.evaluate('''async () => {
+        document.head.innerHTML = '<link rel="stylesheet" href="/static/css/app.css">';
+        document.body.innerHTML = '';
+        const {renderCalendar} = await import('/static/js/components/week-calendar.js');
+        window.calendarActions = [];
+        document.body.append(renderCalendar({weekStart:'2026-11-16',
+          onTimeSelect: s => calendarActions.push(s.date),
+          onSlot: s => calendarActions.push(s.id), slots:[
+          {id:99,event_type:'lecture',title:'기존 주말 강의',
+           start_at:'2026-11-21T10:00:00+09:00',end_at:'2026-11-21T11:00:00+09:00'},
+          {id:100,managerState:'reserved',bookingCount:1,capacity:1,
+           start_at:'2026-11-22T10:00:00+09:00',end_at:'2026-11-22T11:00:00+09:00'}
+        ]}));
+    }''')
+    assert page.locator('.day-head').count() == 5
+    assert page.locator('.week-grid [data-slot-id]').count() == 0
+    assert page.locator('.legacy-weekend-event').count() == 2
+    page.locator('[data-slot-id="99"]').click()
+    page.locator('[data-slot-id="100"]').click()
+    assert page.evaluate('window.calendarActions') == [99, 100]
+    assert page.get_by_role('button', name='주말 보기', exact=True).count() == 0
+    SHOTS.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(SHOTS / f'weekday-calendar-{viewport["width"]}.png'), full_page=True)
+    page.close()
