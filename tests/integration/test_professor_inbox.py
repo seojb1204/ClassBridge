@@ -16,7 +16,9 @@ def test_booking_inbox_without_external_channels(app, clients):
     assert result['unread'] == 1
     item = result['items'][0]
     assert item['kind'] == 'created' and item['read'] is False
-    assert '학생1' not in str(result) and 'private topic' not in str(result)
+    # Authenticated staff see the minimal booking summary; notes/email/topic stay private.
+    assert item['booking_summary']['student_name'] == '학생1'
+    assert 'private topic' not in str(result) and 's1@test.ac.kr' not in str(result)
     assert 'event_key' not in item and 'created_at' not in item
     assert clients['prof'].put(f"/api/inbox/{item['id']}/read").status_code == 200
     assert clients['prof'].put(f"/api/inbox/{item['id']}/read").status_code == 200

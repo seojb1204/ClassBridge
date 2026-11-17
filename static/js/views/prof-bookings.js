@@ -7,7 +7,7 @@ import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { calendarGet, clearCalendarCache, get, post, put } from "../api.js";
-import { addDays, fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
+import { addDays, fmtDateTime, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
@@ -50,7 +50,7 @@ async function showStaffSlot(root, slot, bookings, highlight = false) {
   const reason = h("input", { type: "text", maxlength: 500, placeholder: "취소 시 학생에게 보여줄 사유" });
   const update = () => {
     b = related.find((x) => String(x.id) === String(picker?.value)) || related[0];
-    info.textContent = `${b.applicant_name || b.student_name} · ${b.grade ? b.grade + "학년" : "학년 미입력"} · ${b.status} · ${b.topic || "상담 주제 미입력"}`;
+    info.textContent = `${b.applicant_name || b.student_name} · ${b.grade ? b.grade + "학년" : "학년 미입력"} · ${STATUS_LABEL[b.status] || "상태 확인 필요"}${b.topic ? " · " + b.topic : ""}`;
     note.value = b.professor_note || "";
   };
   picker?.addEventListener("change", update);
@@ -325,12 +325,40 @@ async function reschedule(b) {
 }
 
 // Only called after server-side inbox ownership and booking permission checks.
-export async function openNotification(root, booking) {
+export async function openNotification(root, booking, notification = {}) {
   const day = kstParts(booking.slot.start_at).date;
   weekStart = mondayOf(day); selectedDay = day; viewMode = "calendar";
   await render(root);
   if (!root.isConnected) return;
-  // Exact booking only: cancelled bookings must not select another student in a shared slot.
-  void showStaffSlot(root, booking.slot, [booking], true);
-  requestAnimationFrame(() => document.querySelector("#modal-root .modal")?.focus());
+  const path = location.hash;
+  const card = [...root.querySelectorAll('[data-slot-id]')].find(el => el.dataset.slotId === String(booking.slot.id) && el.dataset.eventType === "consultation");
+  card?.classList.add("notification-target");
+  card?.scrollIntoView({ block: "nearest", behavior: "instant" });
+  const body = h("div", { class: "notification-booking-summary" },
+    h("p", { class: "booking-summary-person" }, h("strong", {}, booking.applicant_name || booking.student_name),
+      booking.grade ? ` · ${booking.grade}학년` : "", " ", badge(STATUS_LABEL[booking.status] || "상태 확인 필요", booking.status)),
+    h("p", {}, h("strong", {}, fmtDateTime(booking.slot.start_at)),
+      booking.slot.end_at ? `–${fmtTime(booking.slot.end_at)}` : ""),
+    h("p", { class: "hint" }, "현재 예약 정보입니다."),
+    booking.topic ? h("p", {}, `상담 주제: ${booking.topic}`) : null,
+    notification.arrived_at ? h("small", { class: "muted" }, `알림 시각: ${fmtDateTime(notification.arrived_at)} (한국시간)`) : null);
+  void modal(notification.title || "예약 요약", body, [
+    { label: "닫기", value: null },
+    { label: "기록·예약 관리", value: "manage", primary: true },
+  ]).then(async result => {
+  if (!root.isConnected || location.hash !== path) return;
+  if (result === "manage") {
+    // Preserve the existing editor and every action, but only open it on request.
+    // Use this booking alone, including cancelled/shared-slot reservations.
+    await showStaffSlot(root, booking.slot, [booking]);
+  }
+  if (card?.isConnected) {
+    card.classList.add("notification-target");
+    card.focus({ preventScroll: true });
+    setTimeout(() => card.classList.remove("notification-target"), 2800);
+  }
+  }).catch(errorToast);
+  requestAnimationFrame(() => {
+    if (root.isConnected && location.hash === path) document.querySelector("#modal-root .modal")?.focus();
+  });
 }

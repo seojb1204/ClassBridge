@@ -8,7 +8,7 @@ from app.core.errors import Forbidden, NotFound
 from app.core.permissions import P
 from app.db import get_db, utcnow
 from app.models.inbox import InboxNotification
-from app.services.inbox import public_item
+from app.services.inbox import BOOKING_ACTIONS, booking_targets, public_item
 
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
 
@@ -38,7 +38,8 @@ def listing(p: Principal = Depends(staff), db: Session = Depends(get_db),
                                         InboxNotification.id.desc()).limit(limit + 1)))
     has_more = len(rows) > limit
     rows = rows[:limit]
-    return {"items": [public_item(row) for row in rows],
+    targets = booking_targets(db, rows)
+    return {"items": [public_item(row, targets.get(row.id)) for row in rows],
             "unread": db.scalar(select(func.count()).select_from(InboxNotification)
                                 .where(own, InboxNotification.read_at.is_(None))),
             "has_more": has_more, "next_before_id": rows[-1].id if has_more else None}
@@ -74,22 +75,16 @@ def read(notification_id: int, p: Principal = Depends(staff), db: Session = Depe
 @router.get("/{notification_id}/target")
 def target(notification_id: int, p: Principal = Depends(staff), db: Session = Depends(get_db)):
     """Resolve only an owned, arrived notification. No schema migration or inferred IDs."""
-    import re
-
-    from app.models import Booking
-    from app.models.booking import BookingEvent
-    from app.routers.bookings import _staff_out, _student
+    from app.routers.bookings import _staff_out
     row = db.scalar(select(InboxNotification).where(
         InboxNotification.id == notification_id, InboxNotification.recipient_id == p.id,
         InboxNotification.available_at <= utcnow()))
     if row is None:
         raise NotFound("알림을 찾을 수 없습니다")
-    result = {"notification": public_item(row), "type": row.kind}
-    if row.kind in ("created", "changed", "cancelled", "slot_changed"):
-        match = re.fullmatch(r"booking-event-([1-9][0-9]*)", row.event_key)
-        event = db.get(BookingEvent, int(match[1])) if match else None
-        booking = db.get(Booking, event.booking_id) if event else None
+    resolved = booking_targets(db, [row]).get(row.id)
+    result = {"notification": public_item(row, resolved), "type": row.kind}
+    if row.kind in BOOKING_ACTIONS:
         result["type"] = "booking"
-        result["booking"] = _staff_out(booking, _student(db, booking)) if booking else None
-        result["unavailable"] = booking is None
+        result["booking"] = _staff_out(*resolved) if resolved else None
+        result["unavailable"] = resolved is None
     return result

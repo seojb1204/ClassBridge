@@ -91,7 +91,7 @@ function legacyWeekendEvents(o) {
     h("h3", {}, "기존 주말 일정"),
     h("p", { class: "hint" }, "새 주말 예약·강의 등록은 제한됩니다. 기존 일정은 확인하거나 취소할 수 있습니다."),
     ...events.map(s => h("button", { type: "button", class: "btn legacy-weekend-event",
-      onclick: () => o.onSlot(s), dataset: { slotId: s.id } },
+      onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       `${fmtDate(kstParts(s.start_at).date)} ${fmtTime(s.start_at)}–${fmtTime(s.end_at)} · ${slotLabel(s)}`)));
 }
 
@@ -177,7 +177,7 @@ function renderWeekly(o, byDay) {
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
       const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s),
-        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id } },
+        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, o.compactGrid
           ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
@@ -373,7 +373,7 @@ function renderDaily(o, byDay) {
     h("button", { type: "button", class: mode === "timeline" ? "btn primary" : "btn",
       "aria-pressed": String(mode === "timeline"), onclick: () => changeView("timeline") }, "일간 시간표 보기"));
   const cards = h("div", { class: "cards" }, list.map((s) =>
-    h("button", { class: `card ${slotClass(s)}`, onclick: () => o.onSlot(s), dataset: { slotId: s.id } },
+    h("button", { class: `card ${slotClass(s)}`, onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       h("span", { class: "slot-time" }, `${fmtTime(s.start_at)} – ${fmtTime(s.end_at)}`),
       h("span", { class: "slot-meta" }, slotLabel(s)),
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
@@ -409,7 +409,7 @@ function renderDailyTimeline(o, slots, day) {
     const to = (end.hour - minH) * 60 + end.minute;
     const button = h("button", { type: "button",
       class: `day-timeline-slot ${slotClass(s)}`,
-      onclick: () => o.onSlot(s), dataset: { slotId: s.id },
+      onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" },
       "aria-label": `${fmtDate(day)} ${start.time}부터 ${end.time}까지 ${slotLabel(s)}` },
     h("span", { class: "slot-time" }, `${start.time}–${end.time}`),
     h("span", { class: "slot-meta" }, slotLabel(s)));

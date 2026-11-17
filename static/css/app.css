@@ -646,3 +646,25 @@ textarea { line-height: 1.75; }
 /* Legacy weekend records remain reachable without reintroducing weekend columns. */
 .legacy-weekend-events { margin-top: 1rem; padding: .8rem; border: 1px solid var(--line); border-radius: 10px; }
 .legacy-weekend-event { display: block; width: 100%; text-align: left; margin-top: .5rem; white-space: normal; }
+
+/* Screen-reader text must never spill into the visible notification summary. */
+.sr-only { position: absolute !important; width: 1px !important; height: 1px !important;
+  padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important; clip-path: inset(50%) !important;
+  white-space: nowrap !important; border: 0 !important; }
+.inbox-row-link .inbox-item-heading { align-items: baseline; gap: .65rem; }
+.inbox-row-link .inbox-item-heading h3 { font-family: inherit; font-size: 1rem; line-height: 1.5;
+  margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.inbox-row-link.is-read h3 { font-weight: 500; }
+.inbox-arrival { flex-shrink: 0; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.inbox-summary { margin: .35rem 0 0; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.inbox-unread-dot { display: inline-block; width: .45rem; height: .45rem; border-radius: 50%;
+  background: var(--primary); margin-right: .45rem; vertical-align: middle; }
+.inbox-row-link { min-height: 44px; }
+.notification-booking-summary p { margin: .75rem 0; }
+.booking-summary-person { font-size: 1.05rem; }
+@media(max-width: 480px) {
+  .inbox-row-link .inbox-item-heading { flex-wrap: wrap; gap: .2rem .65rem; }
+  .inbox-arrival { margin-left: auto; }
+  .inbox-popover .inbox-preview { padding-block: .8rem; }
+}

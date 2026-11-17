@@ -55,7 +55,8 @@ def test_inbox_read_state_and_disclosure(server, browser, viewport):  # noqa: F8
     s.page.route('**/api/inbox**', inbox)
     s.go('/inbox')
     card = s.page.locator('.inbox-item')
-    card.locator('.inbox-read-state').get_by_text('읽지 않음', exact=True).wait_for()
+    card.locator('.inbox-unread-dot').wait_for()
+    assert card.locator('.sr-only').text_content() == '읽지 않음. 관련 내용 열기'
     assert 'is-unread' in card.get_attribute('class')
     assert s.page.locator('.inbox-bell svg').count() == 1
     details = s.page.locator('.help-details')
@@ -66,7 +67,9 @@ def test_inbox_read_state_and_disclosure(server, browser, viewport):  # noqa: F8
     card.click()
     s.page.wait_for_url('**/#/bookings')
     s.go('/inbox')
-    card.locator('.inbox-read-state').get_by_text('읽음', exact=True).wait_for()
+    card.locator('.sr-only').wait_for(state='attached')
+    assert card.locator('.sr-only').text_content() == '읽음. 관련 내용 열기'
+    assert card.locator('.inbox-unread-dot').count() == 0
     assert 'is-read' in card.get_attribute('class')
     assert s.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
     s.shot(f'polish_inbox_read_{viewport["width"]}')
