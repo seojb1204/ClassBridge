@@ -28,7 +28,7 @@ function run({width, start, points, type='touch', cancel=false, reduced=false, s
 function check(options, expected, ready) {
  const r=run(options); assert.deepEqual(r.calls,expected,JSON.stringify(options));
  if(ready!==undefined)assert.equal(r.ready,ready);
- assert.equal(r.hidden,true); assert.ok(!r.settled);count++;
+ assert.equal(r.hidden, expected.length === 0); if (!expected.length) assert.ok(!r.settled);count++;
 }
 for(const width of [312,342]) for(const reduced of [false,true]) for(const sign of [-1,1]) {
  const edge=sign<0 ? width-25 : 25, center=width/2;
@@ -48,7 +48,7 @@ for(const width of [312,342]) for(const reduced of [false,true]) for(const sign 
  check({...o,points:[[sign*85,0]]},[outcome],'true');
  const r=run({...o,points:[[sign*150,0]]});
  if(reduced) assert.equal(r.transform,'');
- else assert.ok(r.transform.includes(`${sign*Math.min(150,140*(1-Math.exp(-150/120)))}px`));
+ else assert.ok(r.transform.includes(`${sign*Math.min(150,width*.95)}px`));
  count++;
 }
 for(const sign of [-1,1]) {

@@ -1,3 +1,4 @@
+import { mountCalendarPreservingScroll } from "../components/calendar-scroll.js";
 import { watchRefresh } from "../live-refresh.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { startRegistrationAt } from "./prof-slots.js";
@@ -35,9 +36,9 @@ async function showStaffSlot(root, slot, bookings, highlight = false) {
       h("p", {}, fmtDateTime(slot.start_at)),
       h("p", { class: "muted" }, "등록된 상담이지만 학생 예약은 아직 없습니다.")), [
       { label: "닫기", value: null },
-      { label: "학생 대신 예약", primary: true, value: "book" },
+      { label: "상담 등록으로 이동", primary: true, value: "book" },
     ]);
-    if (r === "book") await bookForStudent(root);
+    if (r === "book") location.hash = "#/slots/new";
     return;
   }
   let b = related[0];
@@ -117,9 +118,8 @@ async function renderCalendarView(root) {
     return { ...slot, managerState: slot.status === "cancelled" ? null : count ? "reserved" : slot.bookable ? "free" : null,
       bookingCount: count, staffBookingNames: names.join(", ") };
   });
-  mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "예약 관리"),
-      h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약")),
+  mountCalendarPreservingScroll(root, () => [
+    h("div", { class: "page-head" }, h("h1", {}, "예약 관리")),
     todayPanel ||= staffToday(),
     viewSwitcher(root),
     h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 시간 칸에서 예약 학생 이름을 확인하고 누르면 상세 기록을 볼 수 있습니다."),
@@ -133,7 +133,7 @@ async function renderCalendarView(root) {
       onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
       onDay: (day) => { selectedDay = day; renderCalendarView(root); },
       onSlot: (slot) => slot.event_type === "lecture" ? lectureEditor(() => renderCalendarView(root), slot) : showStaffSlot(root, slot, bookings) }),
-  );
+  ]);
   prefetchWeeks(requestedWeek, ['slots', 'bookings', 'lectures']);
 }
 
@@ -167,7 +167,6 @@ export async function render(root) {
   status.setAttribute("aria-label", "예약 상태");
   const apply = () => { filter = { status: status.value }; render(root); };
   status.addEventListener("change", apply);
-  const newBtn = h("button", { class: "btn primary", onclick: () => bookForStudent(root) }, "학생 대신 예약");
   const results = h("div", { class: "table-wrap" });
   const showList = () => mount(results, isMobile() ? mobileList(root, list) : table(root, list));
   if (list.length) {
@@ -175,7 +174,7 @@ export async function render(root) {
     detach = onLayoutChange(showList);
   }
   mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "예약 관리"), newBtn),
+    h("div", { class: "page-head" }, h("h1", {}, "예약 관리")),
     staffToday(),
     viewSwitcher(root),
     h("div", { class: "filters" }, field("상태", status)),
@@ -290,19 +289,6 @@ function actions(root, b) {
   return [main, more];
 }
 
-async function pickSlot(title, noteLabel = "사유 (선택)") {
-  const from = todayKst();
-  const slots = (await get(`/api/slots?start=${from}&days=31`)).filter((s) => s.status === "open" && s.remaining > 0
-    && new Date(s.start_at) > new Date());
-  if (!slots.length) { toast("남은 자리가 있는 상담 시간이 없습니다", "error"); return null; }
-  const sel = select(slots.map((s) => [s.id, `${kstParts(s.start_at).date} ${kstParts(s.start_at).time} (${s.kind === "group" ? `단체 ${s.remaining}석` : "개인"})`]));
-  const reason = h("input", { type: "text", maxlength: 500 });
-  const r = await modal(title, h("div", {}, field("상담 시간", sel), field(noteLabel, reason)), [
-    { label: "취소", value: null }, { label: "확인", primary: true, handler: () => ({ slot: +sel.value, reason: reason.value }) },
-  ]);
-  return r;
-}
-
 async function reschedule(b) {
   const day = h("input", { type: "date", value: kstParts(b.slot.start_at).date, min: todayKst() });
   const slotSelect = select([]);
@@ -337,22 +323,6 @@ async function reschedule(b) {
   });
   toast("기존 예약의 시간을 변경했습니다", "success");
 }
-
-async function bookForStudent(root) {
-  try {
-    const students = await get("/api/students");
-    if (!students.length) { toast("등록된 학생이 없습니다", "error"); return; }
-    const who = select(students.map((s) => [s.id, `${s.name} (${s.email})`]));
-    const r1 = await modal("학생 선택", field("학생", who), [{ label: "취소", value: null }, { label: "다음", primary: true, handler: () => +who.value }]);
-    if (!r1) return;
-    const r2 = await pickSlot("상담 시간 선택", "상담 주제 (선택)");
-    if (!r2) return;
-    await post("/api/bookings", { slot_id: r2.slot, student_id: r1, topic: r2.reason });
-    toast("예약했습니다", "success");
-    await render(root);
-  } catch (e) { errorToast(e); }
-}
-
 
 // Only called after server-side inbox ownership and booking permission checks.
 export async function openNotification(root, booking) {

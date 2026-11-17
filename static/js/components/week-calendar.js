@@ -1,6 +1,6 @@
 // PC·모바일 주간 시간표 / 모바일 일별 목록 공용 컴포넌트.
 import { addDays, fmtDate, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
-import { h } from "../ui.js";
+import { h, errorToast } from "../ui.js";
 
 const MOBILE = window.matchMedia("(max-width: 720px)");
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -182,6 +182,7 @@ function renderWeekly(o, byDay) {
   }
   const wrap = h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
     ...(o.compactGrid ? { tabindex: "0", role: "region", "aria-label": "시간표 스크롤 영역" } : {}) }, grid);
+  wrap.dataset.weekStart = o.weekStart;
   if (o.compactGrid && o.onWeekChange) enableWeekSwipe(wrap, grid, o);
   return wrap;
 }
@@ -254,7 +255,8 @@ function enableWeekSwipe(wrap, grid, o) {
     suppressUntil = performance.now() + 250;
     // Follow the finger more generously while keeping a bounded elastic pull.
     // Visual travel is independent of the deliberate week-change threshold.
-    const offset = Math.sign(dx) * Math.min(Math.abs(dx), 140 * (1 - Math.exp(-Math.abs(dx) / 120)));
+    const offset = Math.sign(dx) * Math.min(Math.abs(dx), wrap.clientWidth * .95);
+    g.offset = offset;
     const previous = dx > 0;
     hint.hidden = false;
     hint.dataset.direction = previous ? "previous" : "next";
@@ -270,7 +272,7 @@ function enableWeekSwipe(wrap, grid, o) {
     grid.style.transform = reduced() ? "" : `translateX(${offset}px)`;
   });
   wrap.addEventListener("click", e => {
-    if (performance.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
+    if (busy || performance.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
   const finish = (e, cancelled = false) => {
     const g = gesture;
@@ -278,14 +280,52 @@ function enableWeekSwipe(wrap, grid, o) {
     gesture = null;
     if (g.axis !== "x" || cancelled) { settle(); return; }
     suppressUntil = performance.now() + 250;
-    // Commit deliberate travel or a quick horizontal flick; cancelled gestures never commit.
-    settle();
-    if (!ready(g)) return;
+    // Follow the finger through release. Only animate real destination data,
+    // never reuse old appointments under a new date or invent an empty week.
+    if (!ready(g)) { settle(); return; }
     busy = true;
+    const target = addDays(o.weekStart, g.dx < 0 ? 7 : -7);
+    const host = wrap.closest?.(".view");
+    const path = typeof location !== "undefined" ? location.hash : null;
+    const oldScroll = wrap.scrollTop;
+    const snapshot = !reduced() ? grid.cloneNode?.(true) : null;
+    hint.hidden = false;
+    hint.querySelector(".week-swipe-label").textContent = "불러오는 중…";
+    wrap.setAttribute?.("aria-busy", "true");
     setTimeout(async () => {
-      if (!wrap.isConnected) return;
-      try { await o.onWeekChange(addDays(o.weekStart, g.dx < 0 ? 7 : -7)); }
-      finally { busy = false; }
+      if (!wrap.isConnected) { busy = false; return; }
+      try {
+        await o.onWeekChange(target);
+        const nextWrap = host?.isConnected ? host.querySelector('.week-wrap') : null;
+        const nextGrid = nextWrap?.querySelector('.week-grid');
+        if (!snapshot || reduced() || !nextGrid || nextWrap === wrap ||
+            location.hash !== path || nextWrap.dataset.weekStart !== target || !nextGrid.animate) return;
+        const width = nextWrap.clientWidth, direction = g.dx < 0 ? -1 : 1;
+        // Non-interactive outgoing visual, hidden from assistive technology.
+        snapshot.inert = true;
+        snapshot.setAttribute('aria-hidden', 'true');
+        snapshot.removeAttribute('role');
+        snapshot.classList.add('week-slide-outgoing');
+        Object.assign(snapshot.style, { position: 'absolute', left: '0', top: `${nextWrap.scrollTop-oldScroll}px`,
+          width: `${width}px`, zIndex: '6', pointerEvents: 'none', transition: 'none', transform: '' });
+        nextWrap.append(snapshot);
+        const timing = { duration: 280, easing: 'cubic-bezier(.22,.61,.36,1)' };
+        const outgoing = snapshot.animate([
+          { transform: `translateX(${g.offset || 0}px)` }, { transform: `translateX(${direction * width}px)` }
+        ], timing);
+        const incoming = nextGrid.animate([
+          { transform: `translateX(${-direction * width + (g.offset || 0)}px)` }, { transform: 'translateX(0)' }
+        ], timing);
+        nextWrap.setAttribute('aria-busy', 'true');
+        nextWrap.inert = true;
+        try { await Promise.all([outgoing.finished, incoming.finished]); }
+        catch { /* Detached/interrupted animations are not navigation failures. */ }
+        finally {
+          outgoing.cancel(); incoming.cancel(); snapshot.remove();
+          nextWrap.inert = false; nextWrap.removeAttribute('aria-busy');
+        }
+      } catch (error) { if (wrap.isConnected) { settle(); errorToast(error); } }
+      finally { busy = false; wrap.removeAttribute?.('aria-busy'); if (wrap.isConnected) settle(); }
     }, 0);
   };
   wrap.addEventListener("pointerup", e => finish(e));
