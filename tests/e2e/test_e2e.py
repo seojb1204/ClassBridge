@@ -332,6 +332,7 @@ def test_pwa_install_guide_all_bookings_and_private_offline(server, browser):
     prof.page.get_by_role("button", name="확인", exact=True).click()
     prof.page.goto(base + "/#/staff/today")
     prof.page.wait_for_selector('body[data-ready="/bookings"]')
+    prof.page.get_by_role("button", name="예약 목록", exact=True).click()
     prof.page.get_by_text("오늘 이후 · 현재 예약", exact=False).wait_for()
     assert prof.page.get_by_role("button", name="오늘 상담", exact=True).count() == 0
     assert prof.page.get_by_role("button", name="내일 상담", exact=True).count() == 0
@@ -492,7 +493,8 @@ def test_student_booking_flow_pc(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     _create_slots_via_ui(prof)
     assert prof.page.get_by_role("heading", name="상담 불가일", exact=True).count() == 0
-    prof.page.get_by_text("등록된 상담 시간만 예약할 수 있습니다.", exact=False).wait_for()
+    assert prof.page.get_by_text("등록된 상담 시간만 예약할 수 있습니다.", exact=False).count() == 0
+    prof.page.locator(".week-grid").wait_for()
     prof.shot("pc_01_prof_slots")
     prof.close()
 
@@ -627,7 +629,7 @@ def test_admin_uses_professor_features_and_changes_role(server, browser):
     nav = adm.page.locator("#nav")
     for group, labels in [("예약 관리", ("상담 시간", "예약 관리")),
                           ("상담 정보", ("상담 정보", "내 알림")),
-                          ("설문·의견", ("설문", "건의함")),
+                          ("설문·건의", ("설문", "건의함")),
                           ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
         nav.locator("summary").filter(has_text=re.compile("^" + re.escape(group) + "$" )).click()
         for label in labels:
@@ -1129,7 +1131,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.shot('mobile_schedule_preview')
     prof.page.get_by_role('button', name='등록 확정', exact=True).click()
     prof.toast('12개 등록')
-    prof.page.locator('.daily-title:focus').wait_for()
+    prof.page.locator('.daily-title:focus, .week-nav strong:focus').wait_for()
     assert prof.page.locator('#slot-create-panel').count() == 0
     prof.page.get_by_role('button', name='목록형', exact=True).click()
     prof.page.locator('.daily .card.slot.open').first.wait_for()
@@ -1263,6 +1265,7 @@ def test_mobile_booking_summary(server, browser):
                "status": "booked", "topic": "상담 주제"}
     page.route("**/api/bookings?*", lambda r: r.fulfill(json=[booking]))
     staff.go("/bookings")
+    page.get_by_role("button", name="예약 목록", exact=True).click()
     card = page.locator("details[data-booking-id='214']")
     summary = card.locator(":scope > summary")
     assert "예약 학생 · 20260001" in summary.inner_text()
@@ -1306,3 +1309,23 @@ def test_unresolved_history_filter_includes_past_and_allows_staff_correction(ser
     assert row.get_by_role("button", name="완료", exact=True).is_visible()
     assert row.get_by_role("button", name="미참석", exact=True).is_visible()
     staff.close()
+
+
+def test_flexible_sentence_populates_form_without_registering(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go('/slots/new')
+    sentence = "내일 오후 두시부터 네시반까지 30분씩 휴식 10분 매주 2주 장소 m205 상담해줘"
+    prof.page.get_by_label("한 문장으로 입력", exact=True).fill(sentence)
+    prof.page.get_by_role("button", name="입력 내용 적용", exact=True).click()
+    assert prof.page.get_by_label("시작", exact=True).input_value() == "14:00"
+    assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
+    assert prof.page.get_by_label("휴식(분)", exact=True).input_value() == "10"
+    assert prof.page.get_by_label("반복 방식", exact=True).input_value() == "weekly"
+    assert prof.page.get_by_label("총 몇 주", exact=True).input_value() == "2"
+    prof.page.get_by_label("한 문장으로 입력", exact=True).fill("금요일 2~4")
+    prof.page.get_by_role("button", name="입력 내용 적용", exact=True).click()
+    assert prof.page.get_by_label("시작", exact=True).input_value() == "14:00"
+    assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
+    prof.page.get_by_role("button", name="등록 미리보기", exact=True).wait_for()
+    prof.close()

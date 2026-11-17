@@ -13,7 +13,7 @@ import {
 } from "../ui.js";
 
 let filter = { status: "booked" };
-let viewMode = "list";
+let viewMode = "calendar";
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
@@ -25,10 +25,10 @@ function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
     ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
-        onclick: () => { viewMode = value; render(root); } }, label)));
+        onclick: () => { if (viewMode === value) return; viewMode = value; render(root); } }, label)));
 }
 
-async function showStaffSlot(root, slot, bookings) {
+async function showStaffSlot(root, slot, bookings, highlight = false) {
   const related = bookings.filter((b) => b.slot.id === slot.id);
   if (!related.length) {
     const r = await modal("빈 상담 시간", h("div", { class: "booking-detail" },
@@ -83,13 +83,19 @@ async function showStaffSlot(root, slot, bookings) {
       catch (e) { errorToast(e); return false; }
     },
   });
-  const result = await modal("예약·상담 상세", h("div", { class: "booking-detail" },
-    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), ` · 예약 ${related.length}/${slot.capacity}명`),
+  const dialog = modal("예약·상담 상세", h("div", { class: "booking-detail" },
+    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), highlight ? " · 이 알림의 예약" : ` · 예약 ${related.length}/${slot.capacity}명`),
     picker ? field("학생 선택", picker) : null, info,
     field("교수자 상담 기록", note),
     h("p", { class: "muted" }, "학업·진로·취업 진행사항만 기록해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요."),
     reason && related.some((x) => x.status === "booked") ? field("예약 취소 사유", reason) : null,
   ), actions);
+  if (highlight) {
+    const target = document.querySelector("#modal-root .booking-detail");
+    target?.classList.add("notification-target");
+    setTimeout(() => target?.classList.remove("notification-target"), 2800);
+  }
+  const result = await dialog;
   if (result !== null) await render(root);
 }
 
@@ -103,7 +109,7 @@ async function renderCalendarView(root) {
     calendarGet(`/api/slots?start=${requestedWeek}&days=7`),
     calendarGet(`/api/bookings?start=${requestedWeek}&days=7`), loadLectures(requestedWeek),
   ]);
-  if (version !== calendarVersion || weekStart !== requestedWeek || viewMode !== "calendar" || location.hash !== "#/bookings" || !root.isConnected) return;
+  if (version !== calendarVersion || weekStart !== requestedWeek || viewMode !== "calendar" || !(location.hash === "#/bookings" || /^#\/inbox\/\d+$/.test(location.hash)) || !root.isConnected) return;
   const enhanced = slots.map((slot) => {
     const related = bookings.filter(b => b.slot.id === slot.id && b.status !== "cancelled");
     const names = related.map(b => b.applicant_name || b.student_name || "이름 미입력");
@@ -121,8 +127,7 @@ async function renderCalendarView(root) {
       h("span", { class: "available" }, "상담 가능"),
       h("span", { class: "reserved" }, "예약됨")),
     h("button", { class: "btn small", onclick: () => { clearCalendarCache(); todayPanel = null; renderCalendarView(root).catch(errorToast); } }, "예약 현황 새로고침"),
-    weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }),
-    renderCalendar({ weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }), weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return renderCalendarView(root); },
       onViewChange: (mode) => { mobileView = mode; renderCalendarView(root); },
@@ -346,4 +351,16 @@ async function bookForStudent(root) {
     toast("예약했습니다", "success");
     await render(root);
   } catch (e) { errorToast(e); }
+}
+
+
+// Only called after server-side inbox ownership and booking permission checks.
+export async function openNotification(root, booking) {
+  const day = kstParts(booking.slot.start_at).date;
+  weekStart = mondayOf(day); selectedDay = day; viewMode = "calendar";
+  await render(root);
+  if (!root.isConnected) return;
+  // Exact booking only: cancelled bookings must not select another student in a shared slot.
+  void showStaffSlot(root, booking.slot, [booking], true);
+  requestAnimationFrame(() => document.querySelector("#modal-root .modal")?.focus());
 }

@@ -37,7 +37,7 @@ export function renderRegistration(root) {
     location.hash = "#/slots";
   }, seed);
   const panel = h("section", { class: "panel", id: "slot-create-panel" });
-  const buttons = [["consultation", "상담 가능 시간"], ["lecture", "강의"]].map(([kind, label]) =>
+  const buttons = [["consultation", "상담"], ["lecture", "강의"]].map(([kind, label]) =>
     h("button", { class: "btn", "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind) }, label));
   const choose = (kind) => {
     registrationKind = kind;
@@ -85,14 +85,12 @@ async function draw(root, revealDay = false) {
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("p", { class: "muted" }, "등록된 상담 시간만 예약할 수 있습니다. 강의와 상담을 한 시간표에서 관리합니다. 강의 추가는 ‘상담·강의 등록’ 메뉴에서 할 수 있습니다."),
     h("details", { class: "calendar-support", open: supportOpen,
       ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
       h("summary", {}, "공지 · 예약 가능한 날짜"),
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
-    weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }),
-    renderCalendar({ weekStart, slots: [...slots.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },
@@ -127,7 +125,7 @@ function createForm(root, seed = null) {
   const repeatWeeks = field("총 몇 주", weeks, "이번 날짜 포함 · 같은 요일과 시간 · 최대 26주");
   repeatWeeks.hidden = true;
   repeat.addEventListener("change", () => { repeatWeeks.hidden = repeat.value !== "weekly"; });
-  const sentence = h("input", { type: "text", placeholder: "예: 11월 20일 3시~6시", maxlength: 100 });
+  const sentence = h("input", { type: "text", placeholder: "예: 내일 오후 두시~네시반 30분씩", maxlength: 300 });
   const interpreted = h("p", { class: "notice", role: "status" }, "8~11시는 오전, 12시는 낮, 1~6시는 오후로 해석합니다.");
   const readInputs = () => {
     const parsed = { date: parseDate(date.value, todayKst()), start: parseTime(start.value), end: parseTime(end.value) };
@@ -143,6 +141,12 @@ function createForm(root, seed = null) {
     try {
       const parsed = parseSchedule(sentence.value, todayKst());
       date.value = parsed.date; start.value = parsed.start; end.value = parsed.end;
+      if (parsed.durationMinutes !== undefined) dur.value = parsed.durationMinutes;
+      if (parsed.breakMinutes !== undefined) brk.value = parsed.breakMinutes;
+      if (parsed.location !== undefined) loc.value = parsed.location;
+      if (parsed.repeatWeeks !== undefined) {
+        repeat.value = "weekly"; weeks.value = parsed.repeatWeeks; repeatWeeks.hidden = false;
+      }
       interpreted.textContent = `${describe(parsed)} · 아래 설정을 확인하고 미리보기를 눌러 주세요.`;
     } catch (error) { interpreted.textContent = error.message; errorToast(error); }
   } }, "입력 내용 적용");

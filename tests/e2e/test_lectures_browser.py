@@ -55,7 +55,7 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     p.locator(".lecture-create-form").wait_for()
     assert p.get_by_role("button", name="강의", exact=True).get_attribute("aria-pressed") == "true"
     p.get_by_label("강의명", exact=True).fill("취소할 입력")
-    p.get_by_role("button", name="상담 가능 시간", exact=True).click()
+    p.get_by_role("button", name="상담", exact=True).click()
     assert p.get_by_role("button", name="등록 미리보기", exact=True).is_visible()
     assert p.locator(".lecture-create-form").count() == 0
     p.get_by_role("button", name="강의", exact=True).click()
@@ -267,7 +267,7 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
         expect(hint).to_have_attribute("data-direction", "previous" if dx > 0 else "next")
         expect(hint.locator(".week-swipe-label")).to_have_text("이전 주로" if dx > 0 else "다음 주로")
         expect(hint.locator(".week-swipe-arrow")).to_have_text("←" if dx > 0 else "→")
-        expect(hint).to_have_attribute("data-ready", "true" if abs(dx) == 230 else "false")
+        expect(hint).to_have_attribute("data-ready", "true" if abs(dx) >= 50 else "false")
         assert hint.evaluate("e => getComputedStyle(e).pointerEvents") == "none"
         if abs(dx) == 150:
             expect(hint.locator(".week-swipe-label")).to_be_visible()
@@ -281,11 +281,11 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
     transform = drag(-45)
     assert (transform == "none") if reduced_motion else (transform != "none")
     if not reduced_motion:
-        assert 30 < abs(float(transform.split(",")[4])) < 40
+        assert 40 < abs(float(transform.split(",")[4])) < 50
     expect(p.locator(".week-nav strong")).to_have_text(before)
     expect(p.locator("dialog[open]")).to_have_count(0)
-    # Formerly sufficient 150px pulls now spring back in both directions.
-    for distance in (-100, 100, -150, 150):
+    # Small incidental drags spring back in both directions.
+    for distance in (-35, 35, -45, 45):
         transform = drag(distance)
         expect(p.locator(".week-nav strong")).to_have_text(before)
         expect(p.locator("dialog[open]")).to_have_count(0)
@@ -293,7 +293,7 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
             offset = float(transform.split(",")[4])
             # Follow the finger visibly (about 62px/82px), without changing
             # the release threshold or letting the calendar leave the screen.
-            assert abs(distance) * .5 < abs(offset) < abs(distance)
+            assert abs(distance) * .5 < abs(offset) <= abs(distance)
             assert (offset > 0) == (distance > 0)
         expect(grid.locator(".week-grid")).to_have_css("transform", "none")
     drag(-230, retract=True)

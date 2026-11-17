@@ -33,6 +33,7 @@ function registerRoutes() {
   route("/my-bookings", "booking:self", myBookings.render, "내 예약");
   route("/personal", "booking:manage", personalAlerts);
   if (["professor", "admin"].includes(state.me.role)) route("/inbox", "booking:manage", inbox.render, "내 알림");
+  route("/inbox/:id", "booking:manage", inbox.renderTarget);
   route("/bookings/today", "booking:manage", profBookings.todayBookings);
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
@@ -64,6 +65,15 @@ function registerRoutes() {
   route("/admin/audit", "audit:view", admin.renderAudit, "작업 이력");
 }
 
+function closeMobileMenu(restoreFocus = false) {
+  const nav = document.getElementById("nav");
+  nav?.classList.remove("open");
+  nav?.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
+  const button = document.getElementById("menu-btn");
+  button?.setAttribute("aria-expanded", "false");
+  if (restoreFocus) button?.focus({ preventScroll: true });
+}
+
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
   const items = can("slot:manage")
@@ -78,9 +88,14 @@ function renderMobileTabs() {
         const nav = document.getElementById("nav");
         const open = nav.classList.toggle("open");
         event.currentTarget.setAttribute("aria-expanded", String(open));
-        if (open) [...nav.querySelectorAll("summary, a, button")].find(el => el.getClientRects().length > 0)?.focus();
+        if (open) [...nav.querySelectorAll("summary, a, button")].find(el => el.getClientRects().length > 0)?.focus({ preventScroll: true });
       } },
     h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, "☰"), h("span", {}, "더보기")));
+  // Keep the sheet attached to the real tab-bar height, including safe areas.
+  if (!tabs._heightObserver) {
+    tabs._heightObserver = new ResizeObserver(() => document.documentElement.style.setProperty("--mobile-tabs-height", `${tabs.getBoundingClientRect().height}px`));
+    tabs._heightObserver.observe(tabs);
+  }
   const active = location.hash;
   tabs.querySelectorAll("a").forEach((a) => {
     const current = a.getAttribute("href") === active;
@@ -97,7 +112,7 @@ function renderChrome() {
     const groups = [
       ["예약 관리", ["/bookings", "/slots"]],
       ["상담 정보", ["/staff/insights", "/inbox"]],
-      ["설문·의견", ["/surveys", "/suggestions"]],
+      ["설문·건의", ["/surveys", "/suggestions"]],
       ["관리", ["/admin/users", "/admin/settings", "/admin/audit"]],
     ];
     mount(nav, groups.map(([label, paths]) => {
@@ -115,8 +130,12 @@ function renderChrome() {
   document.addEventListener("click", event => {
     if (!nav.contains(event.target)) nav.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
   });
+  document.addEventListener("click", event => {
+    if (!nav.contains(event.target) && !event.target.closest("#menu-btn") && !event.target.closest(".userbox")) closeMobileMenu();
+  });
   nav.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;
+    if (matchMedia("(max-width: 720px)").matches) { closeMobileMenu(true); return; }
     const group = event.target.closest(".nav-group");
     if (group) { group.open = false; group.querySelector("summary").focus(); }
   });
@@ -126,6 +145,9 @@ function renderChrome() {
   const install = installButton("btn mobile-help-link");
   if (install) nav.append(install);
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
+  nav.append(h("div", { class: "mobile-menu-account" },
+    h("span", {}, `${state.me.name} · ${roleLabel}`),
+    h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃")));
   mount(document.getElementById("userbox"),
     support.helpLink("btn small desktop-help-link"),
       pushButton('desktop-help-link'),
