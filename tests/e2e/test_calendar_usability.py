@@ -17,6 +17,12 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
         s.go('/bookings')
         p.locator('.week-grid').wait_for()
         assert p.get_by_role('button', name='주간 예약 시간표', exact=True).get_attribute('aria-pressed') == 'true'
+        current_week = p.locator('.week-nav strong').inner_text()
+        p.get_by_role('button', name='다음 주', exact=True).click()
+        from playwright.sync_api import expect
+        expect(p.locator('.week-nav strong')).not_to_have_text(current_week)
+        p.get_by_role('button', name='이번 주로 이동', exact=True).click()
+        expect(p.locator('.week-nav strong')).to_have_text(current_week)
         if width <= 720:
             toggle = p.locator('.calendar-view-switch').bounding_box()
             nav = p.locator('.week-nav').bounding_box()

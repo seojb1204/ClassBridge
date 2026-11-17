@@ -66,7 +66,9 @@ function registerRoutes() {
 }
 
 function closeMobileMenu(restoreFocus = false) {
-  document.getElementById("nav")?.classList.remove("open");
+  const nav = document.getElementById("nav");
+  nav?.classList.remove("open");
+  nav?.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
   const button = document.getElementById("menu-btn");
   button?.setAttribute("aria-expanded", "false");
   if (restoreFocus) button?.focus({ preventScroll: true });

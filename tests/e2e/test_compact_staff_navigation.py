@@ -26,6 +26,11 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
         assert menu.get_by_role('link', name='상담 시간', exact=True).is_visible()
         page.keyboard.press('Escape')
         assert menu.locator('.nav-group').first.evaluate('e => !e.open')
+        if width <= 720:
+            trigger = page.get_by_role('button', name='더보기 메뉴')
+            assert trigger.get_attribute('aria-expanded') == 'false'
+            assert trigger.evaluate('e => e === document.activeElement')
+            trigger.click()
         menu.locator('summary').filter(has_text='상담 정보').click()
         assert menu.get_by_role('link', name='내 알림', exact=True).is_visible()
         menu.locator('summary').filter(has_text='관리').last.click()

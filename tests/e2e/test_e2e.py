@@ -332,6 +332,7 @@ def test_pwa_install_guide_all_bookings_and_private_offline(server, browser):
     prof.page.get_by_role("button", name="확인", exact=True).click()
     prof.page.goto(base + "/#/staff/today")
     prof.page.wait_for_selector('body[data-ready="/bookings"]')
+    prof.page.get_by_role("button", name="예약 목록", exact=True).click()
     prof.page.get_by_text("오늘 이후 · 현재 예약", exact=False).wait_for()
     assert prof.page.get_by_role("button", name="오늘 상담", exact=True).count() == 0
     assert prof.page.get_by_role("button", name="내일 상담", exact=True).count() == 0

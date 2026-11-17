@@ -1,5 +1,5 @@
 // PC·모바일 주간 시간표 / 모바일 일별 목록 공용 컴포넌트.
-import { addDays, fmtDate, fmtTime, kstParts, todayKst } from "../time.js";
+import { addDays, fmtDate, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { h } from "../ui.js";
 
 const MOBILE = window.matchMedia("(max-width: 720px)");
@@ -373,5 +373,6 @@ export function weekNav(weekStart, onChange) {
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, -7)), "aria-label": "이전 주" }, "‹ 이전"),
     h("strong", { "aria-label": `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}` },
       `${weekStart.slice(5).replace("-", ".")}–${addDays(weekStart, 6).slice(5).replace("-", ".")}${weekStart.slice(0,4) !== addDays(weekStart,6).slice(0,4) ? ` (${weekStart.slice(0,4)}–${addDays(weekStart,6).slice(0,4)})` : ""}`),
+    h("button", { class: "btn", onclick: () => onChange(mondayOf(todayKst())), "aria-label": "이번 주로 이동" }, "오늘"),
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, 7)), "aria-label": "다음 주" }, "다음 ›"));
 }

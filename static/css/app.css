@@ -628,3 +628,9 @@ textarea { line-height: 1.75; }
 .inbox-row-link:hover, .inbox-row-link:focus-visible { outline: 2px solid var(--accent, #a85f45); outline-offset: 2px; }
 .notification-target { outline: 2px solid #a85f45; outline-offset: 3px; background: #fbf2e9; border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { .notification-target { animation: none !important; transition: none !important; } }
+
+@media (max-width: 720px) {
+  .week-nav { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px; }
+  .week-nav .btn { padding: 6px; font-size: .8125rem; }
+  .week-nav strong { min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
+}

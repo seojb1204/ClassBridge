@@ -84,7 +84,7 @@ async function showStaffSlot(root, slot, bookings, highlight = false) {
     },
   });
   const dialog = modal("예약·상담 상세", h("div", { class: "booking-detail" },
-    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), ` · 예약 ${related.length}/${slot.capacity}명`),
+    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), highlight ? " · 이 알림의 예약" : ` · 예약 ${related.length}/${slot.capacity}명`),
     picker ? field("학생 선택", picker) : null, info,
     field("교수자 상담 기록", note),
     h("p", { class: "muted" }, "학업·진로·취업 진행사항만 기록해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요."),
