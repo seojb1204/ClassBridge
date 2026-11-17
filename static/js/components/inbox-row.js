@@ -4,8 +4,7 @@ import { kstParts, todayKst } from "../time.js";
 // A single presentation for both the header preview and the full inbox.
 export function inboxRow(item) {
   const label = item.booking_summary?.student_name;
-  const link = h("a", { class: `inbox-row-link ${item.read ? "is-read" : "is-unread"}`, href: item.url,
-    dataset: { notificationId: item.id } });
+  const link = h("a", { class: `inbox-row-link ${item.read ? "is-read" : "is-unread"}`, href: item.url });
   const raw = item.arrived_at;
   let short = item.arrived_on || item.created_on || "";
   let full = short;

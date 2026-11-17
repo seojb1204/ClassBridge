@@ -336,7 +336,7 @@ export async function openNotification(root, booking, notification = {}) {
   card?.scrollIntoView({ block: "nearest", behavior: "instant" });
   const body = h("div", { class: "notification-booking-summary" },
     h("p", { class: "booking-summary-person" }, h("strong", {}, booking.applicant_name || booking.student_name),
-      booking.grade ? ` · ${booking.grade}학년` : "", " ", badge(booking.status)),
+      booking.grade ? ` · ${booking.grade}학년` : "", " ", badge(STATUS_LABEL[booking.status] || "상태 확인 필요", booking.status)),
     h("p", {}, h("strong", {}, fmtDateTime(booking.slot.start_at)),
       booking.slot.end_at ? `–${fmtTime(booking.slot.end_at)}` : ""),
     h("p", { class: "hint" }, "현재 예약 정보입니다."),
