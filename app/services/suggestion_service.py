@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import re
+import secrets
 import uuid
 from datetime import datetime
 
@@ -43,20 +44,23 @@ def limiter_key(secret: str, user_id: int) -> str:
 
 
 def submit(db: Session, limiter: RateLimiter, secret: str, user: User, category: str, content: str,
-           now: datetime | None = None, *, is_public: bool = False) -> None:
+           now: datetime | None = None, *, is_public: bool = False) -> str:
     now = now or utcnow()
     if category not in SUGGESTION_CATEGORIES:
         raise BadRequest("건의 유형이 올바르지 않습니다")
     text = clean_content(content)
     limiter.hit(limiter_key(secret, user.id))
-    save(db, category, text, is_public, now)
+    return save(db, category, text, is_public, now)
 
 
-def save(db: Session, category: str, text: str, is_public: bool, now: datetime) -> None:
+def save(db: Session, category: str, text: str, is_public: bool, now: datetime) -> str:
+    token = secrets.token_urlsafe(32)
     repo.add(db, Suggestion(id=str(uuid.uuid4()), category=category, content=text,
-                            submitted_on=kst_date(now), is_public=is_public))
+                            submitted_on=kst_date(now), is_public=is_public,
+                            receipt_hash=hashlib.sha256(token.encode()).hexdigest()))
     suggestion_notifications.enqueue(db, now)
     db.commit()
+    return token
 
 
 def search(db: Session, status: str | None, category: str | None, limit: int = 100, offset: int = 0):

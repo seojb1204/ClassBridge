@@ -14,7 +14,7 @@ import {
 } from "../ui.js";
 
 let filter = { status: "booked" };
-let viewMode = "calendar";
+let viewMode = "list";
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
@@ -24,12 +24,13 @@ let todayPanel = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
+    h("a", { class: "btn", href: "#/slots" }, "시간표"),
+    ...[["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { if (viewMode === value) return; viewMode = value; render(root); } }, label)));
 }
 
-async function showStaffSlot(root, slot, bookings, highlight = false) {
+export async function showStaffSlot(root, slot, bookings, highlight = false, refresh = () => render(root)) {
   const related = bookings.filter((b) => b.slot.id === slot.id);
   if (!related.length) {
     const r = await modal("빈 상담 시간", h("div", { class: "booking-detail" },
@@ -97,7 +98,7 @@ async function showStaffSlot(root, slot, bookings, highlight = false) {
     setTimeout(() => target?.classList.remove("notification-target"), 2800);
   }
   const result = await dialog;
-  if (result !== null) await render(root);
+  if (result !== null) await refresh();
 }
 
 async function renderCalendarView(root) {
@@ -139,6 +140,7 @@ async function renderCalendarView(root) {
 
 
 export async function render(root) {
+  if (location.hash === "#/bookings" && viewMode === "calendar") viewMode = "list";
   calendarVersion++;
   clearCalendarCache();
   todayPanel = null;

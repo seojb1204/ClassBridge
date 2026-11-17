@@ -14,5 +14,5 @@ assert.equal(c.label({status:'cancelled'}),'취소됨');
 const slots=fs.readFileSync('static/js/views/prof-slots.js','utf8');
 assert.ok(!slots.includes('showCancelled'));
 assert.ok(!slots.includes('취소된 상담 시간 보기'));
-assert.ok(slots.includes('slots.filter(s => s.status !== "cancelled")'));
+assert.ok(slots.includes('enhanced.filter(s => s.status !== "cancelled")'));
 console.log('10 slot-label and cancellation regressions passed');

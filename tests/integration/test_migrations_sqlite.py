@@ -79,11 +79,14 @@ def test_expired_migration_preserves_referenced_booking(tmp_path):
         slot = Slot(start_at=utcnow(), end_at=utcnow() + timedelta(minutes=30), created_by_id=user.id)
         db.add(slot)
         db.flush()
-        booking = Booking(slot_id=slot.id, student_id=user.id, created_by_id=user.id, professor_note="private fixture")
-        db.add(booking)
-        db.flush()
-        db.add(BookingEvent(booking_id=booking.id, actor_id=user.id, action="book", detail="preserve event"))
-        bid = booking.id
+        # Reflect the historical schema: current ORM columns do not exist in 0009.
+        from sqlalchemy import MetaData, Table
+        old_bookings = Table("bookings", MetaData(), autoload_with=db.connection())
+        bid = db.execute(old_bookings.insert().values(slot_id=slot.id, student_id=user.id,
+            created_by_id=user.id, professor_note="private fixture", status="booked", topic="",
+            applicant_name="", student_number="", consultation_type="other", consultation_mode="in_person",
+            cancel_reason="", created_at=utcnow(), updated_at=utcnow())).inserted_primary_key[0]
+        db.add(BookingEvent(booking_id=bid, actor_id=user.id, action="book", detail="preserve event"))
     command.upgrade(cfg, "head")
     with Session(eng) as db, db.begin():
         booking = db.get(Booking, bid)

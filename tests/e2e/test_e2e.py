@@ -456,7 +456,7 @@ while SLOT_DAY.weekday() >= 5:
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
     if s.page.locator("#mobile-tabs").is_visible():
-        s.page.get_by_role("link", name="상담 등록", exact=True).click()
+        s.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
     elif s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).count():
         s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
     form = s.page.locator("form.grid-form")
@@ -527,13 +527,14 @@ def test_student_booking_flow_pc(server, browser):
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
-    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".week-grid").wait_for(state="visible")
     # The fixture can fall in next week (e.g. when this test runs on Saturday).
     today = today_kst(utcnow())
     if SLOT_DAY - timedelta(days=SLOT_DAY.weekday()) > today - timedelta(days=today.weekday()):
         prof.page.get_by_role('button', name='다음 주', exact=True).click()
     prof.page.locator(".slot.reserved").first.click()
+    prof.page.get_by_role("button", name="예약 상세", exact=True).click()
     assert "김테스트" in prof.page.locator(".modal").inner_text()
     assert prof.page.get_by_text("건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.", exact=False).is_visible()
     prof.page.locator(".modal textarea").fill("학생 상담 테스트 기록")
@@ -629,7 +630,7 @@ def test_admin_uses_professor_features_and_changes_role(server, browser):
     base, _ = server
     adm = Session(browser, base, "admin@test.ac.kr", PC)
     nav = adm.page.locator("#nav")
-    for group, labels in [("예약 관리", ("상담 시간", "예약 관리")),
+    for group, labels in [("예약 관리", ("시간표", "예약 관리")),
                           ("상담 정보", ("상담 정보", "내 알림")),
                           ("설문·건의", ("설문", "건의함")),
                           ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
@@ -813,7 +814,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
 
     prof.go("/bookings")
-    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".calendar-week").wait_for()
     assert prof.page.locator(".week-grid .day-head").count() == 5
     prof.page.get_by_role("button", name="목록형", exact=True).click()
@@ -846,7 +847,7 @@ def test_mobile_professor_views(server, browser):
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
             assert prof.page.locator(".topbar").bounding_box()["height"] < 100
-            prof.page.get_by_role("link", name="상담 등록", exact=True).click()
+            prof.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
             assert prof.page.get_by_label("장소", exact=True).input_value() == "m205"
             datebox = prof.page.get_by_label("날짜(시작일)", exact=True).bounding_box()
             assert datebox and datebox["height"] < 70
@@ -867,9 +868,9 @@ def test_mobile_optional_sections_do_not_render_null(server, browser):
             assert "null" not in text.split()
             assert "undefined" not in text.split()
             if path == "/slots":
-                session.page.get_by_role("link", name="상담 등록", exact=True).click()
+                session.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="visible")
-                session.page.locator("#mobile-tabs").get_by_role("link", name="상담 시간", exact=True).click()
+                session.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="hidden")
                 assert "null" not in session.page.locator("#view").inner_text().split()
             session.shot("optional_student" if path == "/booking" else "optional_professor")
@@ -1041,14 +1042,14 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
                     (3, "booked"), (0, "cancelled"), (1, "completed")])]
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
     prof.go("/bookings")
-    prof.page.get_by_role("button", name="주간 예약 시간표").click()
+    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
     prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
+    chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
     chip.wait_for()
-    assert chip.locator("em").inner_text() == "4명"
+    assert chip.locator("em").inner_text() == "2"
     prof.shot("mobile_reserved_student_counts")
     prof.page.set_viewport_size(PC)
-    prof.page.get_by_text("예약 4명", exact=True).wait_for()
+    prof.page.locator(".week-grid .slot.reserved").first.wait_for()
     prof.page.set_viewport_size(MOBILE)
     # A cancellation releases one time; reloading must show the new count.
     slots[2].update(bookable=True, remaining=1, reason="")
@@ -1112,7 +1113,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go('/slots')
     assert prof.page.locator('#nav a .nav-icon').count() >= 5
-    prof.page.get_by_role('link', name='상담 등록', exact=True).click()
+    prof.page.get_by_role('link', name='+ 일정 등록', exact=True).click()
     day = today_kst(utcnow()) + timedelta(days=10)
     prof.page.get_by_label('한 문장으로 입력', exact=True).fill(f'{day.isoformat()} 3시~6시')
     prof.page.get_by_role('button', name='입력 내용 적용', exact=True).click()

@@ -13,7 +13,7 @@ def test_mobile_booking_week_navigation_keeps_scroll(server, browser):  # noqa: 
     base, _ = server
     staff = Session(browser, base, "prof@test.ac.kr", MOBILE, service_workers="block")
     p = staff.page
-    staff.go("/bookings")
+    staff.go("/slots")
     p.locator('.week-nav').wait_for()
     p.wait_for_load_state('networkidle')
     for name in ['다음 주', '이전 주', '다음 주', '이번 주로 이동']:
@@ -57,7 +57,7 @@ def test_booking_swipe_uses_connected_280ms_slide(server, browser, reduced):  # 
 
     staff = Session(TouchBrowser(), base, 'prof@test.ac.kr', MOBILE, service_workers='block')
     p = staff.page
-    staff.go('/bookings')
+    staff.go('/slots')
     p.wait_for_load_state('networkidle')
     p.evaluate('''() => {
         window.slideDurations = [];

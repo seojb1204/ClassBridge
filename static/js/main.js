@@ -37,7 +37,7 @@ function registerRoutes() {
   route("/bookings/today", "booking:manage", profBookings.todayBookings);
   route("/staff/today", "booking:manage", () => go("/bookings"));
   // 교수자·관리자
-  route("/slots", "slot:manage", profSlots.render, "상담 시간");
+  route("/slots", "slot:manage", profSlots.render, "시간표");
   route("/slots/new", "slot:manage", profSlots.renderRegistration);
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
   route("/staff/insights", "booking:manage", staffInsights.render, "상담 정보");
@@ -77,8 +77,8 @@ function closeMobileMenu(restoreFocus = false) {
 function renderMobileTabs() {
   const tabs = document.getElementById("mobile-tabs");
   const items = can("slot:manage")
-    ? [{ pattern: "/slots", navLabel: "상담 시간" }, { pattern: "/bookings", navLabel: "예약 관리" },
-       { pattern: "/slots/new", navLabel: "상담 등록" }]
+    ? [{ pattern: "/slots", navLabel: "시간표" }, { pattern: "/bookings", navLabel: "예약 관리" },
+       { pattern: "/inbox", navLabel: "내 알림" }]
     : navItems().slice(0, 3);
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
@@ -98,7 +98,7 @@ function renderMobileTabs() {
   }
   const active = location.hash;
   tabs.querySelectorAll("a").forEach((a) => {
-    const current = a.getAttribute("href") === active;
+    const current = a.getAttribute("href") === active || (a.getAttribute("href") === "#/slots" && active === "#/slots/new");
     a.classList.toggle("active", current);
     if (current) a.setAttribute("aria-current", "page");
   });

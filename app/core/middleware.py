@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 
 # 익명 제출 요청은 접근 로그(시각·IP·경로)에 남기지 않는다 → 로그와 응답의 시간 대조 방지
 ANON_PATHS = re.compile(
-    r"^/api/(surveys/\d+/responses|suggestions(?:/anonymous)?"
+    r"^/api/(surveys/\d+/responses|suggestions(?:/anonymous|/receipt)?"
     r"|public-surveys/[A-Za-z0-9_-]+(?:/responses)?)(\?.*)?$")
 
 

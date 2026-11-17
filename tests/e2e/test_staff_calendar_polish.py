@@ -47,8 +47,7 @@ def test_staff_calendar_names_and_cached_navigation(server, browser, viewport): 
 
     for resource in ["slots", "bookings", "lectures"]:
         p.route(f"**/api/{resource}?*", route_api)
-    staff.go("/bookings")
-    p.get_by_role("button", name="주간 예약 시간표", exact=True).click()
+    staff.go("/slots")
     expect(p.locator('[data-slot-id="8800"]')).to_contain_text(names[0])
     for i, name in enumerate(names):
         expect(p.locator(f'[data-slot-id="{8800+i}"]')).to_contain_text(name)

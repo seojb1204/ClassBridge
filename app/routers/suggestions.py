@@ -5,16 +5,16 @@ import hmac
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import SESSION_COOKIE, Principal, require
-from app.core.errors import FeatureDisabled, Forbidden
+from app.core.errors import FeatureDisabled, Forbidden, NotFound
 from app.core.permissions import P
 from app.db import get_db, utcnow
-from app.models.suggestion import SuggestionReply
+from app.models.suggestion import Suggestion, SuggestionReply
 from app.repositories import suggestions as repo
 from app.services import feedback_management as management
 from app.services import suggestion_service as svc
@@ -63,9 +63,9 @@ class StatusIn(BaseModel):
 def submit(body: SuggestionIn, request: Request, p: Principal = Depends(require(P.SUGGESTION_SUBMIT)),
            db: Session = Depends(get_db)):
     st = request.app.state
-    svc.submit(db, st.suggestion_limiter, st.settings.secret_key, p.user, body.category, body.content,
+    token = svc.submit(db, st.suggestion_limiter, st.settings.secret_key, p.user, body.category, body.content,
                is_public=body.is_public)
-    return {"ok": True, "message": "건의가 익명으로 접수되었습니다"}
+    return {"ok": True, "message": "건의가 익명으로 접수되었습니다", "receipt_token": token}
 
 
 @router.post("/anonymous", status_code=201, dependencies=[Depends(feature_on)])
@@ -76,8 +76,8 @@ def submit_anonymous(body: SuggestionIn, request: Request, db: Session = Depends
     address = request.client.host if request.client else "unknown"
     key = hmac.new(state.settings.secret_key.encode(), address.encode(), hashlib.sha256).hexdigest()
     state.guest_suggestion_limiter.hit(key)
-    svc.save(db, body.category, svc.clean_content(body.content), body.is_public, utcnow())
-    return {"ok": True, "message": "건의가 익명으로 접수되었습니다"}
+    token = svc.save(db, body.category, svc.clean_content(body.content), body.is_public, utcnow())
+    return {"ok": True, "message": "건의가 익명으로 접수되었습니다", "receipt_token": token}
 
 
 @router.get("", response_model=list[SuggestionOut], dependencies=[Depends(feature_on)])
@@ -193,3 +193,19 @@ def restore_suggestion(sid: str, p: Principal = Depends(require(P.SUGGESTION_REA
 def purge_suggestion(sid: str, body: PurgeIn, p: Principal = Depends(require(P.SUGGESTION_READ)),
                      db: Session = Depends(get_db)):
     management.manage_suggestion(db, p.user, sid, "purge", body.confirmation)
+
+
+class ReceiptIn(BaseModel):
+    token: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+@router.post("/receipt", dependencies=[Depends(feature_on)])
+def receipt(body: ReceiptIn, response: Response, db: Session = Depends(get_db)):
+    # Bearer capability in request body, never URL/access log. No account lookup.
+    response.headers["Cache-Control"] = "no-store"
+    item = db.scalar(select(Suggestion).where(
+        Suggestion.receipt_hash == hashlib.sha256(body.token.encode()).hexdigest(),
+        Suggestion.deleted_on.is_(None)))
+    if item is None:
+        raise NotFound("확인 링크가 올바르지 않거나 더 이상 조회할 수 없습니다")
+    return with_replies(db, [item])[0]

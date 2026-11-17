@@ -15,15 +15,15 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
     page = s.page
     try:
         s.go('/bookings')
-        # The existing calendar control and calendar itself are not replaced by a list.
-        page.get_by_role('button', name='주간 예약 시간표', exact=True).click()
+        # Booking work is a list; the shared timetable remains available.
+        page.locator('#view').get_by_role('link', name='시간표', exact=True).click()
         page.locator('.week-wrap').wait_for(state='visible')
         if width <= 720:
             page.get_by_role('button', name='더보기 메뉴').click()
             assert page.locator('#nav summary').first.evaluate('e => e === document.activeElement')
         menu = page.locator('#nav')
         menu.locator('summary').filter(has_text='예약 관리').click()
-        assert menu.get_by_role('link', name='상담 시간', exact=True).is_visible()
+        assert menu.get_by_role('link', name='시간표', exact=True).is_visible()
         page.keyboard.press('Escape')
         assert menu.locator('.nav-group').first.evaluate('e => !e.open')
         if width <= 720:
@@ -42,6 +42,7 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
                  'at': '2026-11-17T01:02:03Z', 'start_at': '2026-11-18T04:00:00Z',
                  'status': 'cancelled', 'detail': '상세 내용'}
         page.route('**/api/staff/booking-events?*', lambda r: r.fulfill(json={'items': [event], 'next_before_id': None}))
+        s.go('/bookings')
         page.get_by_role('button', name='예약 활동 기록', exact=True).click()
         row = page.locator('.activity-table tbody tr')
         row.wait_for()
@@ -81,7 +82,7 @@ def test_role_navigation_and_disabled_features(server, browser, email, staff):  
             nav.get_by_role('link', name='내 알림', exact=True).click()
             page.wait_for_selector('body[data-ready="/inbox"]', state='attached')
             nav.locator('summary').filter(has_text='예약 관리').click()
-            nav.get_by_role('link', name='상담 시간', exact=True).click()
+            nav.get_by_role('link', name='시간표', exact=True).click()
             page.wait_for_selector('body[data-ready="/slots"]', state='attached')
         else:
             assert nav.locator('.nav-group').count() == 0
@@ -109,6 +110,7 @@ def test_activity_retry_keeps_latest_first_and_pagination(server, browser):  # n
             else:
                 route.fulfill(json={'items': [{**event, 'id': 30}, {**event, 'id': 20}], 'next_before_id': 20})
         page.route('**/api/staff/booking-events?*', events)
+        s.go('/bookings')
         s.go('/bookings')
         page.get_by_role('button', name='예약 활동 기록', exact=True).click()
         page.get_by_text('기록을 불러오지 못했습니다.', exact=False).wait_for()
