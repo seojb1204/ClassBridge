@@ -265,8 +265,10 @@ def test_escape_after_inbox_refresh_replaces_focused_control(server, browser, vi
         p.wait_for_selector('body[data-ready]')
         p.get_by_role('button', name='알림 열기', exact=True).click()
         close = p.get_by_role('region', name='알림 모아보기').get_by_role('button', name='닫기', exact=True)
-        old_close = close.element_handle()
-        old_close.focus()
+        # Finish the opening refresh before starting the controlled refresh-under-focus case.
+        p.wait_for_load_state('networkidle')
+        old_close = close.evaluate_handle('e => { e.focus(); return e; }').as_element()
+        assert old_close.evaluate('e => e === document.activeElement')
         p.evaluate('window.dispatchEvent(new Event("inbox-changed"))')
         old_close.wait_for_element_state('hidden')
         assert not old_close.evaluate('e => e.isConnected')
