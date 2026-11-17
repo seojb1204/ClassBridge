@@ -251,3 +251,26 @@ def test_notification_target_exact_cancelled_and_legacy(server, browser, viewpor
     page.get_by_text('이 알림의 예약을 찾을 수 없습니다.', exact=False).wait_for()
     assert page.get_by_role('dialog').count() == 0
     staff.ctx.close()
+
+
+@pytest.mark.parametrize('viewport', [PC, MOBILE])
+def test_escape_after_inbox_refresh_replaces_focused_control(server, browser, viewport):  # noqa: F811
+    """A delayed refresh must not strand an open popover after its focused child is replaced."""
+    base, _ = server
+    staff = Session(browser, base, 'prof@test.ac.kr', viewport, service_workers='block')
+    p = staff.page
+    try:
+        p.route('**/api/inbox**', lambda route: route.fulfill(json={'items': [], 'unread': 0}))
+        p.reload()
+        p.wait_for_selector('body[data-ready]')
+        p.get_by_role('button', name='알림 열기', exact=True).click()
+        close = p.get_by_role('region', name='알림 모아보기').get_by_role('button', name='닫기', exact=True)
+        close.focus()
+        close.evaluate('e => { window.oldInboxClose = e; }')
+        p.evaluate('window.dispatchEvent(new Event("inbox-changed"))')
+        p.wait_for_function('!window.oldInboxClose.isConnected')
+        p.keyboard.press('Escape')
+        assert p.locator('#inbox-popover').is_hidden()
+        assert p.locator('.inbox-bell').evaluate('e => e === document.activeElement')
+    finally:
+        staff.close()
