@@ -16,7 +16,7 @@ def test_registration_calendar_and_sentence_sync(server, browser, width):  # noq
     p = s.page
     try:
         s.go('/slots/new')
-        date = p.get_by_label('날짜(시작일)', exact=False)
+        date = p.get_by_label('날짜(시작일)', exact=True)
         expect(date).to_have_attribute('type', 'date')
         date.fill('2027-01-04')
         date.dispatch_event('change')

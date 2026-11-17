@@ -108,7 +108,7 @@ async function draw(root, revealDay = false) {
 }
 
 function createForm(root, seed = null) {
-  const date = h("input", { type: "date", required: true, value: seed?.date || addDays(todayKst(), 1) });
+  const date = h("input", { type: "date", "aria-label": "날짜(시작일)", required: true, value: seed?.date || addDays(todayKst(), 1) });
   // Keep the platform calendar and keyboard support; tapping anywhere opens it where supported.
   date.addEventListener("click", () => {
     try { date.showPicker?.(); } catch { /* Native date input remains usable when unavailable. */ }
