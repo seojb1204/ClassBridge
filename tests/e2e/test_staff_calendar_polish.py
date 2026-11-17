@@ -47,6 +47,8 @@ def test_staff_calendar_names_and_cached_navigation(server, browser, viewport): 
 
     for resource in ["slots", "bookings", "lectures"]:
         p.route(f"**/api/{resource}?*", route_api)
+    # Reload after installing routes; the staff landing page is already /slots.
+    p.reload()
     staff.go("/slots")
     expect(p.locator('[data-slot-id="8800"]')).to_contain_text(names[0])
     for i, name in enumerate(names):

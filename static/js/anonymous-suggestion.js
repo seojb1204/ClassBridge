@@ -66,7 +66,8 @@ function showReceipt(root, token) {
       try { await navigator.clipboard.writeText(url); toast("확인 링크를 복사했습니다", "success"); }
       catch { link.focus(); link.select(); toast("링크를 선택했습니다. 길게 눌러 복사해 주세요."); }
     } }, "확인 링크 복사"), h("a", { class: "btn primary", href: url }, "내 건의 확인"),
-    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"));
+    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"),
+    h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
 }
 async function readReceipt(root) {
   const token = location.hash.slice("#receipt=".length);
@@ -80,6 +81,7 @@ async function readReceipt(root) {
     h("p", {}, "답변 담당: 교수자·관리자"), h("section", { class: "panel" }, h("p", {}, data.content)),
     ...data.replies.map(reply => h("section", { class: "panel" }, h("h2", {}, "답변"), h("p", {}, reply.content))),
     h("button", { class: "btn", onclick: () => readReceipt(root).catch(errorToast) }, "답변 새로고침"),
-    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"));
+    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"),
+    h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
 }
 window.addEventListener("hashchange", () => { if (location.hash.startsWith("#receipt=")) readReceipt(root).catch(errorToast); });

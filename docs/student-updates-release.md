@@ -20,6 +20,7 @@
 - 단위·통합·SQLite 검사 394개 통과. 마지막 스키마 응답 보완 후 관련 21개 재검증 통과.
 - Ruff 전체 검사, 변경 JavaScript 문법 검사 통과.
 - 슬롯 라벨 10개, 평일 달력 7개, 일정 입력 36개, 스크롤 3개 및 캐시 회귀 검사 통과.
-- PC·모바일 브라우저 검사 18개는 실행 환경에서 Chromium socket 생성이 거부되어 테스트 시작 전 오류. UI 통과로 간주하지 않음. 별도 브라우저에서도 개발 서버 직접 접근 불가.
-- PostgreSQL 실제 업그레이드·동시성 및 GitHub CI는 미실행. 변경된 UI 회귀 시나리오는 CI에서 추가 확인 필요.
-- GitHub feature branch push는 자동 승인 검토에서 외부 업로드 권한 불명확 사유로 거부됨. 원격 브랜치·PR 생성 및 운영 반영 완료를 주장하지 않음.
+- 로컬 Chromium 실행 제한으로 실제 브라우저·PostgreSQL 검사는 PR #71의 GitHub CI에서 수행한다.
+- 첫 전체 검사: 583개 통과, 6개 실패. 제출 완료 화면의 공개 게시판 연결을 복원하고, 시간표 기본 진입에 따른 mock 설치 후 새로고침 및 최신 마이그레이션 기대값을 수정했다. 최종 결과는 PR의 최신 CI 참조.
+- 배포 전 Neon 사본: br-cold-lake-aza4cxum (staging 부모, compute 없음). 실제 복원 훈련은 미실행.
+- 승인된 배포 대상은 Render classbridge-staging과 Neon staging이다. PR 병합 후 수동 배포하며 /healthz, /readyz, DB 버전 0014 및 배포 커밋을 확인한다.

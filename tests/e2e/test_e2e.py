@@ -1053,6 +1053,7 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
     prof.page.set_viewport_size(MOBILE)
     # A cancellation releases one time; reloading must show the new count.
     slots[2].update(bookable=True, remaining=1, reason="")
+    prof.page.reload()
     prof.go("/slots")
     prof.page.get_by_role("button", name="목록형", exact=True).click()
     prof.page.get_by_role("tab", name=re.compile("예약 가능 3건")).wait_for()

@@ -111,7 +111,6 @@ def test_activity_retry_keeps_latest_first_and_pagination(server, browser):  # n
                 route.fulfill(json={'items': [{**event, 'id': 30}, {**event, 'id': 20}], 'next_before_id': 20})
         page.route('**/api/staff/booking-events?*', events)
         s.go('/bookings')
-        s.go('/bookings')
         page.get_by_role('button', name='예약 활동 기록', exact=True).click()
         page.get_by_text('기록을 불러오지 못했습니다.', exact=False).wait_for()
         page.get_by_role('button', name='기록 새로고침').click()
