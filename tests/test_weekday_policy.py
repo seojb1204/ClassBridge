@@ -81,6 +81,9 @@ def test_legacy_weekend_query_cancel_and_new_bookings_blocked(app, clients):
     listed = student.get('/api/slots', params={'start':saturday.isoformat()}).json()
     assert all(not row['bookable'] for row in listed)
     assert next(row for row in listed if row['id'] == empty_id)['reason'] == '주말 예약 불가'
+    for client in [student, clients['s2'], prof]:
+        available = client.get('/api/slots/available-days').json()
+        assert saturday.isoformat() not in [row['date'] for row in available]
     assert student.get('/api/bookings/mine').json()[0]['id'] == booking_id
     assert clients['s2'].post('/api/bookings', json={'slot_id':empty_id}).status_code == 409
     assert prof.post('/api/bookings', json={'slot_id':empty_id, 'student_id':clients['s2'].me['id']}).status_code == 409

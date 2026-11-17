@@ -585,7 +585,7 @@ def available_days(db: Session, viewer: User, now: datetime | None = None) -> li
     pol = _policy(db)
     active = None if _is_staff(viewer) else repo.active_booking_of(db, viewer.id)
     from app.models import Lecture
-    query = select(Slot.start_at).where(~select(Lecture.id).where(
+    query = select(Slot.start_at, Slot.end_at).where(~select(Lecture.id).where(
         Lecture.status == "active", Lecture.start_at < Slot.end_at, Lecture.end_at > Slot.start_at).exists(),
         Slot.status == "open", Slot.booked_count < Slot.capacity, Slot.start_at > now,
         Slot.start_at >= now + timedelta(minutes=pol.booking_deadline_minutes))
@@ -594,7 +594,9 @@ def available_days(db: Session, viewer: User, now: datetime | None = None) -> li
     else:
         query = query.where(Slot.id != active.slot_id)
     counts: dict[str, int] = {}
-    for start_at in db.scalars(query):
+    for start_at, end_at in db.execute(query):
+        if touches_weekend(start_at, end_at):
+            continue
         day = start_at.astimezone(KST).date().isoformat()
         counts[day] = counts.get(day, 0) + 1
     return [{"date": day, "count": count} for day, count in sorted(counts.items())]
