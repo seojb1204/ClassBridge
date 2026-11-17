@@ -66,6 +66,7 @@ class Booking(Base):
     consultation_type: Mapped[str] = mapped_column(String(20), default="other")
     consultation_mode: Mapped[str] = mapped_column(String(20), default="in_person")
     # 상담 기록: 교수자·관리자만 열람. 외부 AI로 절대 전송하지 않는다.
+    student_seen_event_id: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     professor_note: Mapped[str] = mapped_column(Text, default="")
     cancel_reason: Mapped[str] = mapped_column(String(500), default="")
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

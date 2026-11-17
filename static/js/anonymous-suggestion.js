@@ -12,7 +12,7 @@ async function submitForm(root) {
     h("p", { class: "muted" }, "이 건의는 Google 계정과 연결되지 않습니다."),
     h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
     field("공개 범위", visibility),
-    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 교수자·관리자에게만 전달되며 학생 게시판에 나타나지 않습니다."),
+    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 학생 게시판에 나타나지 않습니다. 제출 후 받는 확인 링크로 본인 글과 답변을 다시 볼 수 있으며, 링크를 다른 사람에게 공유하지 마세요."),
     field("유형", cat), field("내용", content), h("div", { class: "writer-actions" }, counter, btn));
   form.addEventListener("submit", busy(btn, async (e) => {
     e.preventDefault();
@@ -25,6 +25,7 @@ async function submitForm(root) {
       const r = await response.json();
       if (!response.ok) throw new Error(r.message || "건의를 제출하지 못했습니다.");
       toast(r.message, "success");
+      showReceipt(root, r.receipt_token);
       content.value = "";
       counter.textContent = "0 / 2000";
       visibility.value = "private";
@@ -45,8 +46,42 @@ const root = document.getElementById("view");
 try {
   const response = await fetch("/api/auth/config", { credentials: "omit", cache: "no-store" });
   if (!response.ok) throw new Error("건의함을 열지 못했습니다. 다시 시도해 주세요.");
-  if ((await response.json()).suggestions) await submitForm(root);
+  if ((await response.json()).suggestions) {
+    if (location.hash.startsWith("#receipt=")) await readReceipt(root);
+    else await submitForm(root);
+  }
   else mount(root, h("p", {}, "현재 건의 접수가 중지되었습니다."));
 } catch (error) {
   mount(root, h("p", { role: "alert" }, error.message));
 }
+
+
+function showReceipt(root, token) {
+  const url = `${location.origin}/static/suggest.html#receipt=${token}`;
+  const link = h("input", { value: url, readonly: true, "aria-label": "내 건의 확인 링크" });
+  mount(root, h("h1", {}, "건의가 접수되었습니다"),
+    h("p", {}, "답변 담당: 교수자·관리자. 아래 링크에서 접수·검토·답변 상태를 확인하세요."),
+    h("p", { class: "warn" }, "링크를 가진 사람은 비공개 글과 답변도 볼 수 있습니다. 본인만 보관하세요. 링크를 잃어버리면 계정으로 복구할 수 없습니다."),
+    link, h("button", { class: "btn", onclick: async () => {
+      try { await navigator.clipboard.writeText(url); toast("확인 링크를 복사했습니다", "success"); }
+      catch { link.focus(); link.select(); toast("링크를 선택했습니다. 길게 눌러 복사해 주세요."); }
+    } }, "확인 링크 복사"), h("a", { class: "btn primary", href: url }, "내 건의 확인"),
+    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"),
+    h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
+}
+async function readReceipt(root) {
+  const token = location.hash.slice("#receipt=".length);
+  const response = await fetch("/api/suggestions/receipt", { method: "POST", credentials: "omit", cache: "no-store",
+    referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || "확인 링크가 올바르지 않습니다.");
+  const status = data.replies.length ? "답변 완료" : ({new: "접수", reviewed: "검토 중", archived: "처리 완료"})[data.status];
+  mount(root, h("h1", {}, "내 건의 확인"), h("p", {}, `처리 상태: ${status}`),
+    h("p", {}, data.is_public ? "로그인한 이용자에게 공개된 건의입니다." : "비공개 건의입니다. 교수자·관리자와 확인 링크 소지자만 볼 수 있습니다."),
+    h("p", {}, "답변 담당: 교수자·관리자"), h("section", { class: "panel" }, h("p", {}, data.content)),
+    ...data.replies.map(reply => h("section", { class: "panel" }, h("h2", {}, "답변"), h("p", {}, reply.content))),
+    h("button", { class: "btn", onclick: () => readReceipt(root).catch(errorToast) }, "답변 새로고침"),
+    h("a", { class: "btn", href: "/static/suggest.html" }, "새 건의 작성"),
+    h("a", { class: "btn", href: "/#/suggestions" }, "공개 건의 게시판 (로그인 필요)"));
+}
+window.addEventListener("hashchange", () => { if (location.hash.startsWith("#receipt=")) readReceipt(root).catch(errorToast); });

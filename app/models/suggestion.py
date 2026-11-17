@@ -26,6 +26,7 @@ class Suggestion(Base):
     submitted_on: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(20), default="new")
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    receipt_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     deleted_on: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 

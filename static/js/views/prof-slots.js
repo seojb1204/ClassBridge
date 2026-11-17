@@ -1,3 +1,5 @@
+import { mountCalendarPreservingScroll } from "../components/calendar-scroll.js";
+import { showStaffSlot } from "./prof-bookings.js";
 import { bookForStudent } from "../components/book-for-student.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { loadLectures, lectureEditor, lectureCreateForm } from "../components/lecture-editor.js";
@@ -48,6 +50,7 @@ export function renderRegistration(root) {
   choose(registrationKind);
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록"),
+      h("a", { class: "btn", href: "#/slots" }, "시간표로 돌아가기"),
       h("button", { class: "btn", onclick: () => bookForStudent() }, "학생 대신 예약")),
     h("div", { class: "calendar-toggle", "aria-label": "등록할 일정 종류" }, ...buttons),
     h("p", { class: "muted" }, "상담과 강의는 같은 시간표에 표시됩니다. 등록할 종류를 선택해 주세요."), panel);
@@ -78,12 +81,21 @@ export async function render(root) {
 async function draw(root, revealDay = false) {
   if (location.hash !== "#/slots") return;
   const version = ++drawVersion, path = location.hash;
-  const [slots, announcement, availableDays, lectures] = await Promise.all([
-    get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(), loadLectures(weekStart),
+  const [slots, announcement, availableDays, lectures, bookings] = await Promise.all([
+    get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(), loadLectures(weekStart), get(`/api/bookings?start=${weekStart}&days=7`),
   ]);
   if (version !== drawVersion || location.hash !== path) return;
-  mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "상담 시간 관리"),
+  const enhanced = slots.map(slot => {
+    const related = bookings.filter(b => b.slot.id === slot.id && b.status !== "cancelled");
+    const count = related.filter(b => b.status === "booked").length;
+    return { ...slot, bookingCount: count,
+      managerState: count ? "reserved" : slot.bookable ? "free" : null,
+      staffBookingNames: related.map(b => b.applicant_name || b.student_name || "이름 미입력").join(", ") };
+  });
+  mountCalendarPreservingScroll(root, () => [
+    h("div", { class: "page-head" }, h("h1", {}, "시간표"),
+      h("a", { class: "btn primary", href: "#/slots/new" }, "+ 일정 등록"),
+      h("button", { class: "btn", onclick: () => bookForStudent() }, "학생 대신 예약"),
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
@@ -92,19 +104,19 @@ async function draw(root, revealDay = false) {
       h("summary", {}, "공지 · 예약 가능한 날짜"),
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
-    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침"),
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...enhanced.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
-      onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : editSlot(root, s),
-      extra: (s) => s.event_type === "lecture" ? null : (s.status === "open" ? h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`)
-        : s.can_delete ? h("span", { class: "slot-count" }, "눌러서 빈 시간 삭제") : null) }),
+      onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : openSlot(root, s, bookings),
+      extra: (s) => s.event_type === "lecture" ? null : h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) }),
     showForm && !isMobile() ? h("section", { class: "panel", id: "slot-create-panel" },
       h("h2", {}, "상담 시간 등록"), createForm(root)) : null,
-  );
+  ]);
   if (revealDay) revealSelectedDay(root);
-  prefetchWeeks(weekStart, ['slots', 'lectures']);
+  prefetchWeeks(weekStart, ['slots', 'bookings', 'lectures']);
 }
 
 function createForm(root, seed = null) {
@@ -268,4 +280,15 @@ async function editSlot(root, s) {
   const reveal = revealCreated;
   revealCreated = false;
   await draw(root, reveal);
+}
+
+
+async function openSlot(root, slot, bookings) {
+  if (!bookings.some(b => b.slot.id === slot.id)) return editSlot(root, slot);
+  const choice = await modal("상담 일정", h("p", {}, `${fmtDateTime(slot.start_at)} · 예약 ${slot.capacity - slot.remaining}명`), [
+    { label: "닫기", value: null }, { label: "시간·장소 설정", value: "slot" },
+    { label: "예약 상세", primary: true, value: "booking" },
+  ]);
+  if (choice === "slot") await editSlot(root, slot);
+  if (choice === "booking") await showStaffSlot(root, slot, bookings, false, () => { clearCalendarCache(); return draw(root); });
 }

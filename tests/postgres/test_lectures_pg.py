@@ -75,6 +75,7 @@ def test_simultaneous_overlapping_lectures_one_winner(pg_app):
 
 def test_populated_lecture_downgrade_refuses_data_loss(pg_app):
     from alembic import command
+    from alembic.script import ScriptDirectory
     from sqlalchemy import text
 
     from tests.postgres.test_pg import _alembic
@@ -86,4 +87,5 @@ def test_populated_lecture_downgrade_refuses_data_loss(pg_app):
         command.downgrade(_alembic(PG_URL), '0012')
     with pg_app.state.engine.connect() as conn:
         assert conn.execute(text('SELECT count(*) FROM lectures')).scalar() == 1
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar() == '0013'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar() == (
+            ScriptDirectory.from_config(_alembic(PG_URL)).get_current_head())

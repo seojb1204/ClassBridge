@@ -14,9 +14,9 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
     s = Session(browser, base, 'prof@test.ac.kr', {'width': width, 'height': 900}, service_workers='block')
     p = s.page
     try:
-        s.go('/bookings')
+        s.go('/slots')
         p.locator('.week-grid').wait_for()
-        assert p.get_by_role('button', name='주간 예약 시간표', exact=True).get_attribute('aria-pressed') == 'true'
+        assert p.get_by_role('heading', name='시간표', exact=True).is_visible()
         current_week = p.locator('.week-nav strong').inner_text()
         p.get_by_role('button', name='다음 주', exact=True).click()
         from playwright.sync_api import expect

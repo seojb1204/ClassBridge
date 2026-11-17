@@ -123,7 +123,8 @@ def cancel_slot(slot_id: int, body: SlotCancelIn, p: Principal = Depends(require
 # ── 예약 (학생 본인) ──
 @router.get("/bookings/mine", response_model=list[MyBookingOut])
 def my_bookings(p: Principal = Depends(require(P.BOOKING_SELF)), db: Session = Depends(get_db)):
-    return svc.my_bookings(db, p.user)
+    from app.services.student_updates import summary
+    return [MyBookingOut.model_validate(b).model_copy(update=summary(db, b)) for b in svc.my_bookings(db, p.user)]
 
 
 @router.post("/bookings", status_code=201)
@@ -210,3 +211,16 @@ def list_students(q: str | None = None, p: Principal = Depends(require(P.BOOKING
 def delete_empty_slot(slot_id: int, p: Principal = Depends(require(P.SLOT_MANAGE)),
                       db: Session = Depends(get_db)):
     svc.delete_empty_cancelled_slot(db, p.user, slot_id)
+
+
+@router.get("/bookings/{booking_id}/updates")
+def student_updates(booking_id: int, p: Principal = Depends(require(P.BOOKING_SELF)), db: Session = Depends(get_db)):
+    from app.services.student_updates import detail
+    return detail(db, p.user.id, booking_id)
+
+
+@router.post("/bookings/{booking_id}/updates/{event_id}/read", status_code=204)
+def read_student_update(booking_id: int, event_id: int,
+                        p: Principal = Depends(require(P.BOOKING_SELF)), db: Session = Depends(get_db)):
+    from app.services.student_updates import mark_read
+    mark_read(db, p.user.id, booking_id, event_id)

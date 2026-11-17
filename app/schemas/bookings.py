@@ -90,6 +90,7 @@ class SlotBrief(BaseModel):
     end_at: datetime
     kind: str
     location: str
+    note: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -107,6 +108,8 @@ class MyBookingOut(BaseModel):
     cancel_reason: str
     created_at: datetime
     slot: SlotBrief
+    latest_update_id: int = 0
+    unread_update: bool = False
 
     model_config = {"from_attributes": True}
 
