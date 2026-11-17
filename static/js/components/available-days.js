@@ -16,7 +16,7 @@ export function availableDaysPanel(days, selectDay) {
   if (!days.length) { panel.append(h("p", {}, "현재 예약 가능한 상담 시간이 없습니다.")); return panel; }
   const buttons = h("div", { class: "available-day-buttons" });
   const draw = (all = false) => buttons.replaceChildren(...(all ? days : days.slice(0, 3)).map(([day, count]) =>
-    h("button", { type: "button", class: "btn", onclick: () => selectDay(day) }, `${fmtDate(day)} · ${count}개 시간`)));
+    h("button", { type: "button", class: "btn", onclick: () => selectDay(day) }, h("span", {}, fmtDate(day)), h("small", {}, `${count}개 시간`))));
   draw();
   panel.append(buttons);
   if (days.length > 3) panel.append(h("button", { type: "button", class: "btn small", onclick: (e) => {

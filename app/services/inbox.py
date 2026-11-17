@@ -28,7 +28,7 @@ def public_item(row):
             "body": row.message if row.kind == "custom_reminder" else
                 "새 건의가 접수되었습니다. 건의함에서 확인하세요." if suggestion
                 else "상담 예약 관련 변경이 있습니다. 예약 관리에서 확인하세요.",
-            "url": "/#/inbox" if row.kind == "custom_reminder" else "/#/suggestions" if suggestion else "/#/bookings",
+            "url": "/#/suggestions" if suggestion else f"/#/inbox/{row.id}",
             "created_on": row.created_on.isoformat(), "arrived_on": kst_date(row.available_at).isoformat(),
             "arrived_at": to_kst(row.available_at).isoformat(timespec="seconds"),
             "read": row.read_at is not None}

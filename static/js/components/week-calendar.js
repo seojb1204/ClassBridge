@@ -83,7 +83,7 @@ function slotLabel(s) {
 export function renderCalendar(o) {
   const byDay = {};
   for (const s of o.slots) (byDay[kstParts(s.start_at).date] ||= []).push(s);
-  return isMobile() ? renderMobile(o, byDay) : renderWeekly(o, byDay);
+  return isMobile() ? renderMobile(o, byDay) : h("div", {}, o.navigation, renderWeekly(o, byDay));
 }
 
 // Keep the same event data and detail handlers in every view. Mobile defaults
@@ -95,13 +95,13 @@ function renderMobile(o, byDay) {
       h("button", { type: "button", class: mode === value ? "btn primary" : "btn",
         "aria-pressed": String(mode === value), onclick: () => o.onViewChange?.(value) }, label)));
   if (mode === "list" || mode === "timeline") {
-    return h("div", { class: "mobile-calendar" }, toggle,
+    return h("div", { class: "mobile-calendar" }, toggle, o.navigation,
       renderDaily({ ...o, mobileListOnly: mode === "list", hideViewToggle: true }, byDay));
   }
   const days = Array.from({ length: 7 }, (_, i) => addDays(o.weekStart, i));
-  return h("div", { class: "mobile-calendar calendar-week" }, toggle,
-    h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[6])}`),
-    h("p", { class: "hint calendar-help" }, "좌우로 충분히 밀면 이전·다음 주로 이동합니다. 작은 일정은 목록형에서 자세히 볼 수 있어요."),
+  return h("div", { class: "mobile-calendar calendar-week" }, toggle, o.navigation,
+    o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[6])}`),
+    h("p", { class: "hint calendar-help" }, "좌우로 밀거나 화살표를 눌러 주를 바꿀 수 있습니다. 작은 일정은 목록형에서 자세히 볼 수 있어요."),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
@@ -193,13 +193,12 @@ function enableWeekSwipe(wrap, grid, o) {
   const hint = h("div", { class: "week-swipe-hint", "aria-hidden": "true", hidden: true },
     h("span", { class: "week-swipe-arrow" }), h("span", { class: "week-swipe-label" }));
   wrap.prepend(hint);
-  const threshold = (g, dx) => {
-    const usual = Math.min(210, Math.max(160, wrap.clientWidth * .52));
-    // Keep the existing edge-to-edge trigger. From the middle, require a
-    // deliberate 85% of the available runway rather than an unreachable pull.
-    // Never make a tiny near-edge flick sufficient, and never use velocity.
-    const available = dx < 0 ? g.runwayLeft : g.runwayRight;
-    return Math.min(usual, Math.max(120, available * .85));
+  // Product tuning, not a universal research threshold. Retain axis locking,
+  // pinch/vertical scrolling. A short flick still needs 25px plus real elapsed time.
+  const threshold = () => 50;
+  const ready = (g) => {
+    const elapsed = performance.now() - g.startedAt;
+    return Math.abs(g.dx) >= threshold() || (Math.abs(g.dx) >= 25 && elapsed > 0 && Math.abs(g.dx) / elapsed >= .4);
   };
   let gesture = null, busy = false, suppressUntil = 0;
   // Chromium can latch an edge-start drag to the inner calendar on narrow
@@ -218,7 +217,7 @@ function enableWeekSwipe(wrap, grid, o) {
       (delta > 0 && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1);
     if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.3 && outward && e.cancelable) {
       e.preventDefault();
-      suppressUntil = performance.now() + 600;
+      suppressUntil = performance.now() + 250;
       window.scrollBy(0, delta);
     }
   }, { passive: false });
@@ -228,14 +227,14 @@ function enableWeekSwipe(wrap, grid, o) {
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const settle = () => {
     hint.hidden = true;
-    grid.style.transition = reduced() ? "none" : "transform 260ms cubic-bezier(.16,1,.3,1)";
+    grid.style.transition = reduced() ? "none" : "transform 200ms cubic-bezier(.16,1,.3,1)";
     grid.style.transform = "";
   };
   wrap.addEventListener("pointerdown", e => {
     if (e.pointerType === "mouse" || busy) return;
     if (!e.isPrimary || gesture) { gesture = null; settle(); return; }
     const rect = wrap.getBoundingClientRect();
-    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null,
+    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, axis: null, startedAt: performance.now(),
       runwayLeft: Math.max(0, e.clientX - rect.left),
       runwayRight: Math.max(0, rect.right - e.clientX) };
   });
@@ -243,7 +242,7 @@ function enableWeekSwipe(wrap, grid, o) {
     const g = gesture;
     if (!g || e.pointerId !== g.id) return;
     const dx = e.clientX - g.x, dy = e.clientY - g.y;
-    if (!g.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 12) {
+    if (!g.axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 10) {
       // A small diagonal wobble is undecided, not permanently vertical.
       // Clearly vertical movement stays native; pointercancel still cancels.
       if (Math.abs(dx) > Math.abs(dy) * 1.3) g.axis = "x";
@@ -252,14 +251,14 @@ function enableWeekSwipe(wrap, grid, o) {
     }
     if (g.axis !== "x") return;
     g.dx = dx;
-    suppressUntil = performance.now() + 600;
+    suppressUntil = performance.now() + 250;
     // Follow the finger more generously while keeping a bounded elastic pull.
     // Visual travel is independent of the deliberate week-change threshold.
-    const offset = Math.sign(dx) * 140 * (1 - Math.exp(-Math.abs(dx) / 170));
+    const offset = Math.sign(dx) * 140 * (1 - Math.exp(-Math.abs(dx) / 120));
     const previous = dx > 0;
     hint.hidden = false;
     hint.dataset.direction = previous ? "previous" : "next";
-    hint.dataset.ready = String(Math.abs(dx) >= threshold(g, dx));
+    hint.dataset.ready = String(ready(g));
     hint.classList.toggle("is-reduced", reduced());
     hint.classList.toggle("is-narrow", !reduced() && Math.abs(offset) < 60);
     hint.style.width = `${reduced() ? 86 : Math.abs(offset)}px`;
@@ -278,17 +277,16 @@ function enableWeekSwipe(wrap, grid, o) {
     if (!g || e.pointerId !== g.id) return;
     gesture = null;
     if (g.axis !== "x" || cancelled) { settle(); return; }
-    suppressUntil = performance.now() + 600;
-    // Commit only after the deliberate distance shown by the ready hint.
-    // No velocity shortcut: a quick flick must not change the week.
+    suppressUntil = performance.now() + 250;
+    // Commit deliberate travel or a quick horizontal flick; cancelled gestures never commit.
     settle();
-    if (Math.abs(g.dx) < threshold(g, g.dx)) return;
+    if (!ready(g)) return;
     busy = true;
     setTimeout(async () => {
       if (!wrap.isConnected) return;
       try { await o.onWeekChange(addDays(o.weekStart, g.dx < 0 ? 7 : -7)); }
       finally { busy = false; }
-    }, reduced() ? 0 : 160);
+    }, 0);
   };
   wrap.addEventListener("pointerup", e => finish(e));
   wrap.addEventListener("pointercancel", e => finish(e, true));
@@ -373,6 +371,7 @@ function renderDailyTimeline(o, slots, day) {
 export function weekNav(weekStart, onChange) {
   return h("div", { class: "week-nav" },
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, -7)), "aria-label": "이전 주" }, "‹ 이전"),
-    h("strong", {}, `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}`),
+    h("strong", { "aria-label": `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}` },
+      `${weekStart.slice(5).replace("-", ".")}–${addDays(weekStart, 6).slice(5).replace("-", ".")}${weekStart.slice(0,4) !== addDays(weekStart,6).slice(0,4) ? ` (${weekStart.slice(0,4)}–${addDays(weekStart,6).slice(0,4)})` : ""}`),
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, 7)), "aria-label": "다음 주" }, "다음 ›"));
 }

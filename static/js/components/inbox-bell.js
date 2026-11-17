@@ -36,15 +36,9 @@ export function inboxBell() {
       };
       mount(panel, h("div", { class: "inbox-popover-head" }, h("h2", {}, "알림 모아보기"),
         h("button", { class: "btn small", type: "button", onclick: () => close(true) }, "닫기")),
-        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 최근 도착순 · 내용 확인 시 읽음 처리`),
+        h("p", { class: "hint" }, `읽지 않은 알림 ${data.unread}건 · 최근 도착순 · 알림을 누르면 읽음 처리`),
         ...data.items.slice(0, 5).map(item => {
-          const read = h("button", { class: "btn small", type: "button", disabled: item.read }, item.read ? "읽음" : "읽음 표시");
-          read.onclick = async () => {
-            read.disabled = true;
-            try { await markInboxRead(item.id); }
-            catch (err) { read.disabled = false; toast(err.message, "error"); }
-          };
-          const link = h("a", { class: "btn small", href: item.url }, "내용 확인");
+          const link = h("a", { class: `inbox-row-link ${item.read ? "is-read" : "is-unread"}`, href: item.url });
           let opening = false;
           link.onclick = async event => {
             event.preventDefault();
@@ -53,15 +47,18 @@ export function inboxBell() {
             const path = location.hash, openingVersion = panelVersion;
             try {
               if (!item.read) await markInboxRead(item.id);
-              if (location.hash === path && panelVersion === openingVersion && !panel.hidden) { close(); location.hash = item.url.split("#")[1]; }
+              if (location.hash === path && panelVersion === openingVersion && !panel.hidden) { close(); const destination = "#" + item.url.split("#")[1];
+                if (location.hash === destination) window.dispatchEvent(new HashChangeEvent("hashchange"));
+                else location.hash = destination; }
             } catch (err) { toast(err.message, "error"); }
             finally { opening = false; }
           };
-          return h("article", { class: `inbox-preview ${item.read ? "is-read" : "is-unread"}` },
+          link.classList.add("inbox-preview");
+          link.append(
             h("div", { class: "inbox-item-heading" }, h("h3", {}, item.title),
               h("span", { class: "inbox-read-state" }, item.read ? "읽음" : "읽지 않음")), h("p", {}, item.body),
-            h("small", {}, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`), h("div", { class: "actions" },
-              link, read));
+            h("small", {}, `알림 시각 ${item.arrived_at ? item.arrived_at.slice(0, 16).replace("T", " ") + " (한국시간)" : item.arrived_on || item.created_on}`), h("span", { class: "sr-only" }, "관련 내용 열기"));
+          return link;
         }),
         !data.items.length ? h("p", {}, "새 알림이 없습니다.") : null,
         h("div", { class: "actions" }, h("a", { class: "btn small", href: "#/inbox", onclick: () => close() }, "알림 전체 보기"), readAll, refreshButton));

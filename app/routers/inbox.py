@@ -69,3 +69,27 @@ def read(notification_id: int, p: Principal = Depends(staff), db: Session = Depe
         row.read_at = utcnow()
     db.commit()
     return {"ok": True, "unread": unread_count(db, p.id)}
+
+
+@router.get("/{notification_id}/target")
+def target(notification_id: int, p: Principal = Depends(staff), db: Session = Depends(get_db)):
+    """Resolve only an owned, arrived notification. No schema migration or inferred IDs."""
+    import re
+
+    from app.models import Booking
+    from app.models.booking import BookingEvent
+    from app.routers.bookings import _staff_out, _student
+    row = db.scalar(select(InboxNotification).where(
+        InboxNotification.id == notification_id, InboxNotification.recipient_id == p.id,
+        InboxNotification.available_at <= utcnow()))
+    if row is None:
+        raise NotFound("알림을 찾을 수 없습니다")
+    result = {"notification": public_item(row), "type": row.kind}
+    if row.kind in ("created", "changed", "cancelled", "slot_changed"):
+        match = re.fullmatch(r"booking-event-([1-9][0-9]*)", row.event_key)
+        event = db.get(BookingEvent, int(match[1])) if match else None
+        booking = db.get(Booking, event.booking_id) if event else None
+        result["type"] = "booking"
+        result["booking"] = _staff_out(booking, _student(db, booking)) if booking else None
+        result["unavailable"] = booking is None
+    return result

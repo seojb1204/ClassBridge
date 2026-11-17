@@ -627,7 +627,7 @@ def test_admin_uses_professor_features_and_changes_role(server, browser):
     nav = adm.page.locator("#nav")
     for group, labels in [("예약 관리", ("상담 시간", "예약 관리")),
                           ("상담 정보", ("상담 정보", "내 알림")),
-                          ("설문·의견", ("설문", "건의함")),
+                          ("설문·건의", ("설문", "건의함")),
                           ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
         nav.locator("summary").filter(has_text=re.compile("^" + re.escape(group) + "$" )).click()
         for label in labels:
@@ -1306,3 +1306,23 @@ def test_unresolved_history_filter_includes_past_and_allows_staff_correction(ser
     assert row.get_by_role("button", name="완료", exact=True).is_visible()
     assert row.get_by_role("button", name="미참석", exact=True).is_visible()
     staff.close()
+
+
+def test_flexible_sentence_populates_form_without_registering(server, browser):
+    base, _ = server
+    prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
+    prof.go('/slots/new')
+    sentence = "내일 오후 두시부터 네시반까지 30분씩 휴식 10분 매주 2주 장소 m205 상담해줘"
+    prof.page.get_by_label("한 문장으로 입력", exact=True).fill(sentence)
+    prof.page.get_by_role("button", name="입력 내용 적용", exact=True).click()
+    assert prof.page.get_by_label("시작", exact=True).input_value() == "14:00"
+    assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
+    assert prof.page.get_by_label("휴식(분)", exact=True).input_value() == "10"
+    assert prof.page.get_by_label("반복 방식", exact=True).input_value() == "weekly"
+    assert prof.page.get_by_label("총 몇 주", exact=True).input_value() == "2"
+    prof.page.get_by_label("한 문장으로 입력", exact=True).fill("금요일 2~4")
+    prof.page.get_by_role("button", name="입력 내용 적용", exact=True).click()
+    assert prof.page.get_by_label("시작", exact=True).input_value() == "14:00"
+    assert prof.page.get_by_label("종료", exact=True).input_value() == "16:30"
+    prof.page.get_by_role("button", name="등록 미리보기", exact=True).wait_for()
+    prof.close()

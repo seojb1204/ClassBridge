@@ -33,6 +33,8 @@ jobs:
         run: node scripts/test-slot-labels.mjs
       - name: Calendar cache regression
         run: node scripts/test-calendar-cache.mjs
+      - name: Flexible schedule input regression
+        run: node scripts/test_schedule_input.mjs
       - name: Lint
         run: ruff check app tests migrations
       - name: Dependency audit

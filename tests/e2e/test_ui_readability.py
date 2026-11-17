@@ -63,7 +63,9 @@ def test_inbox_read_state_and_disclosure(server, browser, viewport):  # noqa: F8
     assert details.get_by_text('실제 휴대폰 수신 시각이 아닙니다.', exact=False).is_visible()
     details.locator('summary').click()
     s.shot(f'polish_inbox_unread_{viewport["width"]}')
-    card.get_by_role('button', name='읽음 표시', exact=True).click()
+    card.click()
+    s.page.wait_for_url('**/#/bookings')
+    s.go('/inbox')
     card.locator('.inbox-read-state').get_by_text('읽음', exact=True).wait_for()
     assert 'is-read' in card.get_attribute('class')
     assert s.page.locator('body').evaluate('e => e.scrollWidth <= innerWidth')
@@ -83,7 +85,7 @@ def test_late_booking_response_cannot_replace_new_inbox(server, browser, viewpor
     pending = []
     s.page.route('**/api/bookings?*', lambda route: pending.append(route))
     with s.page.expect_request('**/api/bookings?*'):
-        s.page.get_by_role('link', name='내용 확인', exact=True).click()
+        s.page.locator('.inbox-row-link').first.click()
     s.page.wait_for_url('**/#/bookings')
     # Return before the old booking response completes, as a fast user can.
     s.go('/inbox')
