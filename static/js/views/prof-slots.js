@@ -1,3 +1,4 @@
+import { bookForStudent } from "../components/book-for-student.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { loadLectures, lectureEditor, lectureCreateForm } from "../components/lecture-editor.js";
 import { schedulePreview } from "../components/schedule-preview.js";
@@ -46,7 +47,8 @@ export function renderRegistration(root) {
   };
   choose(registrationKind);
   mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록")),
+    h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록"),
+      h("button", { class: "btn", onclick: () => bookForStudent() }, "학생 대신 예약")),
     h("div", { class: "calendar-toggle", "aria-label": "등록할 일정 종류" }, ...buttons),
     h("p", { class: "muted" }, "상담과 강의는 같은 시간표에 표시됩니다. 등록할 종류를 선택해 주세요."), panel);
 }
