@@ -289,13 +289,14 @@ function enableWeekSwipe(wrap, grid, o) {
     const path = typeof location !== "undefined" ? location.hash : null;
     const oldScroll = wrap.scrollTop;
     const snapshot = !reduced() ? grid.cloneNode?.(true) : null;
-    hint.hidden = true;
+    hint.hidden = false;
+    hint.querySelector(".week-swipe-label").textContent = "불러오는 중…";
     wrap.setAttribute?.("aria-busy", "true");
     setTimeout(async () => {
       if (!wrap.isConnected) { busy = false; return; }
       try {
         await o.onWeekChange(target);
-        const nextWrap = host?.isConnected && host.querySelector('.week-wrap');
+        const nextWrap = host?.isConnected ? host.querySelector('.week-wrap') : null;
         const nextGrid = nextWrap?.querySelector('.week-grid');
         if (!snapshot || reduced() || !nextGrid || nextWrap === wrap ||
             location.hash !== path || nextWrap.dataset.weekStart !== target || !nextGrid.animate) return;
