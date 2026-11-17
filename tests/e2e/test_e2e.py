@@ -1344,8 +1344,10 @@ def test_weekend_c_preserves_existing_events(server, browser, viewport):
         document.body.append(renderCalendar({weekStart:'2026-11-16',
           onTimeSelect: () => weekendActions.push('time'),
           onSlot: s => weekendActions.push(s.id), slots:[
-          {id:99,event_type:'lecture',title:'주말 강의',start_at:'2026-11-21T10:00:00+09:00',end_at:'2026-11-21T11:00:00+09:00'},
-          {id:100,managerState:'reserved',bookingCount:1,capacity:1,start_at:'2026-11-22T10:00:00+09:00',end_at:'2026-11-22T11:00:00+09:00'}
+          {id:99,event_type:'lecture',title:'주말 강의',
+           start_at:'2026-11-21T10:00:00+09:00',end_at:'2026-11-21T11:00:00+09:00'},
+          {id:100,managerState:'reserved',bookingCount:1,capacity:1,
+           start_at:'2026-11-22T10:00:00+09:00',end_at:'2026-11-22T11:00:00+09:00'}
         ]}));
     }''')
     assert page.locator('.day-head.is-weekend').count() == 2
