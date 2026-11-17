@@ -6,6 +6,12 @@ const MOBILE = window.matchMedia("(max-width: 720px)");
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const STEP = 15; // 분 단위 행 높이
 
+// Weekend styling disables empty-grid shortcuts only; explicit registered
+// lectures/consultations retain their existing access and management rules.
+function isWeekend(day) {
+  return ["토", "일"].includes(kstParts(`${day}T12:00:00+09:00`).weekday);
+}
+
 export function isMobile() { return MOBILE.matches; }
 
 export function revealSelectedDay(root) {
@@ -128,7 +134,8 @@ function renderWeekly(o, byDay) {
   for (let d = 0; d < days.length; d++) {
     const day = days[d];
     const weekday = kstParts(`${day}T12:00:00+09:00`).weekday;
-    const head = h("div", { class: `day-head${day === todayKst() ? " is-today" : ""}` }, h("strong", {}, weekday), " ", day.slice(5).replace("-", "/"));
+    const head = h("div", { class: `day-head${isWeekend(day) ? " is-weekend" : ""}${day === todayKst() ? " is-today" : ""}` }, h("strong", {}, weekday), " ", day.slice(5).replace("-", "/"));
+    if (isWeekend(day)) head.append(h("small", { class: "weekend-state" }, "기본 비활성"));
     if (o.dayCountMode === "booked") head.append(h("small", { class: "reserved-day-count" }, `예약 ${dayCount(o, byDay[day] || [])}명`));
     head.style.gridColumn = String(d + 2);
     grid.append(head);
@@ -138,7 +145,9 @@ function renderWeekly(o, byDay) {
     label.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
     grid.append(label);
     for (let d = 0; d < days.length; d++) {
+      const weekend = isWeekend(days[d]);
       const selectTime = (event) => {
+        if (weekend) return;
         const rect = event.currentTarget.getBoundingClientRect();
         // Keyboard activation selects the labelled hour; touch picks a quarter.
         const minute = event.detail && rect.height
@@ -147,9 +156,9 @@ function renderWeekly(o, byDay) {
         const clock = n => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
         o.onTimeSelect?.({ date: days[d], start: clock(start), end: clock(end), duration: end - start });
       };
-      const cell = h(o.onTimeSelect ? "button" : "div", { class: "cell calendar-time-cell",
-        ...(o.onTimeSelect ? { type: "button", onclick: selectTime,
-          "aria-label": `${fmtDate(days[d])} ${String(hr).padStart(2, "0")}:00 시간 선택` } : {}) });
+      const cell = h(o.onTimeSelect ? "button" : "div", { class: `cell calendar-time-cell${weekend ? " is-weekend" : ""}`,
+        ...(o.onTimeSelect ? { type: "button", disabled: weekend, onclick: selectTime,
+          "aria-label": `${fmtDate(days[d])} ${String(hr).padStart(2, "0")}:00 ${weekend ? "주말 기본 비활성" : "시간 선택"}` } : {}) });
       cell.style.gridRow = `${((hr - minH) * 60) / STEP + 2} / span ${60 / STEP}`;
       cell.style.gridColumn = String(d + 2);
       grid.append(cell);
@@ -343,7 +352,7 @@ function renderDaily(o, byDay) {
     const n = dayCount(o, byDay[day] || []);
     const reserved = o.dayCountMode === "booked";
     const label = reserved ? "예약" : "예약 가능", unit = reserved ? "명" : "건";
-    chips.append(h("button", { class: `chip ${day === sel ? "active" : ""}`, role: "tab",
+    chips.append(h("button", { class: `chip ${isWeekend(day) ? "is-weekend" : ""} ${day === sel ? "active" : ""}`, role: "tab",
       "aria-label": `${fmtDate(day)}, ${label} ${n}${unit}`,
       "aria-selected": String(day === sel), onclick: () => o.onDay?.(day) },
     h("span", {}, DAYS[d]), h("strong", {}, day.slice(8)), h("em", {}, reserved ? `${n}명` : String(n))));
