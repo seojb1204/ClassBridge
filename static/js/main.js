@@ -78,7 +78,7 @@ function renderMobileTabs() {
         const nav = document.getElementById("nav");
         const open = nav.classList.toggle("open");
         event.currentTarget.setAttribute("aria-expanded", String(open));
-        if (open) nav.querySelector("a")?.focus();
+        if (open) [...nav.querySelectorAll("summary, a, button")].find(el => el.getClientRects().length > 0)?.focus();
       } },
     h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, "☰"), h("span", {}, "더보기")));
   const active = location.hash;
@@ -91,7 +91,35 @@ function renderMobileTabs() {
 
 function renderChrome() {
   const nav = document.getElementById("nav");
-  mount(nav, navItems().map((r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel))));
+  const items = navItems();
+  const link = (r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
+  if (can("slot:manage")) {
+    const groups = [
+      ["예약 관리", ["/bookings", "/slots"]],
+      ["상담 정보", ["/staff/insights", "/inbox"]],
+      ["설문·의견", ["/surveys", "/suggestions"]],
+      ["관리", ["/admin/users", "/admin/settings", "/admin/audit"]],
+    ];
+    mount(nav, groups.map(([label, paths]) => {
+      const entries = items.filter(r => paths.includes(r.pattern));
+      if (!entries.length) return null;
+      if (entries.length === 1) return link(entries[0]);
+      return h("details", { class: "nav-group" },
+        h("summary", {}, label), h("div", { class: "nav-group-links" }, entries.map(link)));
+    }));
+  } else mount(nav, items.map(link));
+  nav.addEventListener("toggle", event => {
+    if (!event.target.matches(".nav-group[open]")) return;
+    nav.querySelectorAll(".nav-group").forEach(group => { if (group !== event.target) group.open = false; });
+  }, true);
+  document.addEventListener("click", event => {
+    if (!nav.contains(event.target)) nav.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
+  });
+  nav.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    const group = event.target.closest(".nav-group");
+    if (group) { group.open = false; group.querySelector("summary").focus(); }
+  });
   nav.append(support.helpLink("mobile-help-link"));
   const personal = pushButton("mobile-help-link");
   if (personal) nav.append(personal);
@@ -104,7 +132,9 @@ function renderChrome() {
     h("span", { class: "who" }, `${state.me.name} · ${roleLabel}`),
     h("button", { class: "btn small", onclick: async () => { await post("/auth/logout"); location.hash = ""; location.reload(); } }, "로그아웃"));
   if (["professor", "admin"].includes(state.me.role)) document.querySelector(".topbar").append(inboxBell());
-  nav.addEventListener("click", () => {
+  nav.addEventListener("click", (event) => {
+    if (!event.target.closest("a")) return;
+    nav.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
     nav.classList.remove("open");
     document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
   });

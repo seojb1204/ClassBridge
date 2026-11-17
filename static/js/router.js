@@ -35,6 +35,9 @@ export async function resolve() {
     }
     const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
     document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === `#${r.pattern}`));
+    document.querySelectorAll("#nav .nav-group").forEach(group => {
+      group.querySelector("summary").classList.toggle("active", !!group.querySelector("a.active"));
+    });
     mount(view, h("p", { class: "loading" }, "불러오는 중…"));
     try {
       await r.render(view, params);

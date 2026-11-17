@@ -5,8 +5,8 @@
   --primary: #a64419; --primary-weak: #f9e8d9; --mine: #28604d; --mine-weak: #e8f1e8;
   --danger: #a52e32; --danger-weak: #fbe9e6; --warn: #80520b; --closed: #eee9e1;
   --available: #6b503b; --available-bg: #fff5e7; --available-line: #b89a7e;
-  --control-line: #9c8f7e; --reserved-line: #a64419; --reserved-bg: #a64419;
-  --reserved-text: #fff; --reserved-hover: #8d3a16; --available-hover: #f7e7d1;
+  --control-line: #9c8f7e; --reserved-line: #8aa991; --reserved-bg: #e5f1e7;
+  --reserved-text: #315b42; --reserved-hover: #d7e8da; --available-hover: #f7e7d1;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
   --radius: 6px; --shadow: none;
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
@@ -575,3 +575,33 @@ textarea { line-height: 1.75; }
 /* Empty timetable hit areas retain grid sizing; event cards paint above them. */
 .week-grid button.calendar-time-cell { padding: 0; margin: 0; border: 0; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); border-radius: 0; background: transparent; min-width: 0; cursor: pointer; }
 .week-grid button.calendar-time-cell:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+
+/* Compact staff navigation: every existing destination remains available. */
+.nav { flex-wrap: nowrap; }
+.nav-group { position: relative; }
+.nav-group summary { cursor: pointer; white-space: nowrap; padding: .65rem .55rem; border-bottom: 2px solid transparent; font-weight: 600; }
+.nav-group summary.active { color: var(--primary); border-bottom-color: var(--primary); }
+.nav-group summary:hover { background: var(--primary-weak); }
+.nav-group-links { position: absolute; top: 100%; left: 0; min-width: 180px; padding: .4rem; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 18px #29272118; }
+.nav-group-links a { display: flex; gap: .5rem; align-items: center; white-space: nowrap; }
+.nav > a { white-space: nowrap; }
+.activity-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.activity-table th, .activity-table td { text-align: left; padding: .8rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.activity-table th { color: var(--muted); font-size: .85rem; }
+.activity-table th:nth-child(1) { width: 19%; }
+.activity-table th:nth-child(2) { width: 14%; }
+.activity-table th:nth-child(3) { width: 23%; }
+.activity-table th:nth-child(4) { width: 25%; }
+.activity-table th:nth-child(5) { width: 19%; }
+.activity-details summary { cursor: pointer; color: var(--primary); }
+.activity-details p { margin: .4rem 0; }
+@media (max-width: 720px) {
+  .nav { align-items: stretch; }
+  .nav-group-links { position: static; box-shadow: none; margin: 0 .5rem .5rem; }
+  .activity-table, .activity-table tbody, .activity-table tr, .activity-table td { display: block; width: 100%; }
+  .activity-table thead { display: none; }
+  .activity-table tr { border: 1px solid var(--line); margin-bottom: .8rem; padding: .5rem; border-radius: 6px; }
+  .activity-table td { border: 0; padding: .25rem; }
+  .activity-table td::before { content: attr(data-label) " · "; color: var(--muted); font-size: .85rem; }
+  .activity-table td:last-child::before { content: none; }
+}

@@ -536,7 +536,8 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.locator(".modal button:text-is('기록 저장')").click()
     prof.toast("상담 기록을 저장")
     prof.go("/staff/insights")
-    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보").is_visible()
+    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
+    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).is_visible()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     note_card = prof.page.locator(".consult-note-card:has-text('학생 상담 테스트 기록')")
@@ -623,9 +624,14 @@ def test_professor_completes_consultation(server, browser):
 def test_admin_uses_professor_features_and_changes_role(server, browser):
     base, _ = server
     adm = Session(browser, base, "admin@test.ac.kr", PC)
-    nav = adm.page.locator("#nav").inner_text()
-    for label in ("상담 시간", "예약 관리", "상담 정보", "설문", "건의함", "계정·권한", "운영 설정", "작업 이력"):
-        assert label in nav
+    nav = adm.page.locator("#nav")
+    for group, labels in [("예약 관리", ("상담 시간", "예약 관리")),
+                          ("상담 정보", ("상담 정보", "내 알림")),
+                          ("설문·의견", ("설문", "건의함")),
+                          ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
+        nav.locator("summary").filter(has_text=re.compile("^" + re.escape(group) + "$" )).click()
+        for label in labels:
+            assert nav.get_by_role("link", name=label, exact=True).is_visible()
     _create_slots_via_ui(adm, start="15:00", end="16:00", kind="group", cap=3)
     adm.go("/admin/users")
     row = adm.page.locator("tr[data-user-email='student1@test.ac.kr']")
@@ -793,7 +799,8 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
     assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
-    prof.page.locator("#nav").get_by_role("link", name="상담 정보").click()
+    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
+    prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).click()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     assert prof.page.get_by_text("전체 상담 기록", exact=True).is_visible()
