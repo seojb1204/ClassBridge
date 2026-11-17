@@ -1,5 +1,5 @@
 import { calendarGet as get } from "../api.js";
-import { fmtDate } from "../time.js";
+import { fmtDate, kstParts } from "../time.js";
 import { h } from "../ui.js";
 
 export async function loadAvailableDays() {
@@ -16,7 +16,7 @@ export function availableDaysPanel(days, selectDay) {
   if (!days.length) { panel.append(h("p", {}, "현재 예약 가능한 상담 시간이 없습니다.")); return panel; }
   const buttons = h("div", { class: "available-day-buttons" });
   const draw = (all = false) => buttons.replaceChildren(...(all ? days : days.slice(0, 3)).map(([day, count]) =>
-    h("button", { type: "button", class: "btn", onclick: () => selectDay(day) }, h("span", {}, fmtDate(day)), h("small", {}, `${count}개 시간`))));
+    h("button", { type: "button", class: "btn", "aria-label": `${fmtDate(day)} · ${count}개 시간`, onclick: () => selectDay(day) }, h("span", {}, `${Number(day.slice(5,7))}/${Number(day.slice(8,10))} ${kstParts(day + "T12:00:00+09:00").weekday}`), h("small", {}, `${count}개 시간`))));
   draw();
   panel.append(buttons);
   if (days.length > 3) panel.append(h("button", { type: "button", class: "btn small", onclick: (e) => {

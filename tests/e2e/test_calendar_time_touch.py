@@ -21,7 +21,7 @@ def test_empty_time_prefills_both_registration_kinds(server, browser, email):  #
     session.go("/slots")
     cell = p.locator(".calendar-time-cell").first
     cell.wait_for()
-    expected_date = p.locator(".calendar-grid-title").inner_text().split(" – ")[0]
+    expected_date = p.locator(".week-nav strong").get_attribute("aria-label").split(" – ")[0]
     # Pick 09:15 within the hourly hit area, not its keyboard default (09:00).
     box = cell.bounding_box()
     cell.click(position={"x": box["width"] / 2, "y": box["height"] * .375})

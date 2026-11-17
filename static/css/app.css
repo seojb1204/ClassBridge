@@ -634,3 +634,6 @@ textarea { line-height: 1.75; }
   .week-nav .btn { padding: 6px; font-size: .8125rem; }
   .week-nav strong { min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
 }
+
+.available-day-buttons .btn { line-height: 1.3; }
+.available-day-buttons .btn > span { white-space: nowrap; }

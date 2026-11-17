@@ -55,7 +55,7 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     p.locator(".lecture-create-form").wait_for()
     assert p.get_by_role("button", name="강의", exact=True).get_attribute("aria-pressed") == "true"
     p.get_by_label("강의명", exact=True).fill("취소할 입력")
-    p.get_by_role("button", name="상담 가능 시간", exact=True).click()
+    p.get_by_role("button", name="상담", exact=True).click()
     assert p.get_by_role("button", name="등록 미리보기", exact=True).is_visible()
     assert p.locator(".lecture-create-form").count() == 0
     p.get_by_role("button", name="강의", exact=True).click()
@@ -293,7 +293,7 @@ def test_mobile_week_swipe_threshold_and_taps(server, browser, reduced_motion, w
             offset = float(transform.split(",")[4])
             # Follow the finger visibly (about 62px/82px), without changing
             # the release threshold or letting the calendar leave the screen.
-            assert abs(distance) * .5 < abs(offset) < abs(distance)
+            assert abs(distance) * .5 < abs(offset) <= abs(distance)
             assert (offset > 0) == (distance > 0)
         expect(grid.locator(".week-grid")).to_have_css("transform", "none")
     drag(-230, retract=True)

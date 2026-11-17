@@ -25,7 +25,7 @@ function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
     ...[["calendar", "주간 예약 시간표"], ["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
-        onclick: () => { viewMode = value; render(root); } }, label)));
+        onclick: () => { if (viewMode === value) return; viewMode = value; render(root); } }, label)));
 }
 
 async function showStaffSlot(root, slot, bookings, highlight = false) {

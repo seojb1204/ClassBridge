@@ -10,7 +10,7 @@ export function isMobile() { return MOBILE.matches; }
 
 export function revealSelectedDay(root) {
   if (!isMobile()) return;
-  const title = root.querySelector(".daily-title"), path = location.hash;
+  const title = (root.querySelector(".daily-title") || root.querySelector(".week-nav strong")), path = location.hash;
   if (!title) return;
   requestAnimationFrame(() => {
     if (!title.isConnected || location.hash !== path) return;
@@ -254,7 +254,7 @@ function enableWeekSwipe(wrap, grid, o) {
     suppressUntil = performance.now() + 250;
     // Follow the finger more generously while keeping a bounded elastic pull.
     // Visual travel is independent of the deliberate week-change threshold.
-    const offset = Math.sign(dx) * 140 * (1 - Math.exp(-Math.abs(dx) / 120));
+    const offset = Math.sign(dx) * Math.min(Math.abs(dx), 140 * (1 - Math.exp(-Math.abs(dx) / 120)));
     const previous = dx > 0;
     hint.hidden = false;
     hint.dataset.direction = previous ? "previous" : "next";
@@ -371,7 +371,7 @@ function renderDailyTimeline(o, slots, day) {
 export function weekNav(weekStart, onChange) {
   return h("div", { class: "week-nav" },
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, -7)), "aria-label": "이전 주" }, "‹ 이전"),
-    h("strong", { "aria-label": `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}` },
+    h("strong", { tabindex: "-1", "aria-label": `${fmtDate(weekStart)} – ${fmtDate(addDays(weekStart, 6))}` },
       `${weekStart.slice(5).replace("-", ".")}–${addDays(weekStart, 6).slice(5).replace("-", ".")}${weekStart.slice(0,4) !== addDays(weekStart,6).slice(0,4) ? ` (${weekStart.slice(0,4)}–${addDays(weekStart,6).slice(0,4)})` : ""}`),
     h("button", { class: "btn", onclick: () => onChange(mondayOf(todayKst())), "aria-label": "이번 주로 이동" }, "오늘"),
     h("button", { class: "btn", onclick: () => onChange(addDays(weekStart, 7)), "aria-label": "다음 주" }, "다음 ›"));

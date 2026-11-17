@@ -493,7 +493,8 @@ def test_student_booking_flow_pc(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     _create_slots_via_ui(prof)
     assert prof.page.get_by_role("heading", name="상담 불가일", exact=True).count() == 0
-    prof.page.get_by_text("등록된 상담 시간만 예약할 수 있습니다.", exact=False).wait_for()
+    assert prof.page.get_by_text("등록된 상담 시간만 예약할 수 있습니다.", exact=False).count() == 0
+    prof.page.locator(".week-grid").wait_for()
     prof.shot("pc_01_prof_slots")
     prof.close()
 
@@ -1130,7 +1131,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.shot('mobile_schedule_preview')
     prof.page.get_by_role('button', name='등록 확정', exact=True).click()
     prof.toast('12개 등록')
-    prof.page.locator('.daily-title:focus').wait_for()
+    prof.page.locator('.daily-title:focus, .week-nav strong:focus').wait_for()
     assert prof.page.locator('#slot-create-panel').count() == 0
     prof.page.get_by_role('button', name='목록형', exact=True).click()
     prof.page.locator('.daily .card.slot.open').first.wait_for()
@@ -1264,6 +1265,7 @@ def test_mobile_booking_summary(server, browser):
                "status": "booked", "topic": "상담 주제"}
     page.route("**/api/bookings?*", lambda r: r.fulfill(json=[booking]))
     staff.go("/bookings")
+    page.get_by_role("button", name="예약 목록", exact=True).click()
     card = page.locator("details[data-booking-id='214']")
     summary = card.locator(":scope > summary")
     assert "예약 학생 · 20260001" in summary.inner_text()
