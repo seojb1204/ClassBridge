@@ -645,9 +645,11 @@ textarea { line-height: 1.75; }
 
 /* Weekend C: warm terracotta headers and broad, subdued hatching.
    Only background cells are muted: existing event cards stay actionable. */
-.week-grid .day-head.is-weekend { background: #f9e8d9; color: #8d3a1c; }
+.week-grid .day-head.is-weekend { background: #f9e8d9; color: #8b4d2c; }
 .week-grid .cell.is-weekend, .week-grid button.calendar-time-cell.is-weekend {
-  background: repeating-linear-gradient(135deg, #f4eee5 0 8px, #e8ddce 8px 10px, #f4eee5 10px 18px);
+  background: repeating-linear-gradient(135deg, #f0ede7 0 12px, #ded4c7 12px 13px);
   cursor: default; opacity: 1;
 }
-.day-chips .chip.is-weekend:not(.active) { background: #f9e8d9; color: #8d3a1c; }
+.day-chips .chip.is-weekend:not(.active) { background: #f9e8d9; color: #8b4d2c; }
+
+.weekend-state { display: block; font-size: 9px; font-weight: normal; color: #8b4d2c; }

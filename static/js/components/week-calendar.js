@@ -135,6 +135,7 @@ function renderWeekly(o, byDay) {
     const day = days[d];
     const weekday = kstParts(`${day}T12:00:00+09:00`).weekday;
     const head = h("div", { class: `day-head${isWeekend(day) ? " is-weekend" : ""}${day === todayKst() ? " is-today" : ""}` }, h("strong", {}, weekday), " ", day.slice(5).replace("-", "/"));
+    if (isWeekend(day)) head.append(h("small", { class: "weekend-state" }, "기본 비활성"));
     if (o.dayCountMode === "booked") head.append(h("small", { class: "reserved-day-count" }, `예약 ${dayCount(o, byDay[day] || [])}명`));
     head.style.gridColumn = String(d + 2);
     grid.append(head);
