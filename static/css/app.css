@@ -637,3 +637,8 @@ textarea { line-height: 1.75; }
 
 .available-day-buttons .btn { line-height: 1.3; }
 .available-day-buttons .btn > span { white-space: nowrap; }
+
+/* Clip translated week layers, preserving native vertical scrolling. */
+.week-swipe { overflow-x: clip; }
+.week-slide-outgoing { user-select: none; }
+@media (prefers-reduced-motion: reduce) { .week-slide-outgoing { display: none; } }
