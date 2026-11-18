@@ -37,3 +37,25 @@ for (const [start,end,first,last] of [
   assert.ok(hours.includes('11:00') && hours.includes('15:00'));
 }
 console.log('4 minimum-hours and out-of-range schedule cases passed');
+
+vm.runInNewContext('this.prioritize=consultationFirstEvents',c);
+const lecture={id:10,event_type:'lecture',start_at:'2026-11-16T11:00:00+09:00',end_at:'2026-11-16T15:00:00+09:00'};
+const consult=(start,end,status='open')=>({id:20,start_at:`2026-11-16T${start}:00+09:00`,end_at:`2026-11-16T${end}:00+09:00`,status});
+for(const [cuts,expected] of [
+  [[],[['11:00','15:00']]],
+  [[consult('12:00','13:00')],[['11:00','12:00'],['13:00','15:00']]],
+  [[consult('10:00','16:00')],[]],
+  [[consult('10:00','11:00'),consult('15:00','16:00')],[['11:00','15:00']]],
+  [[consult('12:00','14:00'),consult('13:00','14:30')],[['11:00','12:00'],['14:30','15:00']]],
+  [[consult('12:00','13:00','cancelled')],[['11:00','15:00']]],
+  [[consult('10:00','12:00')],[['12:00','15:00']]],
+  [[consult('14:00','16:00')],[['11:00','14:00']]],
+]) {
+  const input=[lecture,...cuts],before=JSON.stringify(input);
+  const output=c.prioritize(input).filter(s=>s.event_type==='lecture');
+  const times=output.map(s=>[new Date(Date.parse(s.start_at)+9*3600000).toISOString().slice(11,16),new Date(Date.parse(s.end_at)+9*3600000).toISOString().slice(11,16)]);
+  assert.equal(JSON.stringify(times),JSON.stringify(expected));
+  assert.equal(JSON.stringify(input),before);
+  for(const part of output)assert.equal(part.originalSlot||part,lecture);
+}
+console.log('8 consultation priority, boundary, cancellation and immutable-source cases passed');
