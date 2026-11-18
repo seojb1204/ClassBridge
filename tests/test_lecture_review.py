@@ -15,19 +15,19 @@ def test_recurrence_conflict_rolls_back_all_occurrences(clients):
     assert len(rows) == 1
 
 
-def test_failed_reschedule_preserves_booking_and_counts(clients, app):
+def test_reschedule_into_lecture_updates_booking_and_counts(clients, app):
     p, s = clients['prof'], clients['s1']
     old = make_slots(p, start='09:00', end='09:30')[0]
     target = make_slots(p)[0]
     b = s.post('/api/bookings', json={'slot_id': old}).json()
     assert p.post('/api/lectures', json=body()).status_code == 201
     response = s.post(f"/api/bookings/{b['id']}/reschedule", json={'new_slot_id': target})
-    assert response.status_code == 409, response.text
+    assert response.status_code == 200, response.text
     with app.state.SessionLocal() as db:
         saved = db.get(Booking, b['id'])
-        assert saved.slot_id == old and saved.status == 'booked'
-        assert db.get(Slot, old).booked_count == 1
-        assert db.get(Slot, target).booked_count == 0
+        assert saved.slot_id == target and saved.status == 'booked'
+        assert db.get(Slot, old).booked_count == 0
+        assert db.get(Slot, target).booked_count == 1
 
 
 def test_student_cannot_change_or_cancel_lecture(clients):
@@ -38,12 +38,12 @@ def test_student_cannot_change_or_cancel_lecture(clients):
     assert len(p.get('/api/lectures', params={'start': future_day().isoformat()}).json()) == 1
 
 
-def test_staff_proxy_booking_cannot_bypass_lecture(clients):
+def test_staff_proxy_booking_uses_registered_consultation(clients):
     p, s = clients['prof'], clients['s1']
     slot = make_slots(p)[0]
     assert p.post('/api/lectures', json=body()).status_code == 201
     response = p.post('/api/bookings', json={'slot_id': slot, 'student_id': s.me['id']})
-    assert response.status_code == 409, response.text
+    assert response.status_code == 201, response.text
 
 
 def test_lecture_update_into_booked_slot_preserves_both(clients, app):
@@ -59,3 +59,18 @@ def test_lecture_update_into_booked_slot_preserves_both(clients, app):
     with app.state.SessionLocal() as db:
         assert db.get(Booking, booking['id']).status == 'booked'
         assert db.get(Slot, slot).booked_count == 1
+
+
+def test_full_target_under_lecture_preserves_original_booking(clients, app):
+    p, s, other = clients['prof'], clients['s1'], clients['s2']
+    old = make_slots(p, start='09:00', end='09:30')[0]
+    target = make_slots(p)[0]
+    b = s.post('/api/bookings', json={'slot_id': old}).json()
+    assert p.post('/api/lectures', json=body()).status_code == 201
+    assert other.post('/api/bookings', json={'slot_id': target}).status_code == 201
+    response = s.post(f"/api/bookings/{b['id']}/reschedule", json={'new_slot_id': target})
+    assert response.status_code == 409, response.text
+    with app.state.SessionLocal() as db:
+        assert db.get(Booking, b['id']).slot_id == old
+        assert db.get(Slot, old).booked_count == 1
+        assert db.get(Slot, target).booked_count == 1
