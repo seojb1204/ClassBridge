@@ -19,6 +19,8 @@ def test_callback_access_log_strips_query_only():
 
 @pytest.mark.parametrize('error,expected', [('invalid_grant', 'invalid_grant'), ('SECRET', 'other')])
 def test_token_error_log_uses_fixed_categories(monkeypatch, caplog, error, expected):
+    # Alembic fileConfig in earlier migration tests disables existing loggers.
+    monkeypatch.setattr(logging.getLogger("classbridge.oauth"), "disabled", False)
     monkeypatch.setattr(httpx, 'post', lambda *args, **kwargs: httpx.Response(400,
         json={'error': error, 'error_description': 'PRIVATE description'}))
     with caplog.at_level(logging.WARNING), pytest.raises(Unauthorized):
