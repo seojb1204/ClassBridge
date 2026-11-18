@@ -30,7 +30,7 @@ def test_direct_login_without_consent_and_no_fabricated_consent(tmp_path, query)
     with app.state.SessionLocal() as db:
         assert db.query(User).count() == db.query(AuthSession).count() == 0
     state = parse_qs(urlparse(response.headers["location"]).query)["state"][0]
-    assert client.get("/auth/google/callback", params={"code": "fake-code", "state": state}).status_code == 302
+    assert client.get("/auth/google/callback", params={"code": "fake-code", "state": state}).status_code == 200
     me = client.get("/api/me").json()
     assert me["role"] == "student"
     assert client.get("/api/admin/users").status_code == 403

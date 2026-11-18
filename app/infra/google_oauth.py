@@ -4,6 +4,7 @@ ID 토큰 서명·aud·iss·exp 검증은 검증된 라이브러리(google-auth)
 """
 from __future__ import annotations
 
+import logging
 from typing import Protocol
 from urllib.parse import urlencode
 
@@ -15,6 +16,7 @@ from app.core.identity import VerifiedIdentity
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+log = logging.getLogger("classbridge.oauth")
 VALID_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 
 
@@ -51,6 +53,14 @@ def verify_with_google(settings: Settings, code: str, nonce: str) -> VerifiedIde
         "grant_type": "authorization_code",
     }, timeout=10)
     if resp.status_code != 200:
+        try:
+            error = resp.json().get("error")
+        except (ValueError, AttributeError):
+            error = None
+        # Only a fixed code and status: no response body, credentials or user data.
+        allowed = {"invalid_grant", "invalid_client", "redirect_uri_mismatch", "invalid_request"}
+        category = error if isinstance(error, str) and error in allowed else "other"
+        log.warning("google_token_exchange_failed status=%s category=%s", resp.status_code, category)
         raise Unauthorized("Google 인증 코드 교환에 실패했습니다")
     raw = resp.json().get("id_token")
     if not raw:
