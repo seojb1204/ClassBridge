@@ -36,7 +36,7 @@ def test_calendar_waiter_rechecks_after_commit(pg_app, first):
             started.set()
             try:
                 action('booking' if first == 'lecture' else 'lecture', db)
-                return 'unexpected_success'
+                return 'ok'
             except AppError as exc:
                 return exc.code
     with pg_app.state.SessionLocal() as owner, ThreadPoolExecutor(1) as pool:
@@ -44,14 +44,14 @@ def test_calendar_waiter_rechecks_after_commit(pg_app, first):
         future = pool.submit(waiter)
         assert started.wait(5)
         action(first, owner)  # Commits and releases the transaction advisory lock.
-        assert future.result(timeout=10) == ('lecture_overlap' if first == 'lecture' else 'lecture_booking_overlap')
+        assert future.result(timeout=10) == ('ok' if first == 'lecture' else 'lecture_booking_overlap')
     with pg_app.state.SessionLocal() as db:
         assert db.scalar(select(func.count()).select_from(Lecture)) == (first == 'lecture')
-        assert db.scalar(select(func.count()).select_from(Booking)) == (first == 'booking')
-        assert db.get(Slot, slot_id).booked_count == (first == 'booking')
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
+        assert db.get(Slot, slot_id).booked_count == 1
 
 
-def test_simultaneous_lecture_vs_booking_one_winner(pg_app):
+def test_simultaneous_lecture_vs_booking_preserves_consultation(pg_app):
     p, s = login(pg_app, PROF), login(pg_app, 'student@test.ac.kr')
     slot = make_slots(p)[0]
     def attempt(index):
@@ -61,8 +61,11 @@ def test_simultaneous_lecture_vs_booking_one_winner(pg_app):
             else:
                 booking_service.book(db, db.get(User, s.me['id']), slot)
     results = _race(2, attempt)
-    assert results.count('ok') == 1, results
-    assert set(results) <= {'ok', 'lecture_overlap', 'lecture_booking_overlap'}, results
+    assert results[0] == 'ok', results
+    assert results[1] in {'ok', 'lecture_booking_overlap'}, results
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
+        assert db.get(Slot, slot).booked_count == 1
 
 
 def test_simultaneous_overlapping_lectures_one_winner(pg_app):
