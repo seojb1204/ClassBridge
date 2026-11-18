@@ -39,10 +39,24 @@ export function onLayoutChange(cb) {
   return detach;
 }
 
-// Consultation slots and lectures can intentionally coexist on the same time axis.
-function sharingLane(slot, events) {
-  return events.some(other => other !== slot && (other.event_type === "lecture") !== (slot.event_type === "lecture")
-    && new Date(other.start_at) < new Date(slot.end_at) && new Date(other.end_at) > new Date(slot.start_at));
+// Display-only interval subtraction. Keep original events for detail/edit actions.
+export function consultationFirstEvents(events) {
+  const consultations = events.filter(s => s.event_type !== "lecture" && s.status !== "cancelled");
+  return events.flatMap(event => {
+    if (event.event_type !== "lecture") return [event];
+    let parts = [[Date.parse(event.start_at), Date.parse(event.end_at)]];
+    for (const consultation of consultations) {
+      const from = Date.parse(consultation.start_at), to = Date.parse(consultation.end_at);
+      parts = parts.flatMap(([start, end]) => {
+        if (to <= start || from >= end) return [[start, end]];
+        return [...(start < from ? [[start, from]] : []), ...(to < end ? [[to, end]] : [])];
+      });
+    }
+    if (parts.length === 1 && parts[0][0] === Date.parse(event.start_at)
+        && parts[0][1] === Date.parse(event.end_at)) return [event];
+    return parts.map(([start, end]) => ({...event, originalSlot: event,
+      start_at: new Date(start).toISOString(), end_at: new Date(end).toISOString()}));
+  });
 }
 
 function slotClass(s) {
@@ -91,7 +105,7 @@ function legacyWeekendEvents(o) {
     h("h3", {}, "기존 주말 일정"),
     h("p", { class: "hint" }, "새 주말 예약·강의 등록은 제한됩니다. 기존 일정은 확인하거나 취소할 수 있습니다."),
     ...events.map(s => h("button", { type: "button", class: "btn legacy-weekend-event",
-      onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
+      onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       `${fmtDate(kstParts(s.start_at).date)} ${fmtTime(s.start_at)}–${fmtTime(s.end_at)} · ${slotLabel(s)}`)));
 }
 
@@ -122,6 +136,10 @@ function renderMobile(o, byDay) {
 }
 
 function renderWeekly(o, byDay) {
+  const displayByDay = {};
+  for (const slot of consultationFirstEvents(o.slots)) {
+    (displayByDay[kstParts(slot.start_at).date] ||= []).push(slot);
+  }
   const days = o.gridDays || Array.from({ length: 5 }, (_, d) => addDays(o.weekStart, d));
   const rowPx = o.compactGrid ? 24 : 18;
   // The pixel size of a 15-minute interval must NOT change with the
@@ -173,11 +191,11 @@ function renderWeekly(o, byDay) {
     }
   }
   for (let d = 0; d < days.length; d++) {
-    for (const s of byDay[days[d]] || []) {
+    for (const s of displayByDay[days[d]] || []) {
       const a = kstParts(s.start_at), b = kstParts(s.end_at);
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
-      const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s),
+      const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s.originalSlot || s),
         "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, o.compactGrid
@@ -190,9 +208,10 @@ function renderWeekly(o, byDay) {
       btn.style.marginTop = `${1 + (start % STEP) * rowPx / STEP}px`;
       btn.style.marginBottom = `${1 + ((STEP - end % STEP) % STEP) * rowPx / STEP}px`;
       btn.style.gridColumn = String(d + 2);
-      if (sharingLane(s, o.slots)) {
-        btn.style.width = "calc(50% - 4px)";
-        btn.style.justifySelf = s.event_type === "lecture" ? "end" : "start";
+      if (s.originalSlot) {
+        btn.style.minHeight = "0";
+        btn.style.paddingTop = "0";
+        btn.style.paddingBottom = "0";
       }
       grid.append(btn);
     }
@@ -374,7 +393,7 @@ function renderDaily(o, byDay) {
     h("button", { type: "button", class: mode === "timeline" ? "btn primary" : "btn",
       "aria-pressed": String(mode === "timeline"), onclick: () => changeView("timeline") }, "일간 시간표 보기"));
   const cards = h("div", { class: "cards" }, list.map((s) =>
-    h("button", { class: `card ${slotClass(s)}`, onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
+    h("button", { class: `card ${slotClass(s)}`, onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       h("span", { class: "slot-time" }, `${fmtTime(s.start_at)} – ${fmtTime(s.end_at)}`),
       h("span", { class: "slot-meta" }, slotLabel(s)),
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
@@ -404,21 +423,23 @@ function renderDailyTimeline(o, slots, day) {
     line.style.top = `${(hour - minH) * 60 * pxPerMinute}px`;
     axis.append(line);
   }
-  for (const s of slots) {
+  for (const s of consultationFirstEvents(slots)) {
     const start = kstParts(s.start_at), end = kstParts(s.end_at);
     const from = (start.hour - minH) * 60 + start.minute;
     const to = (end.hour - minH) * 60 + end.minute;
     const button = h("button", { type: "button",
       class: `day-timeline-slot ${slotClass(s)}`,
-      onclick: () => o.onSlot(s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" },
+      onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" },
       "aria-label": `${fmtDate(day)} ${start.time}부터 ${end.time}까지 ${slotLabel(s)}` },
     h("span", { class: "slot-time" }, `${start.time}–${end.time}`),
     h("span", { class: "slot-meta" }, slotLabel(s)));
     button.style.top = `${from * pxPerMinute}px`;
     button.style.height = `${Math.max(44, (to - from) * pxPerMinute - 2)}px`;
-    if (sharingLane(s, slots)) {
-      button.style.width = "calc((100% - 64px) / 2 - 4px)";
-      if (s.event_type === "lecture") button.style.left = "calc(64px + (100% - 64px) / 2)";
+    if (s.originalSlot) {
+      button.style.minHeight = "0";
+      button.style.height = `${Math.max(0, (to - from) * pxPerMinute - 2)}px`;
+      button.style.paddingTop = "0";
+      button.style.paddingBottom = "0";
     }
     axis.append(button);
   }
