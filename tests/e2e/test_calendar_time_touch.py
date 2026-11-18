@@ -22,18 +22,18 @@ def test_empty_time_prefills_both_registration_kinds(server, browser, email):  #
     cell = p.locator(".calendar-time-cell").first
     cell.wait_for()
     expected_date = p.locator(".week-nav strong").get_attribute("aria-label").split(" – ")[0]
-    # Pick 09:15 within the hourly hit area, not its keyboard default (09:00).
+    # Pick 11:15 within the hourly hit area, not its keyboard default (11:00).
     box = cell.bounding_box()
     cell.click(position={"x": box["width"] / 2, "y": box["height"] * .375})
     expect(p.get_by_role("heading", name="상담·강의 등록")).to_be_visible()
-    expect(p.get_by_label("시작", exact=True)).to_have_value("09:15")
-    expect(p.get_by_label("종료", exact=True)).to_have_value("09:45")
+    expect(p.get_by_label("시작", exact=True)).to_have_value("11:15")
+    expect(p.get_by_label("종료", exact=True)).to_have_value("11:45")
     picked_date = p.get_by_label("날짜(시작일)", exact=True).input_value()
     assert picked_date[5:7].lstrip("0") + "월" in expected_date
     p.get_by_role("button", name="강의", exact=True).click()
     expect(p.get_by_label("날짜", exact=True)).to_have_value(picked_date)
-    expect(p.get_by_label("시작 (한국 시간)", exact=True)).to_have_value("09:15")
-    expect(p.get_by_label("종료 (한국 시간)", exact=True)).to_have_value("09:45")
+    expect(p.get_by_label("시작 (한국 시간)", exact=True)).to_have_value("11:15")
+    expect(p.get_by_label("종료 (한국 시간)", exact=True)).to_have_value("11:45")
     assert not writes
     session.close()
 
