@@ -126,15 +126,16 @@ function renderWeekly(o, byDay) {
   const rowPx = o.compactGrid ? 24 : 18;
   // The pixel size of a 15-minute interval must NOT change with the
   // consultation duration or the number of slots in the displayed week.
-  let minH = 9, maxH = 12;
+  // Keep 11:00–16:00 visible even for an empty or sparsely populated week.
+  let minH = 11, maxH = 16;
   if (o.slots.length) {
     const starts = o.slots.map((s) => kstParts(s.start_at).hour);
     const ends = o.slots.map((s) => {
       const p = kstParts(s.end_at);
       return p.hour + (p.minute ? 1 : 0);
     });
-    minH = Math.max(0, Math.min(...starts) - 1);
-    maxH = Math.min(24, Math.max(...ends) + 1);
+    minH = Math.max(0, Math.min(11, Math.min(...starts) - 1));
+    maxH = Math.min(24, Math.max(16, Math.max(...ends) + 1));
   }
   const rows = ((maxH - minH) * 60) / STEP;
   const grid = h("div", { class: "week-grid", role: "grid", "aria-label": "달력형 주간 시간표" });
