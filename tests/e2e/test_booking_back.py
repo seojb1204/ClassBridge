@@ -42,3 +42,35 @@ def test_booking_back_close_reopen_and_explicit_close(server, browser, viewport)
         assert p.locator('.modal').count() == 0
     finally:
         student.close()
+
+
+def test_back_during_submit_and_failed_submit(server, browser):  # noqa: F811
+    base, _ = server
+    student = Session(browser, base, 'back-pending@test.ac.kr', MOBILE, service_workers='block')
+    p = student.page
+    try:
+        student.go('/my-bookings')
+        url = p.url
+        p.evaluate('''async () => {
+          const {modal,h}=await import('/static/js/ui.js');
+          window.submitCount=0;
+          window.dialogResult='waiting';
+          modal('제출 검사',h('p',{},'검사'),[{label:'저장',handler:()=>{
+            window.submitCount++;
+            return new Promise(resolve=>window.finishSubmit=resolve);
+          }}],{closeOnBack:true}).then(value=>window.dialogResult=value);
+        }''')
+        p.get_by_role('button', name='저장', exact=True).click()
+        p.go_back()
+        p.wait_for_function('history.state?.classbridgeModal')
+        assert p.locator('.modal').is_visible()
+        assert p.get_by_role('button', name='저장', exact=True).is_disabled()
+        p.evaluate('finishSubmit(false)')
+        p.get_by_role('button', name='저장', exact=True).click()
+        assert p.evaluate('submitCount') == 2
+        p.evaluate('finishSubmit(true)')
+        p.locator('.modal').wait_for(state='detached')
+        assert p.url == url
+        assert p.evaluate('dialogResult') is True
+    finally:
+        student.close()
