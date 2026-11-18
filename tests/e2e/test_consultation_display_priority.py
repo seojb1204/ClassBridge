@@ -45,6 +45,17 @@ def test_consultation_hides_only_overlapping_lecture_time(server, browser, width
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         page.screenshot(path=str(SHOTS / f'consultation_priority_{width}_{short}.png'), full_page=True)
         if width == 390:
+            page.evaluate("renderTestMode('timeline')")
+            assert lectures.count() == 2
+            cb = consultation.bounding_box()
+            for lecture in lectures.all():
+                lb = lecture.bounding_box()
+                assert lb['y'] + lb['height'] <= cb['y'] + 1 or cb['y'] + cb['height'] <= lb['y'] + 1
+                assert abs(lb['width'] - cb['width']) <= 2
+            consultation.click()
+            assert page.evaluate('selectedSlot.id') == 201
+            lectures.first.click()
+            assert page.evaluate('selectedSlot === originalLecture')
             page.evaluate("renderTestMode('list')")
             # Fully covered lectures stay available in the list for management.
             assert page.locator('[data-event-type="lecture"]').count() == 2
