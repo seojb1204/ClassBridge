@@ -17,14 +17,18 @@ def test_lecture_roles_and_weekly(clients):
     assert all(x["event_type"] == "lecture" and not x["bookable"] for x in r.json())
 
 
-def test_lecture_blocks_booking_preserves_slot(clients):
+def test_registered_consultation_overrides_lecture(clients):
     p, s = clients["prof"], clients["s1"]
     ids = make_slots(p)
     assert p.post("/api/lectures", json=body()).status_code == 201
     listed = s.get("/api/slots", params={"start": future_day().isoformat()}).json()
-    assert all(not x["bookable"] and x["reason"] == "강의 시간" for x in listed)
+    assert all(x["bookable"] and x["reason"] == "" for x in listed)
+    days = s.get("/api/slots/available-days").json()
+    assert any(d["date"] == future_day().isoformat() for d in days)
     r = s.post("/api/bookings", json={"slot_id": ids[0]})
-    assert r.status_code == 409, r.text
+    assert r.status_code == 201, r.text
+    moved = s.post(f"/api/bookings/{r.json()['id']}/reschedule", json={"new_slot_id": ids[1]})
+    assert moved.status_code == 200, moved.text
 
 
 def test_existing_booking_prevents_lecture(clients):
@@ -56,3 +60,16 @@ def test_invalid_time_and_title(clients):
     value = body()
     value.update(start_time="19:00", end_time="21:00")
     assert p.post("/api/lectures", json=value).status_code == 201
+
+
+def test_priority_preserves_capacity_and_staff_booking(clients):
+    p, s1, s2 = clients['prof'], clients['s1'], clients['s2']
+    ids = make_slots(p)
+    assert p.post('/api/lectures', json=body()).status_code == 201
+    student_id = s1.get('/api/me').json()['id']
+    r = p.post('/api/bookings', json={'slot_id': ids[0], 'student_id': student_id})
+    assert r.status_code == 201, r.text
+    assert s2.post('/api/bookings', json={'slot_id': ids[0]}).status_code == 409
+    listed = s2.get('/api/slots', params={'start': future_day().isoformat()}).json()
+    full = next(x for x in listed if x['id'] == ids[0])
+    assert not full['bookable'] and full['reason'] == '마감'

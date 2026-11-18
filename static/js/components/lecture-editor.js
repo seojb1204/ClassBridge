@@ -15,7 +15,7 @@ function editorFields(refresh, row = null, seed = null) {
   const body = h('div', {}, field('강의명', title), field('날짜', date),
     field('시작 (한국 시간)', start), field('종료 (한국 시간)', end), field('강의실 (선택)', location),
     row ? h('p', { class: 'muted' }, '수정은 이번 강의에만 적용됩니다.') : field('같은 요일로 총 몇 주', weeks, '이번 주 포함 · 1~26주'),
-    h('p', { class: 'notice' }, '강의는 상담과 같은 시간표에 표시됩니다. 강의 시간에는 새 상담 예약이 차단됩니다. 기존 예약과 겹치는 강의는 저장되지 않습니다.'),
+    h('p', { class: 'notice' }, '강의는 상담과 같은 시간표에 표시됩니다. 겹치는 시간에 등록된 상담이 있으면 상담 표시와 예약이 우선합니다. 기존 예약과 겹치는 강의는 저장되지 않습니다.'),
     row ? field('삭제 범위', cancelScope) : null);
   const save = async () => {
     try {

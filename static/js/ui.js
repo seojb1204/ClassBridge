@@ -32,23 +32,46 @@ export function toast(message, kind = "info") {
 export function errorToast(e) { toast(e?.message || String(e), "error"); }
 
 // window.confirm 대신 자체 모달 (브라우저 차단 대화상자 회피)
-export function modal(title, body, actions) {
+export function modal(title, body, actions, { closeOnBack = false } = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById("modal-root");
     const returnFocus = document.activeElement;
     let pending = false;
     let closed = false;
     let box;
-    const close = (value) => {
+    const historyKey = closeOnBack ? `modal-${Date.now()}-${Math.random()}` : null;
+    const originalUrl = location.href;
+    let closing = false;
+    let closeValue = null;
+    const ownsHistory = () => historyKey && history.state?.classbridgeModal === historyKey;
+    const finish = (value) => {
       if (closed) return;
       closed = true;
       document.removeEventListener("keydown", handleKeys);
       window.removeEventListener("hashchange", handleNavigation);
+      window.removeEventListener("popstate", handleBack);
       root.replaceChildren();
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
       resolve(value);
     };
-    const handleNavigation = () => { if (!pending) close(null); };
+    const close = (value) => {
+      if (closed || closing) return;
+      if (ownsHistory() && location.href === originalUrl) {
+        closing = true;
+        closeValue = value;
+        history.back();
+      } else finish(value);
+    };
+    const handleBack = () => {
+      if (ownsHistory()) return;
+      // Do not abandon an in-flight reservation or permit duplicate submissions.
+      if (pending && !closing && location.href === originalUrl) {
+        history.pushState({ ...history.state, classbridgeModal: historyKey }, "", originalUrl);
+        return;
+      }
+      finish(closing ? closeValue : null);
+    };
+    const handleNavigation = () => { if (!pending) finish(null); };
     const focusables = () => [...box.querySelectorAll(
       'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     )].filter((el) => el.getClientRects().length > 0);
@@ -96,6 +119,11 @@ export function modal(title, body, actions) {
       if (e.target === backdrop && !pending) close(null);
     } }, box);
     root.replaceChildren(backdrop);
+    if (closeOnBack) {
+      // Same URL: Back consumes only this dialog entry, leaving the calendar intact.
+      history.pushState({ ...history.state, classbridgeModal: historyKey }, "", originalUrl);
+      window.addEventListener("popstate", handleBack);
+    }
     document.addEventListener("keydown", handleKeys);
     window.addEventListener("hashchange", handleNavigation);
     (focusables()[0] || box).focus({ preventScroll: true });

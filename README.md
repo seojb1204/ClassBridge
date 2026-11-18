@@ -45,3 +45,9 @@ ruff check app tests migrations scripts
 | [deployment.md](docs/deployment.md) | Render·Supabase·Google OAuth 배포, 백업·롤백·장애 대응 |
 | [test-report.md](docs/test-report.md) | 테스트 보고서, 검증된/검증 안 된 항목 구분 |
 | [pre-launch-checklist.md](docs/pre-launch-checklist.md) | 공개 배포 전 사용자 작업 목록 |
+
+### 상담 우선 표시와 예약
+
+등록된 상담은 겹치는 강의보다 우선합니다. 강의가 겹쳐도 상담의 예약·시간 변경·대리 예약 및 예약 가능 날짜 조회에는 강의 차단을 적용하지 않습니다. 정원, 예약 마감, 주말 제한과 권한 검사는 유지합니다. 기존 예약을 침범하는 새 강의 등록은 계속 거부합니다.
+
+학생 상담 예약·변경 작성창에서 휴대폰/브라우저 뒤로가기는 창만 닫습니다. 시간표 URL과 선택 주차는 유지하며, 창을 닫은 다음 뒤로가기는 원래 페이지 이동으로 동작합니다.

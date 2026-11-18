@@ -142,7 +142,7 @@ async function openSlot(root, s, active, policy) {
         return false;
       }
     } },
-  ]);
+  ], { closeOnBack: true });
   if (result === true) {
     toast(active ? "예약이 변경되었습니다." : "예약이 완료되었습니다.", "success");
     await draw(root);
