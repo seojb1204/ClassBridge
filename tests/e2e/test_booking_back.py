@@ -62,7 +62,7 @@ def test_back_during_submit_and_failed_submit(server, browser):  # noqa: F811
         }''')
         p.get_by_role('button', name='저장', exact=True).click()
         p.go_back()
-        p.wait_for_function('history.state?.classbridgeModal')
+        assert p.evaluate('Boolean(history.state?.classbridgeModal)')
         assert p.locator('.modal').is_visible()
         assert p.get_by_role('button', name='저장', exact=True).is_disabled()
         p.evaluate('finishSubmit(false)')
