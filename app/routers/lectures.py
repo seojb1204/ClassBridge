@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import Principal, require
+from app.core.auth import Principal, require, require_login
 from app.core.errors import NotFound
 from app.core.permissions import P
 from app.db import get_db
@@ -70,6 +70,22 @@ def listing(
         .order_by(Lecture.start_at, Lecture.id)
     )
     return [output(r) for r in rows]
+
+
+@router.get("/calendar")
+def student_calendar(
+    start: date,
+    days: int = Query(7, ge=1, le=90),
+    p: Principal = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Authenticated read-only timetable; no series or author metadata."""
+    a = datetime.combine(start, time(), KST)
+    rows = db.scalars(select(Lecture).where(
+        Lecture.start_at < a + timedelta(days=days), Lecture.end_at > a,
+        Lecture.status == "active").order_by(Lecture.start_at, Lecture.id))
+    return [{**{k: getattr(row, k) for k in ("id", "title", "location", "start_at", "end_at")},
+             "event_type": "lecture", "bookable": False} for row in rows]
 
 
 @router.post("", status_code=201)

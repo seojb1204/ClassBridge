@@ -42,11 +42,12 @@ async function draw(root, revealDay = false) {
   const version = ++drawVersion, path = location.hash;
   // Do not let a quick tap select a slot from the previous date while loading.
   root.querySelectorAll("button[data-slot-id]").forEach((button) => { button.disabled = true; });
-  const [slots, mine, policy, announcement, availableDays] = await Promise.all([
+  const [slots, mine, policy, announcement, availableDays, lectures] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`),
     get("/api/bookings/mine"),
     get("/api/booking-policy"),
     loadAnnouncement(), loadAvailableDays(),
+    get(`/api/lectures/calendar?start=${weekStart}&days=7`),
   ]);
   if (version !== drawVersion || location.hash !== path) return;
   const active = mine.find((b) => b.status === "booked");
@@ -65,7 +66,7 @@ async function draw(root, revealDay = false) {
       " · 취소하지 않고 다른 가능한 시간을 눌러 바로 변경할 수 있습니다.",
       h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
     legend(),
-    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots, selectedDay, mobileView,
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
       onViewChange: (mode) => { mobileView = mode; draw(root); },
@@ -73,16 +74,25 @@ async function draw(root, revealDay = false) {
       onSlot: (s) => openSlot(root, s, active, policy) }),
   );
   if (revealDay) revealSelectedDay(root);
-  prefetchWeeks(weekStart, ['slots']);
+  prefetchWeeks(weekStart, ['slots', 'lectures/calendar']);
 }
 
 function legend() {
   return h("div", { class: "legend" },
     h("span", { class: "lg open" }, "예약 가능"), h("span", { class: "lg mine" }, "내 예약"),
-    h("span", { class: "lg closed" }, "마감·불가"));
+    h("span", { class: "lg closed" }, "마감·불가"),
+    h("span", { class: "lg lecture" }, "강의"));
 }
 
 async function openSlot(root, s, active, policy) {
+  if (s.event_type === "lecture") {
+    await modal("강의 시간", h("div", {}, h("p", {}, s.title),
+      h("p", {}, `${fmtDateTime(s.start_at)} ~ ${kstParts(s.end_at).time}`),
+      s.location ? h("p", {}, `강의실: ${s.location}`) : null,
+      h("p", { class: "muted" }, "강의 일정은 조회만 가능합니다. 상담은 등록된 상담 시간을 선택해 주세요.")),
+    [{ label: "닫기", value: null }], { closeOnBack: true });
+    return;
+  }
   if (s.mine) {
     const result = await modal("내 상담 예약", h("div", { class: "booking-detail" },
       h("p", {}, h("strong", {}, fmtDateTime(s.start_at))),

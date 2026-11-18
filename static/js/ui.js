@@ -25,8 +25,17 @@ export function mount(root, ...nodes) {
 export function toast(message, kind = "info") {
   const box = document.getElementById("toasts");
   const t = h("div", { class: `toast toast-${kind}`, role: kind === "error" ? "alert" : "status" }, message);
+  t.tabIndex = 0;
+  t.setAttribute("aria-label", `${message} · 알림 닫기`);
+  t.style.cursor = "pointer";
+  let timer;
+  const dismiss = () => { clearTimeout(timer); t.remove(); };
+  t.addEventListener("click", dismiss);
+  t.addEventListener("keydown", event => {
+    if (["Enter", " ", "Escape"].includes(event.key)) { event.preventDefault(); dismiss(); }
+  });
   box.append(t);
-  setTimeout(() => t.remove(), kind === "error" ? 6000 : 3500);
+  timer = setTimeout(dismiss, kind === "error" ? 6000 : 3500);
 }
 
 export function errorToast(e) { toast(e?.message || String(e), "error"); }
