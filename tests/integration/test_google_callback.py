@@ -36,7 +36,7 @@ def test_google_login_flow(tmp_path):
     q = parse_qs(urlparse(r.headers["location"]).query)
     assert q["client_id"] == ["cid"] and q["scope"] == ["openid email profile"]
     r = c.get(f"/auth/google/callback?code=abc&state={q['state'][0]}")
-    assert r.status_code == 302 and seen["nonce"] == q["nonce"][0]
+    assert r.status_code == 200 and seen["nonce"] == q["nonce"][0]
     me = c.get("/api/me").json()
     assert me["email"] == "stu@test.ac.kr" and me["role"] == "student"
 
@@ -48,7 +48,7 @@ def test_survey_return_is_signed_and_only_local_numeric_id(tmp_path):
         r = c.get("/auth/google/login", params={"survey": target})
         state = parse_qs(urlparse(r.headers["location"]).query)["state"][0]
         r = c.get("/auth/google/callback", params={"state": state, "code": "ok", "survey": "999"})
-        assert r.status_code == 302 and r.headers["location"] == expected
+        assert r.status_code == 200 and f'href="{expected}"' in r.text
 
 
 def test_state_mismatch_rejected(tmp_path):
@@ -71,7 +71,7 @@ def test_identity_bound_to_sub_not_email(tmp_path):
     """같은 이메일이라도 다른 Google sub이면 기존 계정에 로그인되지 않는다."""
     calls = iter([VerifiedIdentity("sub-A", "same@test.ac.kr", True), VerifiedIdentity("sub-B", "same@test.ac.kr", True)])
     app = _app(tmp_path, lambda s, c, n: next(calls))
-    for expected in (302, 409):
+    for expected in (200, 409):
         c = TestClient(app, follow_redirects=False)
         q = parse_qs(urlparse(c.get("/auth/google/login").headers["location"]).query)
         assert c.get(f"/auth/google/callback?code=abc&state={q['state'][0]}").status_code == expected
@@ -95,7 +95,7 @@ def test_remember_duration_is_signed_and_logout_revokes_session(tmp_path, rememb
     state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
     callback = client.get("/auth/google/callback", params={"state": state, "code": "ok", "remember": not remember})
     ttl = (30 * 24 if remember else app.state.settings.session_ttl_hours) * 3600
-    assert callback.headers["location"] == "/#/surveys/take/42"
+    assert 'href="/#/surveys/take/42"' in callback.text
     assert f"Max-Age={ttl}" in callback.headers["set-cookie"]
     from sqlalchemy.orm import Session
     with Session(app.state.engine) as db:
@@ -106,3 +106,36 @@ def test_remember_duration_is_signed_and_logout_revokes_session(tmp_path, rememb
     assert client.post("/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
     client.cookies.set("cb_session", token)
     assert client.get("/api/me").status_code == 401
+
+
+def test_callback_document_commits_session_without_redirect_chain(tmp_path):
+    calls = []
+    def verifier(s, code, nonce):
+        calls.append(code)
+        return VerifiedIdentity('once', 'once@test.ac.kr', True)
+    app = _app(tmp_path, verifier)
+    client = TestClient(app, follow_redirects=False)
+    state = parse_qs(urlparse(client.get('/auth/google/login').headers['location']).query)['state'][0]
+    path = f'/auth/google/callback?code=one-time&state={state}'
+    result = client.get(path)
+    assert result.status_code == 200 and 'location' not in result.headers
+    assert 'http-equiv="refresh" content="0;url=/"' in result.text
+    assert result.headers['cache-control'] == 'no-store'
+    assert result.headers['referrer-policy'] == 'no-referrer'
+    assert 'one-time' not in result.text and state not in result.text
+    assert client.get('/api/me').status_code == 200
+    assert client.get(path).status_code == 401  # consumed cookie cannot replay login
+    assert calls == ['one-time']
+
+
+def test_exchange_failure_offers_fresh_login_without_token_leak(tmp_path):
+    def verifier(s, code, nonce):
+        raise Unauthorized('secret provider response')
+    client = TestClient(_app(tmp_path, verifier), follow_redirects=False)
+    state = parse_qs(urlparse(client.get('/auth/google/login').headers['location']).query)['state'][0]
+    response = client.get('/auth/google/callback', params={'code': 'private-code', 'state': state})
+    assert response.status_code == 401
+    assert 'href="/auth/google/login"' in response.text
+    assert 'private-code' not in response.text and 'secret provider' not in response.text
+    assert response.headers['cache-control'] == 'no-store'
+    assert client.get('/api/me').status_code == 401

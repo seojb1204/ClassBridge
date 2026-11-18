@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import secrets
+from html import escape
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -68,11 +69,37 @@ def google_callback(request: Request, code: str = "", state: str = "", db: Sessi
     if not code or not secrets.compare_digest(state, data.get("state", "")):
         raise Unauthorized("state 불일치")
     verifier = request.app.state.identity_verifier
-    ident = verifier(s, code, data["nonce"])
+    try:
+        ident = verifier(s, code, data["nonce"])
+    except Unauthorized:
+        # Do not refresh/reuse a one-time authorization code after failure.
+        resp = HTMLResponse(
+            '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>로그인 다시 시도 · ClassBridge</title></head><body>'
+            '<h1>Google 로그인을 완료하지 못했습니다</h1>'
+            '<p>로그인 링크가 만료되었거나 이미 사용되었을 수 있습니다. '
+            '이 화면을 새로고침하지 말고 아래 버튼으로 다시 시작해 주세요.</p>'
+            '<p><a href="/auth/google/login">Google 로그인 다시 시작</a></p>'
+            '<p><a href="/">ClassBridge 홈으로</a></p></body></html>', status_code=401,
+        )
+        resp.delete_cookie(OAUTH_COOKIE, path="/auth")
+        return resp
     user = user_service.login_or_register(db, s, ident)
     survey = data.get("survey", "")
     target = f"/#/surveys/take/{survey}" if re.fullmatch(r"[1-9][0-9]{0,9}", survey) else "/"
-    resp = RedirectResponse(target, status_code=302)
+    # Commit the login cookies in a document before starting a fresh navigation.
+    # A redirect into a service-worker-controlled root can replay the callback.
+    safe_target = escape(target, quote=True)
+    resp = HTMLResponse(
+        '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f'<meta http-equiv="refresh" content="0;url={safe_target}">'
+        '<title>로그인 완료 · ClassBridge</title></head><body>'
+        '<h1>로그인되었습니다</h1>'
+        f'<p><a href="{safe_target}">ClassBridge로 이동</a></p></body></html>',
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
     resp.delete_cookie(OAUTH_COOKIE, path="/auth")
     _start_session(request, db, user, resp, remember=data.get("remember") is True)
     return resp

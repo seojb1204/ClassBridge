@@ -17,6 +17,9 @@ class AnonymousAccessLogFilter(logging.Filter):
         args = record.args
         if isinstance(args, tuple) and len(args) >= 3:
             method, path = str(args[1]), str(args[2])
+            if path.split("?", 1)[0] == "/auth/google/callback":
+                # Never retain authorization codes or state in application logs.
+                record.args = (*args[:2], path.split("?", 1)[0], *args[3:])
             if ANON_PATHS.match(path) and (method == "POST" or path.startswith("/api/public-surveys/")):
                 return False
         return True
@@ -44,7 +47,10 @@ def install_security_headers(app: FastAPI, hsts: bool) -> None:
         h.setdefault("X-Frame-Options", "DENY")
         h.setdefault("Referrer-Policy", "same-origin")
         h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        if request.url.path.startswith("/api/"):
+        if request.url.path.startswith("/auth/"):
+            h["Cache-Control"] = "no-store"
+            h["Referrer-Policy"] = "no-referrer"
+        elif request.url.path.startswith("/api/"):
             h.setdefault("Cache-Control", "no-store")
         elif request.url.path == "/" or (request.url.path.startswith("/static/")
                                         and request.url.path.endswith((".js", ".css", ".html"))):

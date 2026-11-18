@@ -26,7 +26,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(self.clients.openWindow(event.notification.data?.url || "/#/bookings"));
 });
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.add(OFFLINE)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.add(OFFLINE)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
@@ -41,7 +41,8 @@ self.addEventListener("fetch", (event) => {
   // Do not replace login callbacks, API/download errors, or non-GET operations with HTML.
   if (event.request.method !== "GET" || event.request.mode !== "navigate"
       || url.origin !== self.location.origin || url.pathname !== "/") return;
-  event.respondWith(fetch(event.request).catch(async () => {
+  // Build a fresh request for the current URL, without a navigation redirect chain.
+  event.respondWith(fetch(url.href, { credentials: "same-origin", redirect: "manual", cache: "no-store" }).catch(async () => {
     const offline = await caches.match(OFFLINE);
     return offline || new Response("인터넷 연결을 확인한 뒤 다시 열어 주세요.", {
       status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" },
