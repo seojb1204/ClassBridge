@@ -16,7 +16,8 @@ import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, se
 let weekStart = null;
 let selectedDay = null;
 let mobileView = "week";
-let supportOpen = true;
+// Phones open with the calendar on the first screen; PC keeps the panel open.
+let supportOpen = null;
 let detach = null;
 let drawVersion = 0;
 let showForm = null;
@@ -61,7 +62,8 @@ export async function render(root) {
   weekStart ||= mondayOf(todayKst());
   selectedDay ||= todayKst();
   if (showForm === null) {
-    showForm = !isMobile();
+    // One registration path for every screen: "+ 일정 등록" opens the dedicated page.
+    showForm = false;
     if (isMobile()) {
       const upcoming = await get(`/api/slots?start=${todayKst()}&days=30`);
       const first = upcoming.find((slot) => slot.status === "open");
@@ -93,19 +95,16 @@ async function draw(root, revealDay = false) {
       staffBookingNames: related.map(b => b.applicant_name || b.student_name || "이름 미입력").join(", ") };
   });
   mountCalendarPreservingScroll(root, () => [
-    h("div", { class: "page-head" }, h("h1", {}, "시간표"),
-      h("a", { class: "btn primary", href: "#/slots/new" }, "+ 일정 등록"),
-      h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약"),
-      isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
-        "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
-        showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),
-    h("details", { class: "calendar-support", open: supportOpen,
+    h("div", { class: "page-head slots-head" }, h("h1", {}, "시간표"),
+      h("div", { class: "head-actions" },
+        h("a", { class: "btn primary", href: "#/slots/new" }, "+ 일정 등록"),
+        h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약"))),
+    h("details", { class: "calendar-support", open: supportOpen ?? !isMobile(),
       ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
       h("summary", {}, "공지 · 예약 가능한 날짜"),
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
-    h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침"),
-    calendarLegend(),
+    h("div", { class: "calendar-tools" }, calendarLegend(), isMobile() ? null : refreshButton(root)),
     renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...enhanced.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
@@ -113,11 +112,14 @@ async function draw(root, revealDay = false) {
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => s.event_type === "lecture" ? lectureEditor(() => draw(root), s) : openSlot(root, s, bookings),
       extra: (s) => s.event_type === "lecture" ? null : h("span", { class: "slot-count" }, `${s.capacity - s.remaining}/${s.capacity}명`) }),
-    showForm && !isMobile() ? h("section", { class: "panel", id: "slot-create-panel" },
-      h("h2", {}, "상담 시간 등록"), createForm(root)) : null,
+    isMobile() ? h("div", { class: "calendar-tools" }, refreshButton(root)) : null,
   ]);
   if (revealDay) revealSelectedDay(root);
   prefetchWeeks(weekStart, ['slots', 'bookings', 'lectures']);
+}
+
+function refreshButton(root) {
+  return h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침");
 }
 
 function createForm(root, seed = null) {

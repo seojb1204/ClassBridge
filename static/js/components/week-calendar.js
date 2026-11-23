@@ -73,7 +73,7 @@ function slotLabel(s) {
   if (s.staffBookingNames) return s.reason === "마감"
     ? s.staffBookingNames : `${s.staffBookingNames} · ${s.reason || "예약"}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
-  if (s.managerState === "free") return "빈 상담";
+  if (s.managerState === "free") return "상담 가능";
   const kind = s.kind === "group" ? `단체 · 남은 ${s.remaining}/${s.capacity}` : "개인";
   if (s.status === "cancelled") return "취소됨";
   if (s.mine) return `내 예약 · ${kind}`;
@@ -139,7 +139,7 @@ function renderMobile(o, byDay) {
   const days = Array.from({ length: 5 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle, o.navigation,
     o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[4])}`),
-    h("p", { class: "hint calendar-help" }, "좌우로 밀거나 화살표를 눌러 주를 바꿀 수 있습니다. 작은 일정은 목록형에서 자세히 볼 수 있어요."),
+    h("p", { class: "hint calendar-help" }, "좌우로 밀어 주 이동 · 작은 일정은 목록형에서 크게 볼 수 있어요."),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
@@ -209,7 +209,9 @@ function renderWeekly(o, byDay) {
         h("span", { class: "slot-time" }, a.time, h("span", { class: "slot-time-end" }, `–${b.time}`)),
         h("span", { class: "slot-meta" }, o.compactGrid
           ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? s.title : s.status === "cancelled" ? "취소"
-            : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
+            : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명`
+              // Same words as the legend: staff "상담 가능", students "예약 가능".
+              : s.managerState === "free" ? "상담 가능" : "예약 가능"))
           : slotLabel(s)),
         o.extra && !o.compactGrid ? o.extra(s) : null);
       // CSS grid line numbers must be integers (e.g. a 09:05 lecture).

@@ -701,3 +701,25 @@ textarea { line-height: 1.75; }
 .modal:has(.booking-detail) > .modal-actions { flex-shrink: 0; }
 .modal:has(.booking-detail) > .modal-body { min-height: 0; overflow-y: auto; }
 .booking-detail p { margin: .35rem 0; }
+
+/* 2026-11-23 UX priority pass: calendar first, readable slots, one registration path. */
+.slot-meta { word-break: keep-all; overflow-wrap: anywhere; }
+@media (min-width: 721px) {
+  /* 30-minute cards are 34px tall on PC: keep time and label on one line when they fit. */
+  .week-grid .slot.compact-short { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: .35rem;
+    padding-block: .1rem; line-height: 1.15; }
+  .available-day-buttons { grid-template-columns: repeat(auto-fill, minmax(120px, 168px)); }
+}
+.calendar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .75rem; margin: .5rem 0; }
+.calendar-tools .legend { margin-bottom: 0; }
+.slots-head .head-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.notice.booking-active { padding: .55rem .85rem; line-height: 1.5; }
+.notice.booking-active a { white-space: nowrap; font-weight: 600; }
+.refresh-status[hidden] { display: none; }
+@media (max-width: 720px) {
+  .slots-head { margin-bottom: .5rem; }
+  .slots-head .head-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .slots-head .head-actions .btn { min-height: 44px; justify-content: center; text-align: center; }
+  .notice.booking-active { margin-bottom: .6rem; font-size: .9rem; }
+  .calendar-help { margin: .35rem 0; font-size: .8rem; line-height: 1.45; }
+}

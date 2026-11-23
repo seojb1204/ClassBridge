@@ -33,7 +33,7 @@ export async function render(root) {
   await draw(root);
   watchRefresh(root, () => draw(root), () => {
     const label = root.querySelector('.refresh-status');
-    if (label) label.textContent = '자동 갱신 실패 · 연결을 확인하고 새로고침하세요.';
+    if (label) { label.hidden = false; label.textContent = '예약 현황을 자동으로 갱신하지 못했습니다. 연결을 확인한 뒤 화면을 새로고침해 주세요.'; }
   });
 }
 
@@ -51,20 +51,17 @@ async function draw(root, revealDay = false) {
   ]);
   if (version !== drawVersion || location.hash !== path) return;
   const active = mine.find((b) => b.status === "booked");
+  // Calendar first: the page refreshes itself (30s, focus, tab return), so no
+  // manual refresh row; the booking guide moves below the calendar.
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
-    h("div", { class: "actions" },
-      h("small", { class: "muted refresh-status" }, "30초마다 갱신 · 최종 확인 " + new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul' })),
-      h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침")),
+    h("p", { class: "muted refresh-status", role: "status", hidden: true }),
     announcementPanel(announcement),
     availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
-    h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
-      h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
-        `시작 ${policy.booking_deadline_minutes}분 전까지 신규 예약할 수 있습니다. 기존 예약의 시간 변경에는 이 ${policy.booking_window_days}일 범위 제한이 없습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
-    active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
+    active ? h("div", { class: "notice booking-active", role: "status" }, "예약 확정: ",
       h("strong", {}, fmtDateTimeRange(active.slot.start_at, active.slot.end_at)),
-      " · 취소하지 않고 다른 가능한 시간을 눌러 바로 변경할 수 있습니다.",
-      h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
+      " · 다른 ‘예약 가능’ 시간을 누르면 취소 없이 변경됩니다. ",
+      h("a", { href: "#/my-bookings" }, "예약 내역")) : null,
     calendarLegend(true),
     renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
@@ -72,6 +69,9 @@ async function draw(root, revealDay = false) {
       onViewChange: (mode) => { mobileView = mode; draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
+    h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
+      h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
+        `시작 ${policy.booking_deadline_minutes}분 전까지 신규 예약할 수 있습니다. 기존 예약의 시간 변경에는 이 ${policy.booking_window_days}일 범위 제한이 없습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
   );
   if (revealDay) revealSelectedDay(root);
   prefetchWeeks(weekStart, ['slots', 'lectures/calendar']);
