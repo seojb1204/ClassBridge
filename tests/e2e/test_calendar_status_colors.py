@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from tests.e2e.test_e2e import browser, server  # noqa: F401
+from tests.e2e.test_e2e import SHOTS, browser, server  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E 미설정")
 
@@ -53,7 +53,7 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         if width < 720 and mode == "week":
             assert lecture.locator('.slot-meta').evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
-        page.screenshot(path=f"/tmp/classbridge-{width}-{mode}.png", full_page=True)
+        page.screenshot(path=str(SHOTS / f"classbridge-{width}-{mode}.png"), full_page=True)
         available = page.locator(".slot.open").first
         reserved = page.locator(".slot.reserved").first
         assert available.is_visible() and reserved.is_visible()

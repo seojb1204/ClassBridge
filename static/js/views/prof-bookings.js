@@ -7,7 +7,7 @@ import { staffToday } from "../components/staff-today.js";
 import { bookingActivity, eventLabels } from "../components/booking-activity.js";
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { calendarGet, clearCalendarCache, get, post, put } from "../api.js";
-import { addDays, fmtDateTime, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
+import { addDays, fmtDateTime, fmtDateTimeRange, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { isMobile, onLayoutChange, calendarLegend, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
   STATUS_LABEL, badge, empty, errorToast, field, h, modal, mount, promptText, select, toast,
@@ -85,7 +85,7 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
       document.querySelector("#modal-root .modal-actions button")?.click();
     });
     const result = await modal("예약·상담 상세", h("div", { class: "booking-detail" },
-      h("p", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`),
+      h("p", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at)),
       picker ? field("학생 선택", picker) : null,
       h("p", {}, `${b.applicant_name || b.student_name} · ${STATUS_LABEL[b.status]}`),
       h("p", { class: "muted" }, [b.student_number, b.grade ? `${b.grade}학년` : "", b.student_email].filter(Boolean).join(" · ")),
@@ -219,7 +219,7 @@ function mobileList(root, list) {
     if (b.status === "booked") clocks.push({ start: b.slot.start_at, time });
     const summary = h("summary", {},
       h("strong", {}, b.applicant_name || b.student_name, " · ", b.student_number || "학번 미입력"),
-      h("span", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`, time));
+      h("span", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at), time));
     cards.append(h("details", { class: "card", dataset: { bookingId: b.id } }, summary,
       h("p", {}, badge(STATUS_LABEL[b.status], b.status), " ", bookingType(b)),
       h("p", { class: "muted" }, [b.grade && b.grade + "학년", b.student_email].filter(Boolean).join(" · ")),

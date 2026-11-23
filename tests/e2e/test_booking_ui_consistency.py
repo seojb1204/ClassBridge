@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from tests.e2e.test_e2e import Session, browser, server  # noqa: F401
+from tests.e2e.test_e2e import SHOTS, Session, browser, server  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E 미설정")
 
@@ -53,6 +53,7 @@ def test_shared_editor_preserves_notes_and_allows_outcome_correction(server, bro
     assert writes[-1][1] == {"outcome": "completed"}
     assert dialog.get_by_role("button", name="미참석", exact=True).is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.screenshot(path=str(SHOTS / f"booking-editor-{width}.png"), full_page=True)
     page.close()
 
 

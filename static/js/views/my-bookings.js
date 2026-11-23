@@ -2,7 +2,7 @@
 import { watchRefresh } from "../live-refresh.js";
 import { get, post } from "../api.js";
 import { downloadConsultationIcs } from "../calendar-ics.js";
-import { fmtDateTime, fmtTime } from "../time.js";
+import { fmtDateTime, fmtDateTimeRange } from "../time.js";
 import { STATUS_LABEL, badge, busy, confirmAction, empty, errorToast, h, modal, mount, toast } from "../ui.js";
 
 export async function render(root) {
@@ -28,7 +28,7 @@ function item(root, b) {
     await render(root);
   }));
   return h("div", { class: `card booking ${b.status}`, dataset: { bookingId: b.id } },
-    h("div", { class: "row" }, h("strong", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`), badge(b.status === "cancelled" && b.cancel_reason === "예약 변경" ? "변경 전 기록" : STATUS_LABEL[b.status], b.status)),
+    h("div", { class: "row" }, h("strong", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at)), badge(b.status === "cancelled" && b.cancel_reason === "예약 변경" ? "변경 전 기록" : STATUS_LABEL[b.status], b.status)),
     h("span", { class: "muted" }, b.slot.kind === "group" ? "단체 상담" : "개인 상담",
       b.slot.location ? ` · ${b.slot.location}` : ""),
     h("p", { class: "muted" },
