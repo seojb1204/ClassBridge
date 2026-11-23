@@ -44,6 +44,12 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
             {'date': '2026-11-17', 'count': 3}, {'date': '2026-11-18', 'count': 4},
             {'date': '2026-11-19', 'count': 4}]))
         p.reload()
+        support = p.locator('.calendar-support')
+        support.wait_for(state='attached')
+        if width <= 720:
+            # Phones start calendar-first with the support panel closed.
+            assert support.get_attribute('open') is None
+            support.locator('summary').click()
         p.locator('.available-day-buttons').wait_for()
         assert p.locator('.available-day-buttons').evaluate('e => e.scrollWidth <= e.clientWidth')
         assert p.evaluate('document.documentElement.scrollWidth <= window.innerWidth')

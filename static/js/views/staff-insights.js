@@ -37,7 +37,7 @@ function overviewView(data) {
   const percent = data.completion_rate === null ? "—" : `${data.completion_rate}%`;
   return h("div", { class: "insight-overview" },
     h("p", { class: "muted" },
-      `${data.period_start} ~ ${data.period_end}에 상담이 시작하는 예약 기준 · 상태별 건수`),
+      `지난 ${data.days}일 + 앞으로 ${data.upcoming_days || 14}일 (${data.period_start} ~ ${data.period_end})에 상담이 시작하는 예약 기준 · 상태별 건수`),
     h("div", { class: "insight-metrics" },
       metric("기간 내 전체 예약", data.total_bookings),
       metric("예약 중", counts.booked),
@@ -84,7 +84,7 @@ function notesView(data, refresh, goToOffset) {
         h("button", { class: "btn small", type: "button",
           onclick: () => editNote(item, refresh) }, "상담 기록 수정"))))
       : h("p", { class: "empty" }, "검색 조건에 맞는 작성된 상담 기록이 없습니다."),
-    h("div", { class: "insight-pagination" },
+    data.total <= LIMIT ? null : h("div", { class: "insight-pagination" },
       h("button", { class: "btn", type: "button", disabled: offset === 0,
         onclick: () => goToOffset(Math.max(0, offset - LIMIT)) }, "이전"),
       h("span", { class: "muted" }, `${data.total ? Math.floor(offset / LIMIT) + 1 : 0} 페이지`),
@@ -93,8 +93,8 @@ function notesView(data, refresh, goToOffset) {
 }
 
 export async function render(root) {
-  const periodPicker = select([[7, "최근 7일"], [30, "최근 30일"],
-    [90, "최근 90일"], [365, "최근 1년"]], String(period));
+  const periodPicker = select([[7, "최근 7일 + 앞으로 2주"], [30, "최근 30일 + 앞으로 2주"],
+    [90, "최근 90일 + 앞으로 2주"], [365, "최근 1년 + 앞으로 2주"]], String(period));
   const search = h("input", { type: "search", value: query, maxlength: 80,
     placeholder: "학생 이름·학번·상담 기록 검색", "aria-label": "상담 기록 검색" });
   const statsRoot = h("div", { id: "staff-overview" },
@@ -129,9 +129,10 @@ export async function render(root) {
     period = Number(periodPicker.value);
     loadOverview();
   });
-  mount(root, exportPanel(true),
+  mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 기록·통계"),
       h("p", { class: "muted" }, "교수자·관리자만 볼 수 있는 상담 통계와 비공개 상담 기록입니다.")),
+    exportPanel(true),
     h("section", { class: "insight-section" },
       h("div", { class: "insight-section-head" }, h("h2", {}, "상담 현황"),
         h("label", { class: "insight-period" }, "집계 기간 ", periodPicker)),

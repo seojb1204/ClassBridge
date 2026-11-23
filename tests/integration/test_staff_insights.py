@@ -100,3 +100,16 @@ def test_staff_insights_validates_query_ranges(clients):
                  "/api/staff/notes?limit=0", "/api/staff/notes?limit=51",
                  "/api/staff/notes?offset=-1"):
         assert prof.get(path).status_code == 422, path
+
+
+def test_overview_period_includes_upcoming_bookings(app, clients):
+    """A student booking for later this week is counted, not shown as '예약 중 0'."""
+    prof, s1 = clients["prof"], clients["s1"]
+    first, _ = make_slots(prof)
+    assert s1.post("/api/bookings", json={"slot_id": first}).status_code == 201
+    data = prof.get("/api/staff/overview?days=7").json()
+    assert data["upcoming_14_days"] == 1
+    assert data["status_counts"]["booked"] == 1
+    assert data["total_bookings"] == 1
+    assert data["upcoming_days"] == 14
+    assert data["period_end"] > data["period_start"]

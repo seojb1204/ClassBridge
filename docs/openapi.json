@@ -287,6 +287,86 @@
     }
    }
   },
+  "/api/admin/users/{user_id}/deletion-preview": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Deletion Preview",
+    "operationId": "deletion_preview_api_admin_users__user_id__deletion_preview_get",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/users/{user_id}": {
+   "delete": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Delete User",
+    "operationId": "delete_user_api_admin_users__user_id__delete",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/admin/audit": {
    "get": {
     "tags": [
@@ -354,6 +434,119 @@
         "schema": {
          "$ref": "#/components/schemas/HTTPValidationError"
         }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/staff/booking-events": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Booking Events",
+    "operationId": "booking_events_api_staff_booking_events_get",
+    "parameters": [
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "all",
+        "cancel",
+        "change"
+       ],
+       "type": "string",
+       "default": "all",
+       "title": "Kind"
+      }
+     },
+     {
+      "name": "before_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Before Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 30,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/booking-policy": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Booking Policy",
+    "operationId": "booking_policy_api_booking_policy_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/slots/available-days": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Available Days",
+    "operationId": "available_days_api_slots_available_days_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
        }
       }
      }
@@ -456,6 +649,84 @@
     }
    }
   },
+  "/api/slots/preview": {
+   "post": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Preview Slots",
+    "operationId": "preview_slots_api_slots_preview_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SlotCreateIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/slots/replace": {
+   "post": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Replace Unbooked Slots",
+    "operationId": "replace_unbooked_slots_api_slots_replace_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SlotReplaceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/slots/{slot_id}": {
    "patch": {
     "tags": [
@@ -492,6 +763,39 @@
         "schema": {}
        }
       }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Delete Empty Slot",
+    "operationId": "delete_empty_slot_api_slots__slot_id__delete",
+    "parameters": [
+     {
+      "name": "slot_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Slot Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
      },
      "422": {
       "description": "Validation Error",
@@ -542,105 +846,6 @@
         "schema": {}
        }
       }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/api/blackouts": {
-   "get": {
-    "tags": [
-     "bookings"
-    ],
-    "summary": "List Blackouts",
-    "operationId": "list_blackouts_api_blackouts_get",
-    "responses": {
-     "200": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "items": {
-          "$ref": "#/components/schemas/BlackoutOut"
-         },
-         "type": "array",
-         "title": "Response List Blackouts Api Blackouts Get"
-        }
-       }
-      }
-     }
-    }
-   },
-   "post": {
-    "tags": [
-     "bookings"
-    ],
-    "summary": "Add Blackout",
-    "operationId": "add_blackout_api_blackouts_post",
-    "requestBody": {
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/BlackoutIn"
-       }
-      }
-     },
-     "required": true
-    },
-    "responses": {
-     "201": {
-      "description": "Successful Response",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/BlackoutOut"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/api/blackouts/{blackout_id}": {
-   "delete": {
-    "tags": [
-     "bookings"
-    ],
-    "summary": "Remove Blackout",
-    "operationId": "remove_blackout_api_blackouts__blackout_id__delete",
-    "parameters": [
-     {
-      "name": "blackout_id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "integer",
-       "title": "Blackout Id"
-      }
-     }
-    ],
-    "responses": {
-     "204": {
-      "description": "Successful Response"
      },
      "422": {
       "description": "Validation Error",
@@ -769,6 +974,23 @@
        ],
        "title": "Status"
       }
+     },
+     {
+      "name": "from_date",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "From Date"
+      }
      }
     ],
     "responses": {
@@ -883,6 +1105,119 @@
       "content": {
        "application/json": {
         "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/staff/overview": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Staff Overview",
+    "operationId": "staff_overview_api_staff_overview_get",
+    "parameters": [
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 365,
+       "minimum": 1,
+       "default": 90,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StaffOverviewOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/staff/notes": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Staff Notes",
+    "operationId": "staff_notes_api_staff_notes_get",
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "maxLength": 80,
+       "default": "",
+       "title": "Q"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 50,
+       "minimum": 1,
+       "default": 20,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100000,
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ConsultationNotesPage"
+        }
        }
       }
      },
@@ -1097,6 +1432,282 @@
     }
    }
   },
+  "/api/bookings/{booking_id}/updates": {
+   "get": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Student Updates",
+    "operationId": "student_updates_api_bookings__booking_id__updates_get",
+    "parameters": [
+     {
+      "name": "booking_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Booking Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/bookings/{booking_id}/updates/{event_id}/read": {
+   "post": {
+    "tags": [
+     "bookings"
+    ],
+    "summary": "Read Student Update",
+    "operationId": "read_student_update_api_bookings__booking_id__updates__event_id__read_post",
+    "parameters": [
+     {
+      "name": "booking_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Booking Id"
+      }
+     },
+     {
+      "name": "event_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Event Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/exports/consultations": {
+   "get": {
+    "tags": [
+     "exports"
+    ],
+    "summary": "Export Consultations",
+    "operationId": "export_consultations_api_exports_consultations_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "End"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "xlsx",
+        "csv",
+        "print"
+       ],
+       "type": "string",
+       "default": "xlsx",
+       "title": "Format"
+      }
+     },
+     {
+      "name": "student_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Student Id"
+      }
+     },
+     {
+      "name": "include_numbers",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Numbers"
+      }
+     },
+     {
+      "name": "include_contacts",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Contacts"
+      }
+     },
+     {
+      "name": "include_notes",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Notes"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/surveys/{survey_id}/qr.png": {
+   "get": {
+    "tags": [
+     "surveys"
+    ],
+    "summary": "Survey Qr Png",
+    "operationId": "survey_qr_png_api_surveys__survey_id__qr_png_get",
+    "parameters": [
+     {
+      "name": "survey_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Survey Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/surveys/{survey_id}/qr.svg": {
+   "get": {
+    "tags": [
+     "surveys"
+    ],
+    "summary": "Survey Qr",
+    "operationId": "survey_qr_api_surveys__survey_id__qr_svg_get",
+    "parameters": [
+     {
+      "name": "survey_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Survey Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/surveys": {
    "get": {
     "tags": [
@@ -1104,17 +1715,39 @@
     ],
     "summary": "Staff List",
     "operationId": "staff_list_api_surveys_get",
+    "parameters": [
+     {
+      "name": "trash",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Trash"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "description": "Successful Response",
       "content": {
        "application/json": {
         "schema": {
+         "type": "array",
          "items": {
           "$ref": "#/components/schemas/SurveyStaffListOut"
          },
-         "type": "array",
          "title": "Response Staff List Api Surveys Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
@@ -1128,14 +1761,14 @@
     "summary": "Create",
     "operationId": "create_api_surveys_post",
     "requestBody": {
+     "required": true,
      "content": {
       "application/json": {
        "schema": {
         "$ref": "#/components/schemas/SurveyCreateIn"
        }
       }
-     },
-     "required": true
+     }
     },
     "responses": {
      "201": {
@@ -1609,6 +2242,121 @@
     }
    }
   },
+  "/api/surveys/{sid}/trash": {
+   "post": {
+    "tags": [
+     "surveys"
+    ],
+    "summary": "Trash Survey",
+    "operationId": "trash_survey_api_surveys__sid__trash_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sid"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/surveys/{sid}/restore": {
+   "post": {
+    "tags": [
+     "surveys"
+    ],
+    "summary": "Restore Survey",
+    "operationId": "restore_survey_api_surveys__sid__restore_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sid"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/surveys/{sid}/purge": {
+   "post": {
+    "tags": [
+     "surveys"
+    ],
+    "summary": "Purge Survey",
+    "operationId": "purge_survey_api_surveys__sid__purge_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Sid"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SurveyPurgeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/suggestions": {
    "post": {
     "tags": [
@@ -1705,6 +2453,30 @@
        "default": 0,
        "title": "Offset"
       }
+     },
+     {
+      "name": "trash",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Trash"
+      }
+     },
+     {
+      "name": "order",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "newest",
+        "oldest"
+       ],
+       "type": "string",
+       "default": "newest",
+       "title": "Order"
+      }
      }
     ],
     "responses": {
@@ -1719,6 +2491,84 @@
          },
          "title": "Response Search Api Suggestions Get"
         }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/anonymous": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Submit Anonymous",
+    "operationId": "submit_anonymous_api_suggestions_anonymous_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SuggestionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/search": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Search Content",
+    "operationId": "search_content_api_suggestions_search_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SearchIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
        }
       }
      },
@@ -1777,7 +2627,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/StatusIn"
+        "$ref": "#/components/schemas/app__routers__suggestions__StatusIn"
        }
       }
      }
@@ -1792,6 +2642,684 @@
         }
        }
       }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/public": {
+   "get": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Public Board",
+    "operationId": "public_board_api_suggestions_public_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SuggestionOut"
+         },
+         "title": "Response Public Board Api Suggestions Public Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/trash/preview": {
+   "get": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Preview Trash",
+    "operationId": "preview_trash_api_suggestions_trash_preview_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/trash/empty": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Empty Trash",
+    "operationId": "empty_trash_api_suggestions_trash_empty_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/EmptyTrashIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/trash/delete-selected": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Delete Selected Trash",
+    "operationId": "delete_selected_trash_api_suggestions_trash_delete_selected_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeleteSelectedTrashIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/{sid}/replies": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Add Reply",
+    "operationId": "add_reply_api_suggestions__sid__replies_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Sid"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReplyIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReplyOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/{sid}/trash": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Trash Suggestion",
+    "operationId": "trash_suggestion_api_suggestions__sid__trash_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Sid"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/{sid}/restore": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Restore Suggestion",
+    "operationId": "restore_suggestion_api_suggestions__sid__restore_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Sid"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/{sid}/purge": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Purge Suggestion",
+    "operationId": "purge_suggestion_api_suggestions__sid__purge_post",
+    "parameters": [
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Sid"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PurgeIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/suggestions/receipt": {
+   "post": {
+    "tags": [
+     "suggestions"
+    ],
+    "summary": "Receipt",
+    "operationId": "receipt_api_suggestions_receipt_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReceiptIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/counts": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Counts",
+    "operationId": "counts_api_support_counts_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/tickets": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Tickets",
+    "operationId": "tickets_api_support_tickets_get",
+    "parameters": [
+     {
+      "name": "inbox",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Inbox"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Create",
+    "operationId": "create_api_support_tickets_post",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TicketIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/tickets/{tid}": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Detail",
+    "operationId": "detail_api_support_tickets__tid__get",
+    "parameters": [
+     {
+      "name": "tid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tid"
+      }
+     },
+     {
+      "name": "inbox",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Inbox"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/tickets/{tid}/read": {
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Mark Read",
+    "operationId": "mark_read_api_support_tickets__tid__read_post",
+    "parameters": [
+     {
+      "name": "tid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tid"
+      }
+     },
+     {
+      "name": "inbox",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Inbox"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReadIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/tickets/{tid}/messages": {
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Respond",
+    "operationId": "respond_api_support_tickets__tid__messages_post",
+    "parameters": [
+     {
+      "name": "tid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tid"
+      }
+     },
+     {
+      "name": "inbox",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Inbox"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MessageIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/support/tickets/{tid}/status": {
+   "put": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Status",
+    "operationId": "status_api_support_tickets__tid__status_put",
+    "parameters": [
+     {
+      "name": "tid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tid"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__routers__support__StatusIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
      },
      "422": {
       "description": "Validation Error",
@@ -1823,6 +3351,1078 @@
      },
      "required": true
     },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/announcement": {
+   "get": {
+    "tags": [
+     "announcement"
+    ],
+    "summary": "Get Announcement",
+    "operationId": "get_announcement_api_announcement_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "announcement"
+    ],
+    "summary": "Put Announcement",
+    "operationId": "put_announcement_api_announcement_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AnnouncementIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/public-surveys/{token}": {
+   "get": {
+    "tags": [
+     "public-surveys"
+    ],
+    "summary": "Read",
+    "operationId": "read_api_public_surveys__token__get",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/public-surveys/{token}/responses": {
+   "post": {
+    "tags": [
+     "public-surveys"
+    ],
+    "summary": "Submit",
+    "operationId": "submit_api_public_surveys__token__responses_post",
+    "parameters": [
+     {
+      "name": "token",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubmitIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/site/qr.png": {
+   "get": {
+    "tags": [
+     "site"
+    ],
+    "summary": "Site Qr Png",
+    "operationId": "site_qr_png_api_site_qr_png_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/site/qr.svg": {
+   "get": {
+    "tags": [
+     "site"
+    ],
+    "summary": "Site Qr",
+    "operationId": "site_qr_api_site_qr_svg_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/notification-summary": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Notification Summary",
+    "operationId": "notification_summary_api_admin_notification_summary_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/push-config": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Push Config",
+    "operationId": "push_config_api_admin_push_config_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/push-subscription": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Subscribe",
+    "operationId": "subscribe_api_admin_push_subscription_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Body"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Unsubscribe",
+    "operationId": "unsubscribe_api_admin_push_subscription_delete",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/personal-alerts": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Read Preferences",
+    "operationId": "read_preferences_api_admin_personal_alerts_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Save Preferences",
+    "operationId": "save_preferences_api_admin_personal_alerts_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Preferences"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/push-device-state": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Device State",
+    "operationId": "device_state_api_admin_push_device_state_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeviceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/push-device-remove": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Remove Device",
+    "operationId": "remove_device_api_admin_push_device_remove_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeviceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/push-test": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Test Device",
+    "operationId": "test_device_api_admin_push_test_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeviceIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/email-delivery": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Email Delivery",
+    "operationId": "email_delivery_api_admin_email_delivery_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/EmailDelivery"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/notifications": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Notifications",
+    "operationId": "notifications_api_admin_notifications_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/notifications/{notification_id}/resolve": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Resolve Notification",
+    "operationId": "resolve_notification_api_admin_notifications__notification_id__resolve_post",
+    "parameters": [
+     {
+      "name": "notification_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Notification Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/NotificationResolveIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/inbox": {
+   "get": {
+    "tags": [
+     "inbox"
+    ],
+    "summary": "Listing",
+    "operationId": "listing_api_inbox_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 100,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "before_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Before Id"
+      }
+     },
+     {
+      "name": "unread_only",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Unread Only"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/inbox/read-all": {
+   "put": {
+    "tags": [
+     "inbox"
+    ],
+    "summary": "Read All",
+    "operationId": "read_all_api_inbox_read_all_put",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/inbox/{notification_id}/read": {
+   "put": {
+    "tags": [
+     "inbox"
+    ],
+    "summary": "Read",
+    "operationId": "read_api_inbox__notification_id__read_put",
+    "parameters": [
+     {
+      "name": "notification_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Notification Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/inbox/{notification_id}/target": {
+   "get": {
+    "tags": [
+     "inbox"
+    ],
+    "summary": "Target",
+    "description": "Resolve only an owned, arrived notification. No schema migration or inferred IDs.",
+    "operationId": "target_api_inbox__notification_id__target_get",
+    "parameters": [
+     {
+      "name": "notification_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Notification Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/staff-reminders": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Listing",
+    "operationId": "listing_api_admin_staff_reminders_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Create",
+    "operationId": "create_api_admin_staff_reminders_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Create"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/admin/staff-reminders/{identifier}/cancel": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Cancel",
+    "operationId": "cancel_api_admin_staff_reminders__identifier__cancel_put",
+    "parameters": [
+     {
+      "name": "identifier",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Identifier"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/lectures": {
+   "get": {
+    "tags": [
+     "lectures"
+    ],
+    "summary": "Listing",
+    "operationId": "listing_api_lectures_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "Start"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 90,
+       "minimum": 1,
+       "default": 7,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "lectures"
+    ],
+    "summary": "Create",
+    "operationId": "create_api_lectures_post",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LectureInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/lectures/calendar": {
+   "get": {
+    "tags": [
+     "lectures"
+    ],
+    "summary": "Student Calendar",
+    "description": "Authenticated read-only timetable; no series or author metadata.",
+    "operationId": "student_calendar_api_lectures_calendar_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "Start"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 90,
+       "minimum": 1,
+       "default": 7,
+       "title": "Days"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/lectures/{identifier}": {
+   "patch": {
+    "tags": [
+     "lectures"
+    ],
+    "summary": "Update",
+    "operationId": "update_api_lectures__identifier__patch",
+    "parameters": [
+     {
+      "name": "identifier",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Identifier"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LectureInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/lectures/{identifier}/cancel": {
+   "post": {
+    "tags": [
+     "lectures"
+    ],
+    "summary": "Cancel",
+    "operationId": "cancel_api_lectures__identifier__cancel_post",
+    "parameters": [
+     {
+      "name": "identifier",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Identifier"
+      }
+     },
+     {
+      "name": "series",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Series"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -1889,6 +4489,38 @@
     ],
     "title": "AnalyzeIn"
    },
+   "AnnouncementIn": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Title"
+     },
+     "body": {
+      "type": "string",
+      "maxLength": 2000,
+      "title": "Body"
+     },
+     "published": {
+      "type": "boolean",
+      "title": "Published"
+     },
+     "revision": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Revision"
+     }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+     "title",
+     "body",
+     "published",
+     "revision"
+    ],
+    "title": "AnnouncementIn"
+   },
    "AuditOut": {
     "properties": {
      "id": {
@@ -1941,50 +4573,6 @@
     ],
     "title": "AuditOut"
    },
-   "BlackoutIn": {
-    "properties": {
-     "day": {
-      "type": "string",
-      "format": "date",
-      "title": "Day"
-     },
-     "reason": {
-      "type": "string",
-      "maxLength": 200,
-      "title": "Reason",
-      "default": ""
-     }
-    },
-    "type": "object",
-    "required": [
-     "day"
-    ],
-    "title": "BlackoutIn"
-   },
-   "BlackoutOut": {
-    "properties": {
-     "id": {
-      "type": "integer",
-      "title": "Id"
-     },
-     "day": {
-      "type": "string",
-      "format": "date",
-      "title": "Day"
-     },
-     "reason": {
-      "type": "string",
-      "title": "Reason"
-     }
-    },
-    "type": "object",
-    "required": [
-     "id",
-     "day",
-     "reason"
-    ],
-    "title": "BlackoutOut"
-   },
    "BookingCancelIn": {
     "properties": {
      "reason": {
@@ -2019,6 +4607,52 @@
       "maxLength": 500,
       "title": "Topic",
       "default": ""
+     },
+     "applicant_name": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Applicant Name",
+      "default": ""
+     },
+     "student_number": {
+      "type": "string",
+      "maxLength": 30,
+      "title": "Student Number",
+      "default": ""
+     },
+     "grade": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Grade"
+     },
+     "consultation_type": {
+      "type": "string",
+      "enum": [
+       "career",
+       "employment",
+       "academics",
+       "campus",
+       "other"
+      ],
+      "title": "Consultation Type",
+      "default": "other"
+     },
+     "consultation_mode": {
+      "type": "string",
+      "enum": [
+       "in_person",
+       "online"
+      ],
+      "title": "Consultation Mode",
+      "default": "in_person"
      }
     },
     "type": "object",
@@ -2033,6 +4667,17 @@
       "type": "integer",
       "title": "New Slot Id"
      },
+     "expected_slot_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expected Slot Id"
+     },
      "reason": {
       "type": "string",
       "maxLength": 500,
@@ -2045,6 +4690,182 @@
      "new_slot_id"
     ],
     "title": "BookingRescheduleIn"
+   },
+   "ConsultationNoteOut": {
+    "properties": {
+     "booking_id": {
+      "type": "integer",
+      "title": "Booking Id"
+     },
+     "start_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Start At"
+     },
+     "student_name": {
+      "type": "string",
+      "title": "Student Name"
+     },
+     "student_number": {
+      "type": "string",
+      "title": "Student Number"
+     },
+     "consultation_type": {
+      "type": "string",
+      "title": "Consultation Type"
+     },
+     "consultation_mode": {
+      "type": "string",
+      "title": "Consultation Mode"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "booking_id",
+     "start_at",
+     "student_name",
+     "student_number",
+     "consultation_type",
+     "consultation_mode",
+     "status",
+     "note"
+    ],
+    "title": "ConsultationNoteOut"
+   },
+   "ConsultationNotesPage": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ConsultationNoteOut"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "items"
+    ],
+    "title": "ConsultationNotesPage"
+   },
+   "Create": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "recipient_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Recipient Id"
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 240,
+      "minLength": 1,
+      "title": "Message"
+     },
+     "scheduled_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Scheduled At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "recipient_id",
+     "message",
+     "scheduled_at"
+    ],
+    "title": "Create"
+   },
+   "DeleteSelectedTrashIn": {
+    "properties": {
+     "confirmation": {
+      "type": "string",
+      "const": "영구 삭제",
+      "title": "Confirmation"
+     },
+     "ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "minItems": 1,
+      "title": "Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "confirmation",
+     "ids"
+    ],
+    "title": "DeleteSelectedTrashIn"
+   },
+   "DeviceIn": {
+    "properties": {
+     "endpoint": {
+      "type": "string",
+      "title": "Endpoint"
+     }
+    },
+    "type": "object",
+    "required": [
+     "endpoint"
+    ],
+    "title": "DeviceIn"
+   },
+   "EmailDelivery": {
+    "properties": {
+     "paused": {
+      "type": "boolean",
+      "title": "Paused"
+     }
+    },
+    "type": "object",
+    "required": [
+     "paused"
+    ],
+    "title": "EmailDelivery"
+   },
+   "EmptyTrashIn": {
+    "properties": {
+     "confirmation": {
+      "type": "string",
+      "const": "영구 삭제",
+      "title": "Confirmation"
+     },
+     "ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 10000,
+      "title": "Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "confirmation",
+     "ids"
+    ],
+    "title": "EmptyTrashIn"
    },
    "EventOut": {
     "properties": {
@@ -2092,6 +4913,52 @@
     },
     "type": "object",
     "title": "HTTPValidationError"
+   },
+   "LectureInput": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+     },
+     "location": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Location",
+      "default": ""
+     },
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "start_time": {
+      "type": "string",
+      "format": "time",
+      "title": "Start Time"
+     },
+     "end_time": {
+      "type": "string",
+      "format": "time",
+      "title": "End Time"
+     },
+     "weeks": {
+      "type": "integer",
+      "maximum": 26.0,
+      "minimum": 1.0,
+      "title": "Weeks",
+      "default": 1
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "date",
+     "start_time",
+     "end_time"
+    ],
+    "title": "LectureInput"
    },
    "MeOut": {
     "properties": {
@@ -2154,6 +5021,21 @@
     ],
     "title": "MeOut"
    },
+   "MessageIn": {
+    "properties": {
+     "content": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Content"
+     }
+    },
+    "type": "object",
+    "required": [
+     "content"
+    ],
+    "title": "MessageIn"
+   },
    "MyBookingOut": {
     "properties": {
      "id": {
@@ -2168,6 +5050,33 @@
       "type": "string",
       "title": "Topic"
      },
+     "applicant_name": {
+      "type": "string",
+      "title": "Applicant Name"
+     },
+     "student_number": {
+      "type": "string",
+      "title": "Student Number"
+     },
+     "grade": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Grade"
+     },
+     "consultation_type": {
+      "type": "string",
+      "title": "Consultation Type"
+     },
+     "consultation_mode": {
+      "type": "string",
+      "title": "Consultation Mode"
+     },
      "cancel_reason": {
       "type": "string",
       "title": "Cancel Reason"
@@ -2179,6 +5088,16 @@
      },
      "slot": {
       "$ref": "#/components/schemas/SlotBrief"
+     },
+     "latest_update_id": {
+      "type": "integer",
+      "title": "Latest Update Id",
+      "default": 0
+     },
+     "unread_update": {
+      "type": "boolean",
+      "title": "Unread Update",
+      "default": false
      }
     },
     "type": "object",
@@ -2186,6 +5105,11 @@
      "id",
      "status",
      "topic",
+     "applicant_name",
+     "student_number",
+     "grade",
+     "consultation_type",
+     "consultation_mode",
      "cancel_reason",
      "created_at",
      "slot"
@@ -2207,6 +5131,29 @@
     ],
     "title": "NoteIn"
    },
+   "NotificationResolveIn": {
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "retry",
+       "confirmed_sent",
+       "skip"
+      ],
+      "title": "Action"
+     },
+     "acknowledge": {
+      "type": "boolean",
+      "title": "Acknowledge",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "action"
+    ],
+    "title": "NotificationResolveIn"
+   },
    "OutcomeIn": {
     "properties": {
      "outcome": {
@@ -2223,6 +5170,53 @@
      "outcome"
     ],
     "title": "OutcomeIn"
+   },
+   "Preferences": {
+    "properties": {
+     "daily": {
+      "type": "boolean",
+      "title": "Daily"
+     },
+     "at": {
+      "type": "string",
+      "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+      "title": "At"
+     },
+     "reminder": {
+      "type": "boolean",
+      "title": "Reminder"
+     },
+     "instant": {
+      "type": "boolean",
+      "title": "Instant"
+     },
+     "names": {
+      "type": "boolean",
+      "title": "Names"
+     }
+    },
+    "type": "object",
+    "required": [
+     "daily",
+     "at",
+     "reminder",
+     "instant",
+     "names"
+    ],
+    "title": "Preferences"
+   },
+   "PurgeIn": {
+    "properties": {
+     "confirmation": {
+      "type": "string",
+      "title": "Confirmation"
+     }
+    },
+    "type": "object",
+    "required": [
+     "confirmation"
+    ],
+    "title": "PurgeIn"
    },
    "QuestionIn": {
     "properties": {
@@ -2314,6 +5308,73 @@
     ],
     "title": "QuestionOut"
    },
+   "ReadIn": {
+    "properties": {
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "updated_at"
+    ],
+    "title": "ReadIn"
+   },
+   "ReceiptIn": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "ReceiptIn"
+   },
+   "ReplyIn": {
+    "properties": {
+     "content": {
+      "type": "string",
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Content"
+     }
+    },
+    "type": "object",
+    "required": [
+     "content"
+    ],
+    "title": "ReplyIn"
+   },
+   "ReplyOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "content": {
+      "type": "string",
+      "title": "Content"
+     },
+     "created_on": {
+      "type": "string",
+      "format": "date",
+      "title": "Created On"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "content",
+     "created_on"
+    ],
+    "title": "ReplyOut"
+   },
    "RoleChangeIn": {
     "properties": {
      "role": {
@@ -2331,6 +5392,79 @@
      "role"
     ],
     "title": "RoleChangeIn"
+   },
+   "SearchIn": {
+    "properties": {
+     "query": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Query",
+      "default": ""
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "new",
+         "reviewed",
+         "archived"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "lecture",
+         "assignment",
+         "exam",
+         "facility",
+         "other"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     },
+     "order": {
+      "type": "string",
+      "enum": [
+       "newest",
+       "oldest"
+      ],
+      "title": "Order",
+      "default": "newest"
+     },
+     "trash": {
+      "type": "boolean",
+      "title": "Trash",
+      "default": false
+     },
+     "limit": {
+      "type": "integer",
+      "maximum": 100.0,
+      "minimum": 1.0,
+      "title": "Limit",
+      "default": 50
+     },
+     "offset": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Offset",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "SearchIn"
    },
    "SlotBrief": {
     "properties": {
@@ -2355,6 +5489,11 @@
      "location": {
       "type": "string",
       "title": "Location"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
      }
     },
     "type": "object",
@@ -2530,6 +5669,11 @@
      "reason": {
       "type": "string",
       "title": "Reason"
+     },
+     "can_delete": {
+      "type": "boolean",
+      "title": "Can Delete",
+      "default": false
      }
     },
     "type": "object",
@@ -2548,6 +5692,109 @@
      "reason"
     ],
     "title": "SlotOut"
+   },
+   "SlotReplaceIn": {
+    "properties": {
+     "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Start Date"
+     },
+     "start_time": {
+      "type": "string",
+      "format": "time",
+      "title": "Start Time"
+     },
+     "end_time": {
+      "type": "string",
+      "format": "time",
+      "title": "End Time"
+     },
+     "duration_minutes": {
+      "type": "integer",
+      "maximum": 240.0,
+      "minimum": 5.0,
+      "title": "Duration Minutes"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "individual",
+       "group"
+      ],
+      "title": "Kind",
+      "default": "individual"
+     },
+     "capacity": {
+      "type": "integer",
+      "maximum": 100.0,
+      "minimum": 1.0,
+      "title": "Capacity",
+      "default": 1
+     },
+     "break_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 120.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Break Minutes"
+     },
+     "repeat_weeks": {
+      "type": "integer",
+      "maximum": 26.0,
+      "minimum": 1.0,
+      "title": "Repeat Weeks",
+      "default": 1
+     },
+     "weekdays": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weekdays"
+     },
+     "location": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Location",
+      "default": ""
+     },
+     "note": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Note",
+      "default": ""
+     },
+     "expected_overlap_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 300,
+      "title": "Expected Overlap Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "start_date",
+     "start_time",
+     "end_time",
+     "duration_minutes"
+    ],
+    "title": "SlotReplaceIn"
    },
    "SlotUpdateIn": {
     "properties": {
@@ -2645,6 +5892,33 @@
       "type": "string",
       "title": "Topic"
      },
+     "applicant_name": {
+      "type": "string",
+      "title": "Applicant Name"
+     },
+     "student_number": {
+      "type": "string",
+      "title": "Student Number"
+     },
+     "grade": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Grade"
+     },
+     "consultation_type": {
+      "type": "string",
+      "title": "Consultation Type"
+     },
+     "consultation_mode": {
+      "type": "string",
+      "title": "Consultation Mode"
+     },
      "cancel_reason": {
       "type": "string",
       "title": "Cancel Reason"
@@ -2656,6 +5930,16 @@
      },
      "slot": {
       "$ref": "#/components/schemas/SlotBrief"
+     },
+     "latest_update_id": {
+      "type": "integer",
+      "title": "Latest Update Id",
+      "default": 0
+     },
+     "unread_update": {
+      "type": "boolean",
+      "title": "Unread Update",
+      "default": false
      },
      "student_id": {
       "type": "integer",
@@ -2679,6 +5963,11 @@
      "id",
      "status",
      "topic",
+     "applicant_name",
+     "student_number",
+     "grade",
+     "consultation_type",
+     "consultation_mode",
      "cancel_reason",
      "created_at",
      "slot",
@@ -2689,23 +5978,91 @@
     ],
     "title": "StaffBookingOut"
    },
-   "StatusIn": {
+   "StaffOverviewOut": {
     "properties": {
-     "status": {
+     "period_start": {
       "type": "string",
-      "enum": [
-       "new",
-       "reviewed",
-       "archived"
+      "format": "date",
+      "title": "Period Start"
+     },
+     "period_end": {
+      "type": "string",
+      "format": "date",
+      "title": "Period End"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "upcoming_days": {
+      "type": "integer",
+      "title": "Upcoming Days",
+      "default": 14
+     },
+     "total_bookings": {
+      "type": "integer",
+      "title": "Total Bookings"
+     },
+     "status_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Status Counts"
+     },
+     "recorded_notes": {
+      "type": "integer",
+      "title": "Recorded Notes"
+     },
+     "open_slots": {
+      "type": "integer",
+      "title": "Open Slots"
+     },
+     "upcoming_14_days": {
+      "type": "integer",
+      "title": "Upcoming 14 Days"
+     },
+     "completion_rate": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
       ],
-      "title": "Status"
+      "title": "Completion Rate"
+     },
+     "type_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Type Counts"
+     },
+     "mode_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Mode Counts"
      }
     },
     "type": "object",
     "required": [
-     "status"
+     "period_start",
+     "period_end",
+     "days",
+     "total_bookings",
+     "status_counts",
+     "recorded_notes",
+     "open_slots",
+     "upcoming_14_days",
+     "completion_rate",
+     "type_counts",
+     "mode_counts"
     ],
-    "title": "StatusIn"
+    "title": "StaffOverviewOut"
    },
    "SubmitIn": {
     "properties": {
@@ -2756,6 +6113,11 @@
       "type": "string",
       "maxLength": 4000,
       "title": "Content"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public",
+      "default": false
      }
     },
     "type": "object",
@@ -2787,6 +6149,29 @@
      "status": {
       "type": "string",
       "title": "Status"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public"
+     },
+     "deleted_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deleted On"
+     },
+     "replies": {
+      "items": {
+       "$ref": "#/components/schemas/ReplyOut"
+      },
+      "type": "array",
+      "title": "Replies"
      }
     },
     "type": "object",
@@ -2795,12 +6180,23 @@
      "category",
      "content",
      "submitted_on",
-     "status"
+     "status",
+     "is_public",
+     "deleted_on"
     ],
     "title": "SuggestionOut"
    },
    "SurveyCreateIn": {
     "properties": {
+     "access_mode": {
+      "type": "string",
+      "enum": [
+       "login",
+       "anonymous"
+      ],
+      "title": "Access Mode",
+      "default": "login"
+     },
      "title": {
       "type": "string",
       "maxLength": 200,
@@ -2810,6 +6206,18 @@
       "type": "string",
       "maxLength": 5000,
       "title": "Description",
+      "default": ""
+     },
+     "course_name": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Course Name",
+      "default": ""
+     },
+     "semester": {
+      "type": "string",
+      "maxLength": 40,
+      "title": "Semester",
       "default": ""
      },
      "questions": {
@@ -2866,6 +6274,21 @@
    },
    "SurveyOut": {
     "properties": {
+     "access_mode": {
+      "type": "string",
+      "title": "Access Mode"
+     },
+     "public_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Token"
+     },
      "id": {
       "type": "integer",
       "title": "Id"
@@ -2877,6 +6300,14 @@
      "description": {
       "type": "string",
       "title": "Description"
+     },
+     "course_name": {
+      "type": "string",
+      "title": "Course Name"
+     },
+     "semester": {
+      "type": "string",
+      "title": "Semester"
      },
      "status": {
       "type": "string",
@@ -2931,9 +6362,13 @@
     },
     "type": "object",
     "required": [
+     "access_mode",
+     "public_token",
      "id",
      "title",
      "description",
+     "course_name",
+     "semester",
      "status",
      "opens_at",
      "closes_at",
@@ -2943,8 +6378,41 @@
     ],
     "title": "SurveyOut"
    },
+   "SurveyPurgeIn": {
+    "properties": {
+     "confirmation": {
+      "type": "string",
+      "title": "Confirmation"
+     },
+     "response_count": {
+      "type": "integer",
+      "title": "Response Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "confirmation",
+     "response_count"
+    ],
+    "title": "SurveyPurgeIn"
+   },
    "SurveyStaffListOut": {
     "properties": {
+     "access_mode": {
+      "type": "string",
+      "title": "Access Mode"
+     },
+     "public_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Token"
+     },
      "id": {
       "type": "integer",
       "title": "Id"
@@ -2952,6 +6420,14 @@
      "title": {
       "type": "string",
       "title": "Title"
+     },
+     "course_name": {
+      "type": "string",
+      "title": "Course Name"
+     },
+     "semester": {
+      "type": "string",
+      "title": "Semester"
      },
      "status": {
       "type": "string",
@@ -2992,8 +6468,12 @@
     },
     "type": "object",
     "required": [
+     "access_mode",
+     "public_token",
      "id",
      "title",
+     "course_name",
+     "semester",
      "status",
      "opens_at",
      "closes_at",
@@ -3004,6 +6484,26 @@
    },
    "SurveyStudentListOut": {
     "properties": {
+     "access_mode": {
+      "type": "string",
+      "enum": [
+       "login",
+       "anonymous"
+      ],
+      "title": "Access Mode",
+      "default": "login"
+     },
+     "public_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Token"
+     },
      "id": {
       "type": "integer",
       "title": "Id"
@@ -3015,6 +6515,14 @@
      "description": {
       "type": "string",
       "title": "Description"
+     },
+     "course_name": {
+      "type": "string",
+      "title": "Course Name"
+     },
+     "semester": {
+      "type": "string",
+      "title": "Semester"
      },
      "status": {
       "type": "string",
@@ -3046,6 +6554,8 @@
      "id",
      "title",
      "description",
+     "course_name",
+     "semester",
      "status",
      "closes_at",
      "is_open",
@@ -3055,6 +6565,21 @@
    },
    "SurveyStudentOut": {
     "properties": {
+     "access_mode": {
+      "type": "string",
+      "title": "Access Mode"
+     },
+     "public_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Token"
+     },
      "id": {
       "type": "integer",
       "title": "Id"
@@ -3066,6 +6591,14 @@
      "description": {
       "type": "string",
       "title": "Description"
+     },
+     "course_name": {
+      "type": "string",
+      "title": "Course Name"
+     },
+     "semester": {
+      "type": "string",
+      "title": "Semester"
      },
      "status": {
       "type": "string",
@@ -3128,9 +6661,13 @@
     },
     "type": "object",
     "required": [
+     "access_mode",
+     "public_token",
      "id",
      "title",
      "description",
+     "course_name",
+     "semester",
      "status",
      "opens_at",
      "closes_at",
@@ -3144,6 +6681,21 @@
    },
    "SurveyUpdateIn": {
     "properties": {
+     "access_mode": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "login",
+         "anonymous"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Access Mode"
+     },
      "title": {
       "anyOf": [
        {
@@ -3167,6 +6719,30 @@
        }
       ],
       "title": "Description"
+     },
+     "course_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Course Name"
+     },
+     "semester": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Semester"
      },
      "questions": {
       "anyOf": [
@@ -3223,6 +6799,45 @@
     },
     "type": "object",
     "title": "SurveyUpdateIn"
+   },
+   "TicketIn": {
+    "properties": {
+     "content": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Content"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+     },
+     "category": {
+      "type": "string",
+      "enum": [
+       "bug",
+       "feature",
+       "help"
+      ],
+      "title": "Category"
+     },
+     "page_path": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(?:/[A-Za-z0-9_/-]*)?$",
+      "title": "Page Path",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "content",
+     "title",
+     "category"
+    ],
+    "title": "TicketIn"
    },
    "UserOut": {
     "properties": {
@@ -3320,6 +6935,42 @@
      "type"
     ],
     "title": "ValidationError"
+   },
+   "app__routers__suggestions__StatusIn": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "new",
+       "reviewed",
+       "archived"
+      ],
+      "title": "Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "StatusIn"
+   },
+   "app__routers__support__StatusIn": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "received",
+       "reviewing",
+       "completed"
+      ],
+      "title": "Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "StatusIn"
    }
   }
  }

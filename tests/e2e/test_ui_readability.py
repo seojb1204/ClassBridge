@@ -23,7 +23,9 @@ def test_guest_writer_keeps_privacy_visible_and_limits_width(server, browser, vi
     assert writer.bounding_box()['width'] <= 740
     assert page.locator('.privacy-summary').is_visible()
     assert '작성자가 추측될 수 있습니다' in page.locator('.privacy-summary').inner_text()
-    assert page.get_by_label('공개 범위').input_value() == 'private'
+    # Guests cannot publish: no visibility choice, private-only notice instead.
+    assert page.get_by_label('공개 범위').count() == 0
+    assert '게시판에 공개되지 않습니다' in page.locator('.guest-visibility').inner_text()
     detail = page.locator('.help-details')
     assert detail.get_attribute('open') is None
     detail.locator('summary').click()

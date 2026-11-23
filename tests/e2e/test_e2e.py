@@ -152,7 +152,9 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
         page.get_by_role("button", name="목록형", exact=True).click()
         page.locator(".daily").wait_for()
         if path == "/slots":
-            assert page.locator(".calendar-support").get_attribute("open") is not None
+            # Phones start with the calendar first; the support panel opens on demand.
+            assert page.locator(".calendar-support").get_attribute("open") is None
+            page.locator(".calendar-support > summary").click()
         page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
         assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]
         page.locator(".available-day-buttons button").nth(1).click()
@@ -215,7 +217,8 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/slots")
-    assert prof.page.locator(".calendar-support").get_attribute("open") is not None
+    assert prof.page.locator(".calendar-support").get_attribute("open") is None
+    prof.page.locator(".calendar-support > summary").click()
     prof.page.get_by_role("button", name="공지 작성", exact=True).click()
     prof.page.get_by_label("공지 제목").fill("상담 전 준비 안내")
     prof.page.get_by_label("공지 내용").fill("질문을 정리해 주세요.\n<script>window.noticeInjected=true</script>")
@@ -455,10 +458,8 @@ while SLOT_DAY.weekday() >= 5:
 
 def _create_slots_via_ui(s: Session, start="10:00", end="11:00", kind="individual", cap=None, duration=30):
     s.go("/slots")
-    if s.page.locator("#mobile-tabs").is_visible():
-        s.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
-    elif s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).count():
-        s.page.get_by_role("button", name="+ 상담 시간 등록", exact=True).click()
+    # Every screen registers through the dedicated page (no inline PC form).
+    s.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
     form = s.page.locator("form.grid-form")
     form.get_by_label("날짜(시작일)", exact=True).fill(SLOT_DAY.isoformat())
     form.get_by_label("시작", exact=True).fill(start)
@@ -1143,7 +1144,8 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.page.get_by_role('button', name='목록형', exact=True).click()
     prof.page.locator('.daily .card.slot.open').first.wait_for()
     assert prof.page.locator('.daily .card.slot.open').count() == 6
-    assert prof.page.locator('.calendar-support').get_attribute('open') is not None
+    if prof.page.locator('.calendar-support').get_attribute('open') is None:
+        prof.page.locator('.calendar-support > summary').click()
     summary = prof.page.get_by_role('region', name='예약 가능한 상담 일정')
     # More than three dates may already exist from other end-to-end scenarios.
     if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
@@ -1255,7 +1257,8 @@ def test_guest_opens_writer_from_login(server, browser):
     page.goto(base)
     assert not page.get_by_label("이 기기에서 30일간 로그인 유지").is_checked()
     page.get_by_role("link", name="로그인 없이 익명 건의하기").click()
-    assert page.get_by_label("공개 범위").input_value() == "private"
+    page.locator("textarea").wait_for()
+    assert page.get_by_label("공개 범위").count() == 0
     page.locator("textarea").fill("로그인 없는 접수 확인")
     page.get_by_role("button", name="익명으로 제출").click()
     page.get_by_text("건의가 익명으로 접수되었습니다").wait_for()

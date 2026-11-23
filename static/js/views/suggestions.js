@@ -21,7 +21,10 @@ async function confirmPermanent(title, message) {
 
 export async function render(root) {
   if (can("suggestion:read")) return inbox(root);
-  mount(root, h("a", { class: "btn primary", href: "/static/suggest.html" }, "익명 건의하기"));
+  // Page title matches the menu label; the board is a section below the write action.
+  mount(root, h("div", { class: "page-head" }, h("h1", {}, "익명 건의"),
+    h("p", { class: "muted" }, "수업·과제·시설에 관한 의견을 계정과 연결하지 않고 전달합니다."),
+    h("a", { class: "btn primary", href: "/static/suggest.html" }, "익명 건의하기")));
   const board = h("section", { class: "public-board" });
   root.append(board);
   await loadPublic(board);
@@ -129,11 +132,13 @@ async function inbox(root) {
     h("div", { class: "toolbar" },
       h("button", { class: trash ? "btn" : "btn primary", onclick: () => { trash = false; pageOffset = 0; reload(); } }, "건의 목록"),
       h("button", { class: trash ? "btn primary" : "btn", onclick: () => { trash = true; pageOffset = 0; reload(); } }, "휴지통"), trash ? emptyTrash : null),
-    h("div", { class: "stats" }, CATS.map(([k, label]) => h("span", { class: "stat" }, label, h("strong", {}, String(stats.by_category[k] || 0))))),
+    // Counts only (not buttons): filtering uses the status tabs and the type selector below.
+    h("p", { class: "muted suggestion-counts" }, "유형별 건수 · ", CATS.map(([k, label]) => `${label} ${stats.by_category[k] || 0}`).join(" · ")),
     trash ? null : statusTabs,
     searchForm,
     h("p", { class: "hint" }, "접수일 기준으로 정렬합니다. 익명성 보호를 위해 같은 날의 접수 순서는 표시하지 않습니다."),
-    h("div", { class: "filters" }, st, ct, order, can("ai:analyze") && ["demo", "external"].includes(feature("ai")) ? aBtn : null),
+    // Status already has quick tabs outside the trash; avoid a second status control there.
+    h("div", { class: "filters" }, trash ? st : null, ct, order, can("ai:analyze") && ["demo", "external"].includes(feature("ai")) ? aBtn : null),
     analysisBox,
     trash ? h("section", { class: "trash-selection", "aria-label": "휴지통 선택 삭제" },
       h("div", { class: "toolbar" }, h("label", { class: "trash-selection-label" }, allBox, "현재 페이지 전체 선택"), selectionCount, deleteSelected),
@@ -163,6 +168,8 @@ function card(root, s, selection = null) {
 
 
 function pager(refresh, count) {
+  // Nothing to page through: first page and not full.
+  if (pageOffset === 0 && count < PAGE_SIZE) return null;
   return h("div", { class: "toolbar" },
     h("button", { class: "btn", disabled: pageOffset === 0, onclick: () => { pageOffset -= PAGE_SIZE; refresh(); } }, "이전 건의"),
     h("span", {}, `${Math.floor(pageOffset / PAGE_SIZE) + 1} 페이지`),
