@@ -8,7 +8,7 @@ from playwright.sync_api import expect
 
 from app.db import utcnow
 from app.timeutil import today_kst
-from tests.e2e.test_e2e import Session, browser, server  # noqa: F401
+from tests.e2e.test_e2e import SHOTS, Session, browser, server  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not os.getenv('RUN_E2E'), reason='RUN_E2E 미설정')
 
@@ -31,6 +31,7 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
                      consultation_mode='in_person')
                 for i in range(1, 5)]
     p.route('**/api/slots?*', lambda r: r.fulfill(json=slots))
+    p.route('**/api/slots/available-days', lambda r: r.fulfill(json=[{'date': day, 'count': 2}]))
     p.route('**/api/bookings?*', lambda r: r.fulfill(json=[] if role == 'student' else bookings))
     p.route('**/api/bookings/mine*', lambda r: r.fulfill(json=[]))
     p.route('**/api/lectures/calendar?*', lambda r: r.fulfill(json=[]))
@@ -72,10 +73,21 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
     if role == 'admin':
         routes += ['/admin/users', '/admin/settings', '/admin/audit']
     for index, route in enumerate(routes, 2):
+        p.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         s.go(route)
+        assert p.evaluate("scrollY") == 0, route
         assert p.locator('#view').inner_text().strip()
         assert p.evaluate('document.documentElement.scrollWidth <= innerWidth'), route
         s.shot(f'role-audit-{index:02}-{role}-{width}-{route.strip("/").replace("/", "-")}')
+        if width <= 720:
+            p.screenshot(path=str(SHOTS / f'role-viewport-{role}-{width}-{route.strip("/").replace("/", "-")}.png'))
+        if route == '/admin/users':
+            p.get_by_role('searchbox', name='이름·이메일 검색').fill('student@test.ac.kr')
+            expect(p.locator('.user-table tbody tr:visible')).to_have_count(1)
+            p.get_by_role('searchbox', name='이름·이메일 검색').fill('')
+            p.get_by_label('역할 필터').select_option('professor')
+            expect(p.locator('.user-table tbody tr:visible')).to_have_count(1)
+            p.get_by_label('역할 필터').select_option('')
         if route == '/bookings':
             panel = p.locator('.staff-today')
             panel.get_by_role('link', name='오늘 예약 4건', exact=True).click()

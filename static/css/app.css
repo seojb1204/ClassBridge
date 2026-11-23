@@ -758,3 +758,9 @@ tr[hidden] { display: none; }
   .staff-today .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
   .staff-today .actions .btn { min-height: 44px; padding: .4rem .2rem; font-size: .8rem; }
 }
+
+@media (max-width: 720px) {
+  .user-table td { padding: .4rem .7rem; }
+  .user-table td:nth-child(2) { overflow-wrap: anywhere; }
+  .user-table .btn { min-height: 44px; }
+}

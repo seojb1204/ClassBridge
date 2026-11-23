@@ -35,7 +35,7 @@ export async function renderUsers(root) {
   mount(root, h("div", { class: "page-head" }, h("h1", {}, "계정·권한 관리")),
     h("p", { class: "muted" }, "역할 변경·비활성화 시 해당 사용자의 기존 로그인 세션은 즉시 무효화됩니다. 마지막 관리자는 강등할 수 없습니다. 역할 변경·계정 삭제는 확인 후 적용됩니다."),
     h("div", { class: "filters user-filters" }, search, role, count),
-    h("div", { class: "table-wrap" }, h("table", { class: "table" },
+    h("div", { class: "table-wrap" }, h("table", { class: "table user-table" },
       h("thead", {}, h("tr", {}, ["이름", "이메일", "역할", "상태", "최근 로그인"].map((t) => h("th", {}, t)))),
       tbody)));
   apply();
@@ -44,6 +44,7 @@ export async function renderUsers(root) {
 function row(root, u) {
   const self = u.id === state.me.id;
   const role = select(ROLES, u.role);
+  role.setAttribute("aria-label", `${u.name || u.email} 역할`);
   role.disabled = self;
   role.addEventListener("change", async () => {
     const label = ROLES.find((r) => r[0] === role.value)[1];
