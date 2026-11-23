@@ -1,34 +1,55 @@
 import { busy, errorToast, field, h, mount, select, toast } from "./ui.js";
 import { CATS } from "./suggestion-categories.js";
 
+// A logged-in student may publish to the board (account-required, per-account rate
+// limit). Guests can only send private suggestions; the server enforces this too.
+async function signedInStudent() {
+  try {
+    const response = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
+    if (!response.ok) return null;
+    const me = await response.json();
+    return (me.permissions || []).includes("suggestion:submit") ? me : null;
+  } catch { return null; }
+}
+
 async function submitForm(root) {
+  const me = await signedInStudent();
   const cat = select(CATS, "lecture");
   const content = h("textarea", { rows: 6, maxlength: 2000, required: true, placeholder: "자유롭게 의견을 남겨 주세요." });
-  const visibility = select([["private", "교수자·관리자에게만 전달"], ["public", "로그인한 이용자에게 공개"]], "private");
+  const visibility = me ? select([["private", "교수자·관리자에게만 전달"], ["public", "로그인한 이용자에게 공개"]], "private") : null;
   const counter = h("small", { class: "hint" }, "0 / 2000");
   content.addEventListener("input", () => { counter.textContent = `${content.value.length} / 2000`; });
   const btn = h("button", { class: "btn primary", type: "submit" }, "익명으로 제출");
   const form = h("form", { class: "panel" },
     h("p", { class: "muted" }, "이 건의는 Google 계정과 연결되지 않습니다."),
     h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침"),
-    field("공개 범위", visibility),
-    h("p", { class: "hint" }, "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 비공개 건의는 학생 게시판에 나타나지 않습니다. 제출 후 받는 확인 링크로 본인 글과 답변을 다시 볼 수 있으며, 링크를 다른 사람에게 공유하지 마세요."),
+    visibility ? field("공개 범위", visibility) : null,
+    h("p", { class: "hint guest-visibility" }, visibility
+      ? "공개 선택 시 모든 로그인 이용자가 내용과 교수자 답변을 봅니다. 공개 글은 로그인한 계정으로만 올릴 수 있지만, 작성자 계정은 건의에 저장되지 않습니다. 제출 후 받는 확인 링크를 다른 사람에게 공유하지 마세요."
+      : "로그인 없이 보낸 건의는 교수자·관리자에게만 전달되며 게시판에 공개되지 않습니다. 다른 학생에게 공개하려면 로그인 후 작성해 주세요. 제출 후 받는 확인 링크로 본인 글과 답변을 다시 볼 수 있으며, 링크를 다른 사람에게 공유하지 마세요."),
     field("유형", cat), field("내용", content), h("div", { class: "writer-actions" }, counter, btn));
   form.addEventListener("submit", busy(btn, async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("/api/suggestions/anonymous", {
-        method: "POST", credentials: "omit", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "X-Anonymous-Submit": "1" },
-        body: JSON.stringify({ category: cat.value, content: content.value, is_public: visibility.value === "public" }),
-      });
+      const isPublic = visibility?.value === "public";
+      const response = isPublic
+        ? await fetch("/api/suggestions", {
+          method: "POST", credentials: "same-origin", referrerPolicy: "no-referrer",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": me.csrf_token },
+          body: JSON.stringify({ category: cat.value, content: content.value, is_public: true }),
+        })
+        : await fetch("/api/suggestions/anonymous", {
+          method: "POST", credentials: "omit", referrerPolicy: "no-referrer",
+          headers: { "Content-Type": "application/json", "X-Anonymous-Submit": "1" },
+          body: JSON.stringify({ category: cat.value, content: content.value, is_public: false }),
+        });
       const r = await response.json();
       if (!response.ok) throw new Error(r.message || "건의를 제출하지 못했습니다.");
       toast(r.message, "success");
       showReceipt(root, r.receipt_token);
       content.value = "";
       counter.textContent = "0 / 2000";
-      visibility.value = "private";
+      if (visibility) visibility.value = "private";
     } catch (err) { errorToast(err); }
   }));
   mount(root, h("section", { class: "suggestion-writer", "aria-label": "익명 건의 작성" },

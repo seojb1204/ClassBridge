@@ -65,6 +65,9 @@ class Settings:
 
     feature_surveys: bool = True
     feature_suggestions: bool = True
+    # Number of trusted reverse proxies that append to X-Forwarded-For in front of
+    # the app (Render: 1). Entries left of those are client-controlled and ignored.
+    trusted_proxy_hops: int = 1
     ai_mode: str = "demo"  # disabled | demo | external
     ai_api_key: str = ""
     ai_model: str = "claude-haiku-5-5"
@@ -76,6 +79,8 @@ class Settings:
     def validate(self) -> None:
         if self.env not in {"development", "test", "production"}:
             raise ConfigError("APP_ENV must be development|test|production")
+        if not 0 <= self.trusted_proxy_hops <= 5:
+            raise ConfigError("TRUSTED_PROXY_HOPS must be between 0 and 5")
         if self.push_enabled:
             if not all((self.push_public_key, self.push_private_key,
                         self.push_professor_email, self.push_contact_email)):
@@ -173,6 +178,7 @@ def load_settings() -> Settings:
         # 익명 기능은 운영에서 보안 검토 후 명시적으로 켜야 한다
         feature_surveys=_bool("FEATURE_SURVEYS", not prod),
         feature_suggestions=_bool("FEATURE_SUGGESTIONS", not prod),
+        trusted_proxy_hops=int(os.getenv("TRUSTED_PROXY_HOPS", "1")),
         ai_mode=os.getenv("AI_MODE", "disabled" if prod else "demo"),
         ai_api_key=os.getenv("AI_API_KEY", ""),
         ai_model=os.getenv("AI_MODEL", Settings.ai_model),

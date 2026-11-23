@@ -45,5 +45,8 @@ services:
         value: "false"
       - key: FEATURE_SUGGESTIONS
         value: "false"
+      # Render appends one X-Forwarded-For entry; left entries are client-written.
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
       - key: AI_MODE
         value: disabled

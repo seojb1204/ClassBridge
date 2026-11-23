@@ -1255,7 +1255,8 @@ def test_guest_opens_writer_from_login(server, browser):
     page.goto(base)
     assert not page.get_by_label("이 기기에서 30일간 로그인 유지").is_checked()
     page.get_by_role("link", name="로그인 없이 익명 건의하기").click()
-    assert page.get_by_label("공개 범위").input_value() == "private"
+    page.locator("textarea").wait_for()
+    assert page.get_by_label("공개 범위").count() == 0
     page.locator("textarea").fill("로그인 없는 접수 확인")
     page.get_by_role("button", name="익명으로 제출").click()
     page.get_by_text("건의가 익명으로 접수되었습니다").wait_for()

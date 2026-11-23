@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import SESSION_COOKIE, Principal, require
+from app.core.client_ip import client_address
 from app.core.errors import FeatureDisabled, Forbidden, NotFound
 from app.core.permissions import P
 from app.db import get_db, utcnow
@@ -72,11 +73,16 @@ def submit(body: SuggestionIn, request: Request, p: Principal = Depends(require(
 def submit_anonymous(body: SuggestionIn, request: Request, db: Session = Depends(get_db)):
     if SESSION_COOKIE in request.cookies or request.headers.get("X-Anonymous-Submit") != "1":
         raise Forbidden("익명 건의 화면을 다시 열어 주세요")
+    if body.is_public:
+        # Without an account there is no accountability for public posts: guests may
+        # only send private suggestions. Logged-in users can still choose public.
+        raise Forbidden("로그인하지 않은 건의는 교수자·관리자에게만 전달됩니다. 공개 게시는 로그인 후 이용해 주세요.",
+                        code="guest_public_forbidden")
     state = request.app.state
-    address = request.client.host if request.client else "unknown"
+    address = client_address(request, state.settings.trusted_proxy_hops)
     key = hmac.new(state.settings.secret_key.encode(), address.encode(), hashlib.sha256).hexdigest()
     state.guest_suggestion_limiter.hit(key)
-    token = svc.save(db, body.category, svc.clean_content(body.content), body.is_public, utcnow())
+    token = svc.save(db, body.category, svc.clean_content(body.content), False, utcnow())
     return {"ok": True, "message": "건의가 익명으로 접수되었습니다", "receipt_token": token}
 
 
