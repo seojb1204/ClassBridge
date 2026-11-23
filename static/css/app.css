@@ -723,3 +723,24 @@ textarea { line-height: 1.75; }
   .notice.booking-active { margin-bottom: .6rem; font-size: .9rem; }
   .calendar-help { margin: .35rem 0; font-size: .8rem; line-height: 1.45; }
 }
+/* Staff menu groups are dropdowns, not collapsible sections: chevron after the label. */
+.nav-group > summary { list-style: none; }
+.nav-group > summary::-webkit-details-marker { display: none; }
+.nav-group > summary::after { content: "▾"; display: inline-block; margin-left: .3rem; font-size: .8em; color: var(--muted); transition: transform .15s; }
+.nav-group[open] > summary::after { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .nav-group > summary::after { transition: none; } }
+/* Admin: readable audit rows and account search. */
+.audit-table .audit-actor { white-space: nowrap; min-width: 6.5rem; }
+.audit-table .audit-code { display: block; font-size: .72rem; }
+.user-filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+.user-filters input[type="search"] { flex: 1 1 240px; max-width: 360px; }
+tr[hidden] { display: none; }
+.support-operator { margin-top: 1.5rem; border-style: dashed; }
+.survey-summary { color: var(--text); font-size: .9rem; }
+.suggestion-counts { font-size: .85rem; margin: .25rem 0 .75rem; }
+.personal-alert-form { display: grid; gap: .75rem; max-width: 560px; }
+.personal-alert-form fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem .9rem .4rem; margin: 0; display: grid; gap: .45rem; }
+.personal-alert-form legend { font-weight: 700; padding: 0 .3rem; }
+.personal-alert-form label { display: flex; gap: .4rem; align-items: center; min-height: 32px; }
+.personal-alert-form .field { margin: 0; max-width: 220px; }
+.personal-alert-form .hint { margin: 0; }

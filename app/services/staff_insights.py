@@ -15,7 +15,6 @@ from app.models import Booking, Slot, User
 from app.services.booking_service import kst_range
 from app.timeutil import today_kst
 
-
 UPCOMING_DAYS = 14
 
 

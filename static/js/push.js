@@ -19,11 +19,16 @@ export async function personalAlerts(root) {
   };
   const at = h("input", { type: "time", value: prefs.at, required: true });
   const save = h("button", { class: "btn primary", type: "submit" }, "저장");
-  const form = h("form", { class: "panel grid-form" },
-    check("daily", "평일 상담 요약 받기"), field("받을 시각 (한국시간)", at),
-    check("reminder", "상담 30분 전 알림"), check("instant", "신청·변경·취소 즉시 알림"),
-    check("names", "요약·30분 전 알림에 학생 이름 표시"),
-    h("p", { class: "hint" }, "남은 상담이 있는 날에만 요약을 보냅니다. 이름을 표시하면 잠금화면에도 보일 수 있습니다."), save);
+  // One option per row: a checklist reads top to bottom, with the save button last.
+  const form = h("form", { class: "panel personal-alert-form" },
+    h("fieldset", {}, h("legend", {}, "평일 상담 요약"),
+      check("daily", "평일 상담 요약 받기"), field("받을 시각 (한국시간)", at),
+      h("p", { class: "hint" }, "남은 상담이 있는 날에만 요약을 보냅니다.")),
+    h("fieldset", {}, h("legend", {}, "즉시·사전 알림"),
+      check("reminder", "상담 30분 전 알림"), check("instant", "신청·변경·취소 즉시 알림"),
+      check("names", "요약·30분 전 알림에 학생 이름 표시"),
+      h("p", { class: "hint" }, "이름을 표시하면 잠금화면에도 보일 수 있습니다.")),
+    h("div", { class: "actions" }, save));
   form.addEventListener("submit", busy(save, async e => {
     e.preventDefault();
     const body = { at: at.value };

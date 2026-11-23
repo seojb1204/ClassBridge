@@ -76,7 +76,8 @@ async function studentList(root) {
         s.participated ? badge("참여 완료", "completed") : s.is_open ? badge(s.access_mode === "anonymous" ? "진행 중" : "응답 가능", "booked") : badge("마감", "cancelled")),
       h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
       s.access_mode === "anonymous" ? h("span", { class: "muted" }, "익명 설문 · 계정과 연결하지 않습니다. 참여 여부는 설문을 열면 확인됩니다.") : null,
-      s.closes_at ? h("span", { class: "muted" }, `마감 ${fmtDateTime(s.closes_at)}`) : null,
+      s.description ? h("span", { class: "survey-summary" }, s.description.length > 80 ? `${s.description.slice(0, 80)}…` : s.description) : null,
+      h("span", { class: "muted" }, s.closes_at ? `마감 ${fmtDateTime(s.closes_at)}` : "마감일 미정 · 교수자가 직접 마감합니다"),
       s.is_open && !s.participated ? h("div", { class: "actions" },
         h("a", { class: "btn small primary", href: s.access_mode === "anonymous" ? `#/surveys/public/${s.public_token}` : `#/surveys/take/${s.id}` },
           s.access_mode === "anonymous" ? "익명 설문 열기" : "응답하기")) : null)))

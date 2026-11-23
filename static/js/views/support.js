@@ -43,15 +43,17 @@ export async function renderHome(root) {
       h("section", { class: "card" }, h("h2", {}, "개발자에게 문의"),
         h("p", {}, "오류 신고 · 기능 제안 · 사용 방법. 작성자와 개발자(관리자)만 확인하는 비공개 문의입니다."),
         h("a", { class: "btn primary", href: "#/help/new" }, "문의 작성"),
-        h("a", { class: "btn", href: "#/help/mine" }, "내 문의")),
-      can("support:manage") ? h("section", { class: "card" }, h("h2", {}, "개발자 관리"),
-        h("p", {}, "문의 내용을 확인하고 답변과 처리 상태를 관리합니다."),
-        h("span", { class: "badge support-inbox-count" }),
-        h("a", { class: "btn", href: "#/help/inbox" }, "개발자 문의함")) : null),
+        h("a", { class: "btn", href: "#/help/mine" }, "내 문의"))),
     h("section", { class: "panel support-guide" }, h("h2", {}, "문의 전에 확인해 주세요"),
       h("p", {}, "수업·상담 운영에 관한 의견은 기존 건의함을 이용해 주세요. 개발자 문의는 익명이 아니며, 개발자가 계정 이름·이메일과 문의 내용을 확인합니다."),
       h("p", {}, "비밀번호, 인증번호, 다른 사람의 개인정보나 상담 기록은 보내지 마세요. 답변과 처리 상태는 ‘내 문의’에서 확인할 수 있습니다."),
-      h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침")));
+      h("a", { href: "/privacy", target: "_blank", rel: "noopener" }, "개인정보처리방침")),
+    // Operator tooling is kept apart from the help cards every user sees.
+    can("support:manage") ? h("section", { class: "panel support-operator", "aria-label": "개발자 전용 관리" },
+      h("h2", {}, "개발자 전용 · 문의 관리"),
+      h("p", { class: "muted" }, "개발자 역할 계정에만 보입니다. 받은 문의에 답변하고 처리 상태를 관리합니다."),
+      h("div", { class: "actions" }, h("span", { class: "badge support-inbox-count" }),
+        h("a", { class: "btn", href: "#/help/inbox" }, "개발자 문의함"))) : null);
   await refreshCounts();
 }
 
