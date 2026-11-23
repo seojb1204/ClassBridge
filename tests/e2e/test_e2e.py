@@ -788,8 +788,7 @@ def test_mobile_student_flow(server, browser):
     st.toast("예약이 완료")
     st.page.wait_for_selector(".card.slot.mine")
     st.shot("mobile_02_booked")
-    st.page.click("#menu-btn")
-    st.page.click("#nav >> text=내 예약")
+    st.page.locator("#mobile-tabs").get_by_role("link", name="내 예약", exact=True).click()
     st.page.wait_for_selector(".card.booking.booked")
     btn = st.page.locator("text=예약 취소").bounding_box()
     assert btn and btn["height"] >= 40  # 터치하기 쉬운 크기
