@@ -16,3 +16,21 @@ assert.ok(!slots.includes('showCancelled'));
 assert.ok(!slots.includes('취소된 상담 시간 보기'));
 assert.ok(slots.includes('enhanced.filter(s => s.status !== "cancelled")'));
 console.log('10 slot-label and cancellation regressions passed');
+
+// A group appointment is one available time for students, but several people
+// for staff. Lectures and cancelled consultation times never add to either total.
+const countFn=source.slice(source.indexOf('function dayCount('),source.indexOf('\nexport function onLayoutChange'));
+const counts={}; vm.runInNewContext(countFn+';this.count=dayCount;',counts);
+const day=[
+  {status:'open',bookable:true,bookingCount:0},
+  {status:'open',kind:'group',bookable:true,bookingCount:3},
+  {status:'open',bookable:false,bookingCount:1},
+  {status:'cancelled',bookable:false,bookingCount:2},
+  {event_type:'lecture',bookable:false},
+];
+assert.equal(counts.count({dayCountMode:'booked'},day),4);
+assert.equal(counts.count({},day),2);
+assert.equal(counts.count({dayCountMode:'booked'},[]),0);
+assert.equal(counts.count({},[]),0);
+assert.ok(slots.includes('dayCountMode: "booked"'));
+console.log('5 role-specific day-count regressions passed');
