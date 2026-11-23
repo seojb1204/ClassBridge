@@ -694,3 +694,10 @@ textarea { line-height: 1.75; }
   .mobile-grid-wrap .compact-tiny .slot-time { display: none; }
   .mobile-grid-wrap .slot.compact-tiny { justify-content: center; }
 }
+
+/* Keep reservation actions reachable while the detail body scrolls on phones. */
+.modal:has(.booking-detail) { display: flex; flex-direction: column; overflow: hidden; }
+.modal:has(.booking-detail) > h2,
+.modal:has(.booking-detail) > .modal-actions { flex-shrink: 0; }
+.modal:has(.booking-detail) > .modal-body { min-height: 0; overflow-y: auto; }
+.booking-detail p { margin: .35rem 0; }

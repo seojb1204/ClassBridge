@@ -53,6 +53,10 @@ def test_shared_editor_preserves_notes_and_allows_outcome_correction(server, bro
     assert writes[-1][1] == {"outcome": "completed"}
     assert dialog.get_by_role("button", name="미참석", exact=True).is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert dialog.locator(".modal-actions").evaluate("""e => {
+        const actions = e.getBoundingClientRect(), box = e.parentElement.getBoundingClientRect();
+        return actions.top >= box.top && actions.bottom <= box.bottom && actions.bottom <= innerHeight;
+    }""")
     page.screenshot(path=str(SHOTS / f"booking-editor-{width}.png"), full_page=True)
     page.close()
 
