@@ -23,7 +23,8 @@ def contrast(a, b):
     ('text', 'bg'), ('muted', 'bg'), ('muted', 'panel'),
     ('primary', 'bg'), ('primary', 'primary-weak'),
     ('danger', 'danger-weak'), ('mine', 'mine-weak'),
-    ('available', 'available-bg'),
+    ('available', 'available-bg'), ('lecture-text', 'lecture-bg'),
+    ('lecture-text', 'lecture-hover'),
 ])
 def test_normal_text_palette_meets_wcag_aa(fg, bg):
     assert contrast(TOKENS[fg], TOKENS[bg]) >= 4.5

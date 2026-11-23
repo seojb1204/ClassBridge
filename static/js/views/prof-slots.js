@@ -9,7 +9,7 @@ import { parseDate, parseSchedule, parseTime, timeLabel } from "../schedule-inpu
 // 교수자·관리자: 등록된 상담 시간으로 예약 가능 여부 관리
 import { del, calendarGet as get, clearCalendarCache, patch, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
-import { isMobile, onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
+import { isMobile, onLayoutChange, calendarLegend, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { addDays, fmtDateTime, isoToKstInput, kstInputToIso, kstParts, mondayOf, todayKst } from "../time.js";
 import { busy, confirmAction, errorToast, field, h, modal, mount, promptText, select, toast } from "../ui.js";
 
@@ -105,6 +105,7 @@ async function draw(root, revealDay = false) {
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
     h("button", { class: "btn small", onclick: () => { clearCalendarCache(); draw(root).catch(errorToast); } }, "예약 현황 새로고침"),
+    calendarLegend(),
     renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...enhanced.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },

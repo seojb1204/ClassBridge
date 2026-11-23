@@ -8,7 +8,7 @@ import { bookingActivity, eventLabels } from "../components/booking-activity.js"
 // 교수자·관리자: 예약 현황 · 완료/미참석 · 상담 기록 · 대리 예약 · 일정 조정
 import { calendarGet, clearCalendarCache, get, post, put } from "../api.js";
 import { addDays, fmtDateTime, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
-import { isMobile, onLayoutChange, renderCalendar, weekNav } from "../components/week-calendar.js";
+import { isMobile, onLayoutChange, calendarLegend, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
@@ -124,9 +124,7 @@ async function renderCalendarView(root) {
     todayPanel ||= staffToday(),
     viewSwitcher(root),
     h("p", { class: "muted" }, "날짜의 숫자는 현재 예약된 학생 수입니다. 시간 칸에서 예약 학생 이름을 확인하고 누르면 상세 기록을 볼 수 있습니다."),
-    h("div", { class: "calendar-status-legend", "aria-label": "달력 상태 색상 안내" },
-      h("span", { class: "available" }, "상담 가능"),
-      h("span", { class: "reserved" }, "예약됨")),
+    calendarLegend(),
     h("button", { class: "btn small", onclick: () => { clearCalendarCache(); todayPanel = null; renderCalendarView(root).catch(errorToast); } }, "예약 현황 새로고침"),
     renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; renderCalendarView(root); }), weekStart, selectedDay, slots: [...enhanced, ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), mobileView, dayCountMode: "booked",
       onTimeSelect: startRegistrationAt,

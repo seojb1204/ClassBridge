@@ -3,7 +3,7 @@ import { availableDaysPanel, loadAvailableDays } from "../components/available-d
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { calendarGet as get, clearCalendarCache, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
-import { onLayoutChange, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
+import { onLayoutChange, calendarLegend, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 import { state } from "../state.js";
@@ -65,7 +65,7 @@ async function draw(root, revealDay = false) {
       h("strong", {}, fmtDateTime(active.slot.start_at)),
       " · 취소하지 않고 다른 가능한 시간을 눌러 바로 변경할 수 있습니다.",
       h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
-    legend(),
+    calendarLegend(true),
     renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
@@ -75,13 +75,6 @@ async function draw(root, revealDay = false) {
   );
   if (revealDay) revealSelectedDay(root);
   prefetchWeeks(weekStart, ['slots', 'lectures/calendar']);
-}
-
-function legend() {
-  return h("div", { class: "legend" },
-    h("span", { class: "lg open" }, "예약 가능"), h("span", { class: "lg mine" }, "내 예약"),
-    h("span", { class: "lg closed" }, "마감·불가"),
-    h("span", { class: "lg lecture" }, "강의"));
 }
 
 async function openSlot(root, s, active, policy) {

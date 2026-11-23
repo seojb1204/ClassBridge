@@ -69,7 +69,7 @@ function slotClass(s) {
 }
 
 function slotLabel(s) {
-  if (s.event_type === "lecture") return `강의 · ${s.title}`;
+  if (s.event_type === "lecture") return s.title;
   if (s.staffBookingNames) return s.reason === "마감"
     ? s.staffBookingNames : `${s.staffBookingNames} · ${s.reason || "예약"}`;
   if (s.managerState === "reserved") return `예약 ${s.bookingCount}/${s.capacity}명`;
@@ -107,6 +107,14 @@ function legacyWeekendEvents(o) {
     ...events.map(s => h("button", { type: "button", class: "btn legacy-weekend-event",
       onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       `${fmtDate(kstParts(s.start_at).date)} ${fmtTime(s.start_at)}–${fmtTime(s.end_at)} · ${slotLabel(s)}`)));
+}
+
+export function calendarLegend(student = false) {
+  const items = student
+    ? [["open", "예약 가능"], ["mine", "내 예약"], ["closed", "마감·불가"], ["lecture", "강의"]]
+    : [["open", "상담 가능"], ["reserved", "예약됨"], ["closed", "마감·불가"], ["lecture", "강의"]];
+  return h("div", { class: "legend", "aria-label": "달력 상태 색상 안내" },
+    ...items.map(([kind, label]) => h("span", { class: `lg ${kind}` }, label)));
 }
 
 export function renderCalendar(o) {
@@ -196,10 +204,10 @@ function renderWeekly(o, byDay) {
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
       const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s.originalSlot || s),
-        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
+        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
         h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
         h("span", { class: "slot-meta" }, o.compactGrid
-          ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? `강의 · ${s.title}` : s.status === "cancelled" ? "취소"
+          ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? s.title : s.status === "cancelled" ? "취소"
             : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
           : slotLabel(s)),
         o.extra && !o.compactGrid ? o.extra(s) : null);
@@ -393,7 +401,7 @@ function renderDaily(o, byDay) {
     h("button", { type: "button", class: mode === "timeline" ? "btn primary" : "btn",
       "aria-pressed": String(mode === "timeline"), onclick: () => changeView("timeline") }, "일간 시간표 보기"));
   const cards = h("div", { class: "cards" }, list.map((s) =>
-    h("button", { class: `card ${slotClass(s)}`, onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
+    h("button", { class: `card ${slotClass(s)}`, "aria-label": `${fmtTime(s.start_at)}–${fmtTime(s.end_at)} ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}`, onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       h("span", { class: "slot-time" }, `${fmtTime(s.start_at)} – ${fmtTime(s.end_at)}`),
       h("span", { class: "slot-meta" }, slotLabel(s)),
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
@@ -430,7 +438,7 @@ function renderDailyTimeline(o, slots, day) {
     const button = h("button", { type: "button",
       class: `day-timeline-slot ${slotClass(s)}`,
       onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" },
-      "aria-label": `${fmtDate(day)} ${start.time}부터 ${end.time}까지 ${slotLabel(s)}` },
+      "aria-label": `${fmtDate(day)} ${start.time}부터 ${end.time}까지 ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}` },
     h("span", { class: "slot-time" }, `${start.time}–${end.time}`),
     h("span", { class: "slot-meta" }, slotLabel(s)));
     button.style.top = `${from * pxPerMinute}px`;
