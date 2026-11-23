@@ -7,7 +7,7 @@ export function staffToday() {
   const box = h('section', { class: 'panel staff-today', 'aria-label': '오늘 할 일' });
   async function draw() {
     const entries = [
-      ['오늘 예약', '#/bookings', `/api/bookings?start=${todayKst()}&days=1&status=booked`, rows => rows.length],
+      ['오늘 예약', '#/bookings/today', `/api/bookings?start=${todayKst()}&days=1&status=booked`, rows => rows.length],
     ];
     if (feature('suggestions') && can('suggestion:read'))
       entries.push(['새 건의', '#/suggestions', '/api/suggestions/stats', data => data.by_status.new || 0]);
@@ -21,7 +21,7 @@ export function staffToday() {
       h('a', { class: 'btn', href }, `${label} ${count(await get(url))}건`)));
     box.replaceChildren(h('div', { class: 'page-head' }, h('h2', {}, '오늘 할 일'),
       h('button', { class: 'btn small', onclick: draw }, '요약 새로고침')),
-      h('p', { class: 'hint' }, `${todayKst()} · 한국시간 · 오늘 예약을 누르면 전체 예약 관리로 이동합니다.`),
+      h('p', { class: 'hint' }, `${todayKst()} · 한국시간 · 오늘 예약을 누르면 오늘 상담만 표시합니다.`),
       h('div', { class: 'actions' }, ...results.map((r, i) => r.status === 'fulfilled' ? r.value :
         h('span', { class: 'muted' }, `${entries[i][0]} · 확인 불가`))));
   }

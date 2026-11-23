@@ -53,6 +53,20 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
         p.get_by_role('grid', name='달력형 주간 시간표').wait_for()
     assert p.evaluate('document.documentElement.scrollWidth <= innerWidth')
     s.shot(f'role-audit-01-{role}-{width}-calendar')
+    if width <= 720:
+        p.get_by_role('button', name='더보기 메뉴', exact=True).click()
+        expect(p.locator('#nav')).to_be_visible()
+        if role == 'admin':
+            p.locator('#nav summary').filter(has_text=re.compile('^관리$')).click()
+            expect(p.locator('#nav').get_by_role('link', name='계정·권한', exact=True)).to_be_visible()
+        elif role == 'prof':
+            assert p.locator('#nav a[href="#/admin/users"]').count() == 0
+        else:
+            expect(p.locator('#nav').get_by_role('link', name='익명 건의', exact=True)).to_be_visible()
+            assert p.locator('#nav a[href="#/slots"]').count() == 0
+        s.shot(f'role-audit-menu-{role}-{width}')
+        p.locator('#nav').press('Escape')
+        expect(p.get_by_role('button', name='더보기 메뉴')).to_have_attribute('aria-expanded', 'false')
     routes = ['/my-bookings', '/surveys', '/suggestions', '/help'] if role == 'student' else [
         '/bookings', '/slots/new', '/staff/insights', '/surveys', '/suggestions', '/personal', '/help']
     if role == 'admin':
@@ -62,4 +76,12 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
         assert p.locator('#view').inner_text().strip()
         assert p.evaluate('document.documentElement.scrollWidth <= innerWidth'), route
         s.shot(f'role-audit-{index:02}-{role}-{width}-{route.strip("/").replace("/", "-")}')
+        if route == '/bookings':
+            panel = p.locator('.staff-today')
+            panel.get_by_role('link', name='오늘 예약 4건', exact=True).click()
+            expect(p.get_by_role('heading', name='오늘 상담 일정', exact=True)).to_be_visible()
+            if width <= 720:
+                expect(p.locator('#mobile-tabs a[href="#/bookings"]')).to_have_attribute('aria-current', 'page')
+            p.get_by_role('link', name='전체 예약 관리', exact=True).click()
+            expect(p.get_by_role('heading', name='예약 관리', exact=True)).to_be_visible()
     s.close()

@@ -60,7 +60,7 @@ function row(root, u) {
   }));
   return h("tr", { dataset: { userEmail: u.email } },
     h("td", { "data-label": "이름" }, u.name, self ? " (나)" : ""), h("td", { "data-label": "이메일" }, u.email),
-    h("td", { "data-label": "역할" }, role), h("td", { "data-label": "상태" }, toggle,
+    h("td", { "data-label": "역할" }, role), h("td", { "data-label": "상태", class: "user-state-actions" }, toggle,
       !self && u.role === "student" ? h("button", { class: "btn small danger", onclick: async () => {
         try {
           const preview = await get(`/api/admin/users/${u.id}/deletion-preview`);
