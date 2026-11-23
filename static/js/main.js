@@ -98,7 +98,8 @@ function renderMobileTabs() {
   }
   const active = location.hash;
   tabs.querySelectorAll("a").forEach((a) => {
-    const current = a.getAttribute("href") === active || (a.getAttribute("href") === "#/slots" && active === "#/slots/new");
+    const current = a.getAttribute("href") === active || (a.getAttribute("href") === "#/slots" && active === "#/slots/new") ||
+      (a.getAttribute("href") === "#/bookings" && active === "#/bookings/today");
     a.classList.toggle("active", current);
     if (current) a.setAttribute("aria-current", "page");
   });

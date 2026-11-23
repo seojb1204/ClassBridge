@@ -409,7 +409,10 @@ function renderDaily(o, byDay) {
       h("span", { class: "slot-meta" }, slotLabel(s)),
       s.location ? h("span", { class: "slot-loc" }, s.location) : null,
       o.extra ? o.extra(s) : null)));
-  return h("div", { class: "daily" }, chips,
+  return h("div", { class: "daily" },
+    h("p", { class: "day-count-hint hint" }, o.dayCountMode === "booked"
+      ? "날짜 숫자: 예약된 학생 수 (취소·완료 제외)"
+      : "날짜 숫자: 예약 가능한 상담 시간 수"), chips,
     h("h3", { class: "daily-title", tabindex: "-1" }, `${fmtDate(sel)} · 일정`),
     o.mobileListOnly || o.hideViewToggle ? null : toggle,
     list.length ? (mode === "timeline" ? renderDailyTimeline(o, list, sel) : cards)

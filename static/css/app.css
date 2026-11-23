@@ -744,3 +744,23 @@ tr[hidden] { display: none; }
 .personal-alert-form label { display: flex; gap: .4rem; align-items: center; min-height: 32px; }
 .personal-alert-form .field { margin: 0; max-width: 220px; }
 .personal-alert-form .hint { margin: 0; }
+
+/* Keep frequent staff navigation compact and destructive account actions apart. */
+.staff-today .page-head { margin-bottom: .5rem; gap: .5rem; }
+.staff-today .page-head h2 { margin: 0; }
+.staff-today .hint { margin: .35rem 0 .5rem; }
+.user-state-actions .btn + .btn { margin-left: .5rem; }
+.day-count-hint { margin: 0 0 .35rem; }
+@media (max-width: 720px) {
+  .staff-today { padding: .75rem; }
+  .staff-today .page-head { flex-wrap: nowrap; }
+  .staff-today .page-head h2 { font-size: 1rem; border: 0; padding: 0; }
+  .staff-today .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+  .staff-today .actions .btn { min-height: 44px; padding: .4rem .2rem; font-size: .8rem; }
+}
+
+@media (max-width: 720px) {
+  .user-table td { padding: .4rem .7rem; }
+  .user-table td:nth-child(2) { overflow-wrap: anywhere; }
+  .user-table .btn { min-height: 44px; }
+}

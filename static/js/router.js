@@ -4,6 +4,7 @@ import { h, mount } from "./ui.js";
 
 const routes = [];
 let resolution = 0;
+let renderedPath = null;
 
 export function route(pattern, perm, render, navLabel) {
   const keys = [];
@@ -47,6 +48,9 @@ export async function resolve() {
     }
     if (version !== resolution || !view.isConnected) return;
     view.focus({ preventScroll: true });
+    // New destinations start at their heading; in-page calendar redraws keep scroll.
+    if (renderedPath !== path) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    renderedPath = path;
     if ((location.hash.replace(/^#/, "") || "/") === path) document.body.dataset.ready = path;
     return;
   }
