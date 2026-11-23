@@ -1,5 +1,17 @@
 # 테스트 보고서
 
+## 최신 실행 (2026-11-23, 브랜치 `fix/ux-security-priority-20261123`)
+
+- 환경: Python 3.13, SQLite, Chromium(Playwright 1.63), 로컬 컨테이너. PostgreSQL 서버 없음 → PostgreSQL 전용 39건은 건너뜀(CI의 `postgres:16` 서비스에서 실행)
+- 명령: `RUN_E2E=1 pytest -q -rf --junitxml=...` · `ruff check app tests migrations scripts` · JS 회귀 4종(`node scripts/test-*.mjs`)
+- 결과: **584 통과 · 0 실패 · 39 건너뜀** (변경 전 `staging` e2a7a0b 같은 환경: 579 통과 · 39 건너뜀). ruff 통과, JS 회귀 통과
+- 추가 테스트 5건: 비로그인 공개 건의 거부·로그인 공개 허용, `X-Forwarded-For` 조작으로 속도 제한 회피 불가, 프록시 주소 판별 단위 테스트, 통계에 다가오는 예약 포함, 보관기간 조회의 읽기 전용·개인정보 비노출
+- 의도적으로 바꾼 E2E 기대값: 비로그인 건의 화면의 '공개 범위' 없음, 휴대폰 교수자 시간표 지원 패널 기본 닫힘, PC 인라인 등록 양식 제거에 따른 등록 경로
+- 검증 안 됨: 실제 Render 프록시 뒤의 `X-Forwarded-For` 형태(배포 후 확인 필요), 실기기 iOS/Android, 실제 Google 로그인
+- 테스트별 표: [test-results-table.md](test-results-table.md) (이번 실행으로 재생성)
+
+## 최초 보고 (2026-11-02~03)
+
 - 실행일: 2026-11-02, 2026-11-03 재실행 (KST)
 - 환경: Python 3.13, SQLite 3, **PostgreSQL 16.15**, Chromium (Playwright 1.63)
 - 명령:
