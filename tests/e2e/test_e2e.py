@@ -1034,7 +1034,7 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
     prof.page.reload()
     prof.go("/slots")
     prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile("예약 0명"))
+    chip = prof.page.get_by_role("tab", name=re.compile(rf"{int(day[5:7])}월 {int(day[8:])}일 .*예약 0명"))
     chip.wait_for()
     assert chip.locator("em").inner_text() == "0명"
     slots[3].update(kind="group", capacity=3)
