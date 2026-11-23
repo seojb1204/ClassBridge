@@ -49,7 +49,7 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
         if width <= 720:
             # Phones start calendar-first with the support panel closed.
             assert support.get_attribute('open') is None
-            support.locator('summary').click()
+            support.locator(':scope > summary').click()
         p.locator('.available-day-buttons').wait_for()
         assert p.locator('.available-day-buttons').evaluate('e => e.scrollWidth <= e.clientWidth')
         assert p.evaluate('document.documentElement.scrollWidth <= window.innerWidth')

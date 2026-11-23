@@ -61,6 +61,7 @@ def test_student_change_read_ack_and_staff_menu(server, browser, viewport):  # n
     expect(staff.page.get_by_role('button', name='예약 목록', exact=True)).to_have_attribute('aria-pressed', 'true')
     assert staff.page.locator('#mobile-tabs a[href="#/slots/new"]').count() == 0
     assert staff.page.locator('#mobile-tabs a[href="#/inbox"]').count() == 1
-    staff.page.locator('#view').get_by_role('link', name='시간표', exact=True).click()
+    navigation = staff.page.locator('#mobile-tabs' if viewport == MOBILE else '#view')
+    navigation.get_by_role('link', name='시간표', exact=True).click()
     expect(staff.page.get_by_role('link', name='+ 일정 등록', exact=True)).to_be_visible()
     staff.close()

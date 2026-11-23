@@ -223,7 +223,7 @@ function mobileList(root, list) {
       h("span", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at), time),
       badge(STATUS_LABEL[b.status], b.status));
     cards.append(h("details", { class: "card", dataset: { bookingId: b.id } }, summary,
-      h("p", {}, badge(STATUS_LABEL[b.status], b.status), " ", bookingType(b)),
+      h("p", {}, bookingType(b)),
       h("p", { class: "muted" }, [b.grade && b.grade + "학년", b.student_email].filter(Boolean).join(" · ")),
       h("p", {}, b.topic || "상담 내용 미입력"),
       h("div", { class: "actions" }, actions(root, b))));

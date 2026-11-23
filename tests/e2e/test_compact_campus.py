@@ -28,7 +28,7 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     s.go(path)
     support = page.locator('.calendar-support')
     if support.count() and not support.evaluate('e => e.open'):
-        support.locator('summary').click()
+        support.locator(':scope > summary').click()
     notice = page.locator('.announcement-panel')
     notice.wait_for()
     if page.locator('.other-available-days').count():

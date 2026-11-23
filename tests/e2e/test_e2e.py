@@ -94,7 +94,9 @@ def test_live_booking_refresh_preserves_dialog_and_stops_after_navigation(server
     page.keyboard.press('Escape')
     slot.update(remaining=0, bookable=False, reason="마감")
     page.clock.run_for(31000)
-    page.locator('[data-slot-id="99001"]').filter(has_text="마감").wait_for()
+    page.locator('[data-slot-id="99001"]').filter(has_text="마감").wait_for(state="attached")
+    page.locator(".other-events > summary").click()
+    assert page.locator('[data-slot-id="99001"]').filter(has_text="마감").is_visible()
     assert len(calls) > before
     s.shot("mobile_live_booking_refresh")
     s.go('/my-bookings')
@@ -532,7 +534,7 @@ def test_student_booking_flow_pc(server, browser):
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
-    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".week-grid").wait_for(state="visible")
     # The fixture can fall in next week (e.g. when this test runs on Saturday).
     today = today_kst(utcnow())
@@ -818,7 +820,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
 
     prof.go("/bookings")
-    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".calendar-week").wait_for()
     assert prof.page.locator(".week-grid .day-head").count() == 5
     prof.page.get_by_role("button", name="목록형", exact=True).click()
@@ -1047,7 +1049,7 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
                     (3, "booked"), (0, "cancelled"), (1, "completed")])]
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
     prof.go("/bookings")
-    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.get_by_role("button", name="목록형", exact=True).click()
     chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
     chip.wait_for()
