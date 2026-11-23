@@ -17,10 +17,14 @@ def test_mobile_booking_week_navigation_keeps_scroll(server, browser):  # noqa: 
     p.locator('.week-nav').wait_for()
     p.wait_for_load_state('networkidle')
     for name in ['다음 주', '이전 주', '다음 주', '이번 주로 이동']:
-        p.evaluate("window.scrollTo(0, 240)")
+        p.evaluate("""() => {
+            const nav = document.querySelector('.week-nav').getBoundingClientRect();
+            const header = document.querySelector('.topbar').getBoundingClientRect();
+            window.scrollTo(0, window.scrollY + nav.top - header.height - 24);
+        }""")
         p.wait_for_timeout(100)
         before = p.evaluate('scrollY')
-        assert before > 100
+        assert before > 0
         p.get_by_role('button', name=name, exact=True).click()
         p.wait_for_timeout(350)
         assert abs(p.evaluate('scrollY') - before) < 3

@@ -19,6 +19,7 @@ def test_booking_back_close_reopen_and_explicit_close(server, browser, viewport)
                 kind='individual', capacity=1, remaining=1, status='open', bookable=True,
                 mine=False, location='', note='', reason='')
     p.route('**/api/slots?*', lambda r: r.fulfill(json=[slot]))
+    p.reload()
     student.go('/my-bookings')
     student.go('/booking')
     url = p.url

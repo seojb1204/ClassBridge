@@ -70,18 +70,26 @@ async function staffList(root) {
 
 async function studentList(root) {
   const list = await get("/api/surveys/student/list");
-  mount(root, h("div", { class: "page-head" }, h("h1", {}, "설문")),
-    list.length ? h("div", { class: "cards" }, list.map((s) => h("div", { class: "card" },
-      h("div", { class: "row" }, h("strong", {}, s.title),
-        s.participated ? badge("참여 완료", "completed") : s.is_open ? badge(s.access_mode === "anonymous" ? "진행 중" : "응답 가능", "booked") : badge("마감", "cancelled")),
-      h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
-      s.access_mode === "anonymous" ? h("span", { class: "muted" }, "익명 설문 · 계정과 연결하지 않습니다. 참여 여부는 설문을 열면 확인됩니다.") : null,
-      s.description ? h("span", { class: "survey-summary" }, s.description.length > 80 ? `${s.description.slice(0, 80)}…` : s.description) : null,
-      h("span", { class: "muted" }, s.closes_at ? `마감 ${fmtDateTime(s.closes_at)}` : "마감일 미정 · 교수자가 직접 마감합니다"),
-      s.is_open && !s.participated ? h("div", { class: "actions" },
-        h("a", { class: "btn small primary", href: s.access_mode === "anonymous" ? `#/surveys/public/${s.public_token}` : `#/surveys/take/${s.id}` },
-          s.access_mode === "anonymous" ? "익명 설문 열기" : "응답하기")) : null)))
-      : empty("참여할 설문이 없습니다."));
+  const scheduled = s => !s.is_open && s.status === 'published' && (!s.closes_at || new Date(s.closes_at) > new Date());
+  const card = s => h("div", { class: "card" },
+    h("div", { class: "row" }, h("strong", {}, s.title),
+      s.participated ? badge("참여 완료", "completed") : s.is_open ? badge("응답 가능", "booked") : scheduled(s) ? badge("시작 전", "draft") : badge("마감", "cancelled")),
+    h("span", { class: "muted" }, [s.course_name, s.semester].filter(Boolean).join(" · ")),
+    s.access_mode === "anonymous" ? h("span", {class: "muted"}, "익명 설문") : null,
+    s.description && s.description.trim() !== (s.course_name || '').trim()
+      ? h("span", {class: "survey-summary"}, s.description.length > 80 ? `${s.description.slice(0, 80)}…` : s.description) : null,
+    h("span", {class: "muted"}, scheduled(s) ? "아직 응답 시작 전입니다" : !s.is_open ? (s.closes_at ? `마감 · 설정된 종료 시각 ${fmtDateTime(s.closes_at)}` : "응답 접수가 종료되었습니다")
+      : s.closes_at ? `마감 ${fmtDateTime(s.closes_at)}` : "마감일 미정 · 교수자가 직접 마감합니다"),
+    s.is_open && !s.participated ? h("a", {class: "btn small primary", href: s.access_mode === "anonymous" ? `#/surveys/public/${s.public_token}` : `#/surveys/take/${s.id}`},
+      s.access_mode === "anonymous" ? "익명 설문 열기" : "응답하기") : null);
+  const active = list.filter(s => s.is_open && !s.participated);
+  const upcoming = list.filter(scheduled);
+  const history = list.filter(s => !scheduled(s) && (!s.is_open || s.participated));
+  mount(root, h("div", {class: "page-head"}, h("h1", {}, "설문")),
+    active.length ? h("div", {class: "cards"}, active.map(card)) : empty("현재 참여 가능한 설문이 없습니다."),
+    upcoming.length ? h("details", {class: "survey-upcoming"}, h("summary", {}, `예정된 설문 ${upcoming.length}건`), h("div", {class: "cards"}, upcoming.map(card))) : null,
+    history.length ? h("details", {class: "survey-history"}, h("summary", {}, `지난 설문·참여 내역 ${history.length}건`), h("div", {class: "cards"}, history.map(card))) : null);
+
 }
 
 export async function renderTake(root, { id }) {

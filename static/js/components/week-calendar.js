@@ -4,6 +4,7 @@ import { h, errorToast } from "../ui.js";
 
 const MOBILE = window.matchMedia("(max-width: 720px)");
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const visitedCalendarRoutes = new Set();
 const STEP = 15; // 분 단위 행 높이
 
 export function isMobile() { return MOBILE.matches; }
@@ -125,7 +126,7 @@ export function renderCalendar(o) {
 }
 
 // Keep the same event data and detail handlers in every view. Mobile defaults
-// to a whole-week overview; list mode provides readable event details.
+// to the role-specific choice; list mode provides readable event details.
 function renderMobile(o, byDay) {
   const mode = ["week", "list", "timeline"].includes(o.mobileView) ? o.mobileView : "week";
   const toggle = h("div", { class: "mobile-view-toggle calendar-view-switch", role: "group", "aria-label": "일정 보기 방식" },
@@ -139,7 +140,7 @@ function renderMobile(o, byDay) {
   const days = Array.from({ length: 5 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle, o.navigation,
     o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[4])}`),
-    h("p", { class: "hint calendar-help" }, "좌우로 밀어 주 이동 · 작은 일정은 목록형에서 크게 볼 수 있어요."),
+    h("details", { class: "calendar-help" }, h("summary", {}, "시간표 사용 안내"), h("p", {}, "좌우로 밀어 주 이동 · 작은 일정은 목록형에서 크게 볼 수 있어요.")),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 
@@ -209,7 +210,7 @@ function renderWeekly(o, byDay) {
         h("span", { class: "slot-time" }, a.time, h("span", { class: "slot-time-end" }, `–${b.time}`)),
         h("span", { class: "slot-meta" }, o.compactGrid
           ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? s.title : s.status === "cancelled" ? "취소"
-            : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명`
+            : s.mine ? "내 예약" : (s.reason?.includes("지난") ? "지남" : s.reason) || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명`
               // Same words as the legend: staff "상담 가능", students "예약 가능".
               : s.managerState === "free" ? "상담 가능" : "예약 가능"))
           : slotLabel(s)),
@@ -230,6 +231,19 @@ function renderWeekly(o, byDay) {
   const wrap = h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
     ...(o.compactGrid ? { tabindex: "0", role: "region", "aria-label": "시간표 스크롤 영역" } : {}) }, grid);
   wrap.dataset.weekStart = o.weekStart;
+  wrap.dataset.route = globalThis.location?.hash || "";
+  if (o.compactGrid) {
+    const route = location.hash;
+    const previous = [...document.querySelectorAll('.week-wrap')].find(el => el.dataset.route === route);
+    const firstVisit = !visitedCalendarRoutes.has(route);
+    const firstHour = o.slots.length ? Math.min(...o.slots.map(s => kstParts(s.start_at).hour)) : minH;
+    const scroll = previous?.scrollTop ?? (firstVisit ? Math.max(0, firstHour - minH) * 4 * rowPx : 0);
+    requestAnimationFrame(() => {
+      if (!wrap.isConnected || location.hash !== route) return;
+      wrap.scrollTop = scroll;
+      visitedCalendarRoutes.add(route);
+    });
+  }
   if (o.compactGrid && o.onWeekChange) enableWeekSwipe(wrap, grid, o);
   return wrap;
 }
@@ -403,12 +417,18 @@ function renderDaily(o, byDay) {
       "aria-pressed": String(mode === "list"), onclick: () => changeView("list") }, "목록형 보기"),
     h("button", { type: "button", class: mode === "timeline" ? "btn primary" : "btn",
       "aria-pressed": String(mode === "timeline"), onclick: () => changeView("timeline") }, "일간 시간표 보기"));
-  const cards = h("div", { class: "cards" }, list.map((s) =>
+  const card = (s) =>
     h("button", { class: `card ${slotClass(s)}`, "aria-label": `${fmtTime(s.start_at)}–${fmtTime(s.end_at)} ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}`, onclick: () => o.onSlot(s.originalSlot || s), dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
       h("span", { class: "slot-time" }, `${fmtTime(s.start_at)} – ${fmtTime(s.end_at)}`),
       h("span", { class: "slot-meta" }, slotLabel(s)),
-      s.location ? h("span", { class: "slot-loc" }, s.location) : null,
-      o.extra ? o.extra(s) : null)));
+      s.location ? h("span", { class: "slot-loc" }, `장소: ${s.location}`) : null,
+      o.studentBooking && s.bookable ? h("strong", {class: "slot-select"}, "선택 ›") : null,
+      o.extra ? o.extra(s) : null);
+  const primary = o.studentBooking ? list.filter(s => s.bookable || s.mine) : list;
+  const other = o.studentBooking ? list.filter(s => !s.bookable && !s.mine) : [];
+  const cards = h("div", {class: "cards"}, primary.map(card),
+    o.studentBooking && !primary.length ? h("p", {class: "notice"}, "이 날은 예약 가능한 상담이 없습니다. 다른 날짜를 선택해 주세요.") : null,
+    other.length ? h("details", {class: "other-events"}, h("summary", {}, `다른 일정 보기 ${other.length}건`), h("div", {class: "cards"}, other.map(card))) : null);
   return h("div", { class: "daily" },
     h("p", { class: "day-count-hint hint" }, o.dayCountMode === "booked"
       ? "날짜 숫자: 예약된 학생 수 (취소·완료 제외)"

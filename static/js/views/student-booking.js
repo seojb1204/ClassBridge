@@ -1,9 +1,10 @@
+import { preference, savePreference } from "../preferences.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 // 학생: 상담 시간표 보기 · 예약 · 변경
 import { calendarGet as get, clearCalendarCache, post } from "../api.js";
 import { announcementPanel, loadAnnouncement } from "../components/announcement.js";
-import { onLayoutChange, calendarLegend, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
+import { isMobile, onLayoutChange, calendarLegend, renderCalendar, revealSelectedDay, weekNav } from "../components/week-calendar.js";
 import { fmtDateTime, fmtDateTimeRange, kstParts, mondayOf, todayKst } from "../time.js";
 import { errorToast, field, h, modal, mount, select, toast } from "../ui.js";
 import { state } from "../state.js";
@@ -13,9 +14,10 @@ let weekStart = null;
 let selectedDay = null;
 let detach = null;
 let drawVersion = 0;
-let mobileView = "week";
+let mobileView = "list";
 
 export async function render(root) {
+  mobileView = preference("student-calendar-view", "list");
   clearCalendarCache(); // Fresh route entry; week-to-week draws still reuse prefetch.
   if (!weekStart) {
     weekStart = mondayOf(todayKst());
@@ -53,22 +55,25 @@ async function draw(root, revealDay = false) {
   const active = mine.find((b) => b.status === "booked");
   // Calendar first: the page refreshes itself (30s, focus, tab return), so no
   // manual refresh row; the booking guide moves below the calendar.
+  const compactList = isMobile() && mobileView === 'list';
+  const dates = availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); });
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담 예약")),
     h("p", { class: "muted refresh-status", role: "status", hidden: true }),
     announcementPanel(announcement),
-    availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); }),
+    compactList ? null : dates,
     active ? h("div", { class: "notice booking-active", role: "status" }, "예약 확정: ",
       h("strong", {}, fmtDateTimeRange(active.slot.start_at, active.slot.end_at)),
       " · 다른 ‘예약 가능’ 시간을 누르면 취소 없이 변경됩니다. ",
       h("a", { href: "#/my-bookings" }, "예약 내역")) : null,
-    calendarLegend(true),
-    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    compactList ? null : calendarLegend(true),
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), studentBooking: true, weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
-      onViewChange: (mode) => { mobileView = mode; draw(root); },
+      onViewChange: (mode) => { mobileView = mode; savePreference("student-calendar-view", mode); draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
+    compactList ? h("details", {class: "other-available-days"}, h("summary", {}, "다른 예약 가능 날짜"), dates) : null,
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
         `시작 ${policy.booking_deadline_minutes}분 전까지 신규 예약할 수 있습니다. 기존 예약의 시간 변경에는 이 ${policy.booking_window_days}일 범위 제한이 없습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),

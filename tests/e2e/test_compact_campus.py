@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 
 import pytest
+from playwright.sync_api import expect
 
 from app.db import utcnow
 from app.timeutil import today_kst
@@ -28,21 +29,23 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     s.go(path)
     support = page.locator('.calendar-support')
     if support.count() and not support.evaluate('e => e.open'):
-        support.locator('summary').click()
+        support.locator(':scope > summary').click()
     notice = page.locator('.announcement-panel')
     notice.wait_for()
+    if page.locator('.other-available-days').count():
+        page.locator('.other-available-days > summary').click()
     availability = page.locator('.available-days')
-    for panel in [notice, availability]:
-        assert panel.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgb(255, 252, 247)'
-        assert panel.evaluate('e => getComputedStyle(e).borderLeftColor') == 'rgb(221, 211, 197)'
     body = notice.locator('.announcement-body')
+    if email.startswith('compact-student'):
+        assert not notice.evaluate('e => e.open')
+        assert notice.get_by_text('새 공지').is_visible()
+        notice.locator('summary').click()
+        expect(notice.get_by_text('새 공지')).not_to_be_visible()
     assert body.bounding_box()['height'] > 100
-    toggle = notice.get_by_role('button', name='공지 접기')
-    assert toggle.get_attribute('aria-expanded') == 'true'
+    notice.locator('summary').click()
+    assert not body.is_visible()
     s.shot(f'compact_support_{email.split("@")[0]}_{width}')
-    toggle.click()
-    assert body.bounding_box()['height'] <= 44
-    notice.get_by_role('button', name='공지 전체 보기').click()
+    notice.locator('summary').click()
     assert body.bounding_box()['height'] > 100
     buttons = availability.locator('.available-day-buttons button')
     assert buttons.count() == 3

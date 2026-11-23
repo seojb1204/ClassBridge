@@ -1,4 +1,4 @@
-// No polling. Share successful mutations and invalidate in-flight list snapshots.
+// Shared mutation invalidation; visible inbox polling is owned by views/inbox.js.
 import { put } from "./api.js";
 let version = 0;
 export const inboxVersion = () => version;

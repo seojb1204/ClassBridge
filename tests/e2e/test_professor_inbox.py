@@ -33,7 +33,7 @@ def test_professor_inbox_read_and_refresh(server, browser, viewport):  # noqa: F
     prof.page.get_by_text("읽지 않은 알림 0건", exact=True).wait_for()
     assert calls.count("PUT") == 1
     assert prof.page.locator("body").evaluate("e => e.scrollWidth <= innerWidth")
-    prof.page.get_by_role("button", name="알림 새로고침").click()
+    prof.page.evaluate("window.dispatchEvent(new Event('focus'))")
     assert prof.page.locator(".inbox-item.is-read").count() == 1
     prof.ctx.close()
 
@@ -77,8 +77,8 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
         button_box = staff.page.locator('.inbox-bell').bounding_box()
         assert button_box['y'] < 70 and button_box['x'] > viewport['width'] / 2
         staff.page.get_by_role('button', name='더보기 메뉴').click()
-        staff.page.locator('#nav summary').filter(has_text='상담 기록·알림').click()
-        staff.page.locator('#nav').get_by_role('link', name='내 알림', exact=True).wait_for()
+        assert not staff.page.locator('#nav').get_by_role('link', name='내 알림', exact=True).is_visible()
+        assert staff.page.locator('#nav').get_by_role('link', name='상담 기록·통계', exact=True).is_visible()
     staff.ctx.close()
 
 
@@ -154,7 +154,7 @@ def test_content_open_marks_read_and_read_all_survives_reload(server, browser, v
     staff.page.wait_for_selector('body[data-ready="/bookings"]', state='attached')
     staff.page.get_by_role('button', name='알림 열기, 읽지 않은 알림 3건', exact=True).wait_for()
     staff.go('/inbox')
-    staff.page.get_by_role('button', name='모두 읽음', exact=True).click()
+    staff.page.get_by_role('button', name='모두 읽음 처리', exact=True).click()
     staff.page.get_by_text('읽지 않은 알림 0건', exact=True).wait_for()
     assert staff.page.locator('.inbox-badge').is_hidden()
     staff.page.reload()

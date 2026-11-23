@@ -94,7 +94,9 @@ def test_live_booking_refresh_preserves_dialog_and_stops_after_navigation(server
     page.keyboard.press('Escape')
     slot.update(remaining=0, bookable=False, reason="마감")
     page.clock.run_for(31000)
-    page.locator('[data-slot-id="99001"]').filter(has_text="마감").wait_for()
+    page.locator('[data-slot-id="99001"]').filter(has_text="마감").wait_for(state="attached")
+    page.locator(".other-events > summary").click()
+    assert page.locator('[data-slot-id="99001"]').filter(has_text="마감").is_visible()
     assert len(calls) > before
     s.shot("mobile_live_booking_refresh")
     s.go('/my-bookings')
@@ -117,6 +119,7 @@ def test_staff_today_and_actionable_notification_error(server, browser):
     s.go('/bookings')
     panel = p.locator('.staff-today')
     panel.get_by_role('link', name='오늘 예약 2건').wait_for()
+    panel.locator('.staff-other-tasks > summary').click()
     panel.get_by_role('link', name='새 건의 3건').wait_for()
     panel.get_by_role('link', name='진행 중 설문 1건').wait_for()
     s.shot('mobile_staff_today')
@@ -155,7 +158,9 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
             # Phones start with the calendar first; the support panel opens on demand.
             assert page.locator(".calendar-support").get_attribute("open") is None
             page.locator(".calendar-support > summary").click()
-        page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
+        page.locator(".announcement-panel > summary").get_by_text("먼저 읽을 공지").wait_for()
+        if page.locator('.other-available-days').count():
+            page.locator('.other-available-days > summary').click()
         assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]
         page.locator(".available-day-buttons button").nth(1).click()
         title = page.locator(".daily-title:focus")
@@ -233,7 +238,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     prof.page.get_by_role("button", name="공지 저장", exact=True).click()
     prof.toast("게시했습니다")
     student.page.reload()
-    student.page.get_by_role("heading", name="상담 전 준비 안내").wait_for()
+    student.page.locator(".announcement-panel > summary").click()
     assert student.page.locator(".announcement-body").inner_text().endswith("</script>")
     assert student.page.evaluate("window.noticeInjected === undefined")
     assert student.page.get_by_role("button", name="공지 수정").count() == 0
@@ -308,11 +313,12 @@ def test_anonymous_survey_qr_and_direct_response(server, browser):
     student = Session(browser, base, "anonymous-list@test.ac.kr", MOBILE)
     student.go("/surveys")
     card = student.page.locator(".card").filter(has_text="QR 익명 소감")
-    card.get_by_text("계정과 연결하지 않습니다.", exact=False).wait_for()
+    card.get_by_text("익명 설문", exact=True).wait_for()
     student_requests = []
     student.page.on("request", lambda r: student_requests.append(r.url))
     card.get_by_role("link", name="익명 설문 열기", exact=True).click()
     student.page.locator(".survey-form").wait_for()
+    assert student.page.get_by_text("이름·계정은 수집하지 않습니다.", exact=False).is_visible()
     assert not any("/api/me" in url for url in student_requests)
     student.page.fill("textarea", "로그인 상태에서도 익명 참여")
     student.page.get_by_role("button", name="제출", exact=True).click()
@@ -762,8 +768,7 @@ def test_mobile_student_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "mobile1@test.ac.kr", MOBILE)
     st.go("/booking")
-    assert st.page.locator(".week-grid .day-head").count() == 5
-    st.page.get_by_role("button", name="목록형", exact=True).click()
+    assert st.page.get_by_role("button", name="목록형", exact=True).get_attribute("aria-pressed") == "true"
     st.page.locator(".day-chips").wait_for()
     assert st.page.locator(".day-chips").is_visible()
     slot = _find_slot(st, mobile=True)
@@ -772,7 +777,7 @@ def test_mobile_student_flow(server, browser):
     assert st.page.locator(".week-grid .day-head").count() == 5
     assert st.page.locator(".week-grid .slot.open").count() > 0
     st.page.get_by_role("button", name="목록형", exact=True).click()
-    st.page.locator(".daily .cards").wait_for(state="visible")
+    st.page.locator(".daily > .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
@@ -783,8 +788,7 @@ def test_mobile_student_flow(server, browser):
     st.toast("예약이 완료")
     st.page.wait_for_selector(".card.slot.mine")
     st.shot("mobile_02_booked")
-    st.page.click("#menu-btn")
-    st.page.click("#nav >> text=내 예약")
+    st.page.locator("#mobile-tabs").get_by_role("link", name="내 예약", exact=True).click()
     st.page.wait_for_selector(".card.booking.booked")
     btn = st.page.locator("text=예약 취소").bounding_box()
     assert btn and btn["height"] >= 40  # 터치하기 쉬운 크기
@@ -806,7 +810,6 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
     assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
-    prof.page.locator("#nav summary").filter(has_text="상담 기록·알림").click()
     prof.page.locator("#nav").get_by_role("link", name="상담 기록·통계", exact=True).click()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
@@ -816,7 +819,7 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.evaluate("document.documentElement.scrollWidth") <= MOBILE["width"] + 1
 
     prof.go("/bookings")
-    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".calendar-week").wait_for()
     assert prof.page.locator(".week-grid .day-head").count() == 5
     prof.page.get_by_role("button", name="목록형", exact=True).click()
@@ -1045,7 +1048,7 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
                     (3, "booked"), (0, "cancelled"), (1, "completed")])]
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
     prof.go("/bookings")
-    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.get_by_role("button", name="목록형", exact=True).click()
     chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
     chip.wait_for()
@@ -1152,7 +1155,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     # More than three dates may already exist from other end-to-end scenarios.
     if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
         summary.get_by_role('button', name='전체 일정 보기', exact=True).click()
-    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*6개 시간')).click()
+    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*예약 가능 6건')).click()
     prof.page.locator('.card.slot.open').first.click()
     prof.page.get_by_role('button', name='이 시간 취소', exact=True).click()
     prof.page.get_by_role('button', name='취소하기', exact=True).click()

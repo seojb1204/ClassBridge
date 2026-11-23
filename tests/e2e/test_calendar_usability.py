@@ -49,9 +49,19 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
         if width <= 720:
             # Phones start calendar-first with the support panel closed.
             assert support.get_attribute('open') is None
-            support.locator('summary').click()
+            support.locator(':scope > summary').click()
         p.locator('.available-day-buttons').wait_for()
-        assert p.locator('.available-day-buttons').evaluate('e => e.scrollWidth <= e.clientWidth')
+        dates = p.locator('.available-day-buttons')
+        if width <= 720:
+            # The date strip scrolls internally; every date remains reachable.
+            dates.locator('button').last.scroll_into_view_if_needed()
+            strip_box = dates.bounding_box()
+            last_box = dates.locator('button').last.bounding_box()
+            assert last_box['x'] >= strip_box['x'] - 1
+            assert last_box['x'] + last_box['width'] <= strip_box['x'] + strip_box['width'] + 1
+            assert last_box['height'] >= 44
+        else:
+            assert dates.evaluate('e => e.scrollWidth <= e.clientWidth')
         assert p.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
         s.go('/slots/new')
         assert p.get_by_role('button', name='상담', exact=True).is_visible()

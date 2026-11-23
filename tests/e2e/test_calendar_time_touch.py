@@ -46,6 +46,7 @@ def test_student_blank_time_does_not_create_booking(server, browser):  # noqa: F
     session.go("/booking")
     writes = []
     p.on("request", lambda r: writes.append(r.url) if r.method in ("POST", "PATCH", "PUT", "DELETE") else None)
+    p.get_by_role("button", name="달력형", exact=True).click()
     p.locator(".calendar-time-cell").first.focus()
     p.keyboard.press("Enter")
     message = "이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."

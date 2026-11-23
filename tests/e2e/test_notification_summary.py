@@ -47,7 +47,7 @@ def test_compact_rows_summary_manage_and_back(server, browser, viewport):  # noq
         assert 'private@example.test' not in row.inner_text()
         assert row.bounding_box()['height'] >= 44
         row.click()
-        summary = p.get_by_role('dialog', name='새 상담 예약', exact=True)
+        summary = p.get_by_role('dialog', name='예약 접수 알림', exact=True)
         summary.wait_for()
         p.locator(".modal:focus-within").wait_for()
         assert summary.locator('textarea,input').count() == 0
