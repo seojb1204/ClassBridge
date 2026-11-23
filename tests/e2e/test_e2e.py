@@ -1020,7 +1020,7 @@ def test_developer_support_private_conversation_and_menu(server, browser):
     student.close()
 
 
-def test_mobile_available_slot_counts_in_staff_views(server, browser):
+def test_mobile_reserved_student_counts_in_staff_views(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE, service_workers="block")
     day = today_kst(utcnow()).isoformat()
@@ -1030,12 +1030,13 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
               "bookable": i < 2, "mine": False, "location": "m205", "note": "",
               "reason": "" if i < 2 else "마감"} for i in range(6)]
     prof.page.route("**/api/slots?*", lambda route: route.fulfill(json=slots))
+    prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=[]))
     prof.page.reload()
     prof.go("/slots")
     prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
+    chip = prof.page.get_by_role("tab", name=re.compile("예약 0명"))
     chip.wait_for()
-    assert chip.locator("em").inner_text() == "2"
+    assert chip.locator("em").inner_text() == "0명"
     slots[3].update(kind="group", capacity=3)
     bookings = [{"id": 8000 + i, "slot": slots[slot], "student_name": "검증 학생",
                  "student_id": 8100 + i, "student_email": "synthetic@test.ac.kr", "topic": "",
@@ -1046,19 +1047,20 @@ def test_mobile_available_slot_counts_in_staff_views(server, browser):
     prof.go("/bookings")
     prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
     prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile("예약 가능 2건"))
+    chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
     chip.wait_for()
-    assert chip.locator("em").inner_text() == "2"
+    assert chip.locator("em").inner_text() == "4명"
     prof.shot("mobile_reserved_student_counts")
     prof.page.set_viewport_size(PC)
     prof.page.locator(".week-grid .slot.reserved").first.wait_for()
     prof.page.set_viewport_size(MOBILE)
-    # A cancellation releases one time; reloading must show the new count.
+    # A cancellation removes one booked student, independent of free-slot count.
+    bookings[0]["status"] = "cancelled"
     slots[2].update(bookable=True, remaining=1, reason="")
     prof.page.reload()
     prof.go("/slots")
     prof.page.get_by_role("button", name="목록형", exact=True).click()
-    prof.page.get_by_role("tab", name=re.compile("예약 가능 3건")).wait_for()
+    prof.page.get_by_role("tab", name=re.compile("예약 3명")).wait_for()
     prof.close()
 
 

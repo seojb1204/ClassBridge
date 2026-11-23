@@ -1,8 +1,10 @@
 """Role-specific count semantics and mobile/desktop navigation smoke checks."""
 import os
+import re
 from datetime import timedelta
 
 import pytest
+from playwright.sync_api import expect
 
 from app.db import utcnow
 from app.timeutil import today_kst
@@ -33,6 +35,7 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
     p.route('**/api/bookings/mine*', lambda r: r.fulfill(json=[]))
     p.route('**/api/lectures/calendar?*', lambda r: r.fulfill(json=[]))
     p.route('**/api/lectures?*', lambda r: r.fulfill(json=[]))
+    p.reload()  # Reload after routing to replace the initial authenticated page data.
     s.go('/booking' if role == 'student' else '/slots')
     p.get_by_role('button', name='이번 주로 이동', exact=True).click()
     if width <= 720:
@@ -41,7 +44,7 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
         chips.wait_for()
         first = chips.get_by_role('tab').first
         expected = '예약 가능 2건' if role == 'student' else '예약 4명'
-        assert expected in first.get_attribute('aria-label')
+        expect(first).to_have_attribute('aria-label', re.compile(re.escape(expected) + '$'))
         assert first.locator('em').inner_text() == ('2' if role == 'student' else '4명')
         first.click()
         assert p.locator('.daily .cards .card').count() == 3
