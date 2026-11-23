@@ -24,7 +24,7 @@ let todayPanel = null;
 
 function viewSwitcher(root) {
   return h("div", { class: "calendar-toggle", "aria-label": "예약 관리 보기 방식" },
-    h("a", { class: "btn", href: "#/slots" }, "시간표"),
+    h("a", { class: "btn desktop-timetable-link", href: "#/slots" }, "시간표"),
     ...[["list", "예약 목록"], ["activity", "예약 활동 기록"]].map(([value, label]) =>
       h("button", { class: "btn", "aria-pressed": String(viewMode === value),
         onclick: () => { if (viewMode === value) return; viewMode = value; render(root); } }, label)));
@@ -220,7 +220,8 @@ function mobileList(root, list) {
     if (b.status === "booked") clocks.push({ start: b.slot.start_at, time });
     const summary = h("summary", {},
       h("strong", {}, b.applicant_name || b.student_name, " · ", b.student_number || "학번 미입력"),
-      h("span", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at), time));
+      h("span", {}, fmtDateTimeRange(b.slot.start_at, b.slot.end_at), time),
+      badge(STATUS_LABEL[b.status], b.status));
     cards.append(h("details", { class: "card", dataset: { bookingId: b.id } }, summary,
       h("p", {}, badge(STATUS_LABEL[b.status], b.status), " ", bookingType(b)),
       h("p", { class: "muted" }, [b.grade && b.grade + "학년", b.student_email].filter(Boolean).join(" · ")),
@@ -322,13 +323,13 @@ export async function openNotification(root, booking, notification = {}) {
   card?.scrollIntoView({ block: "nearest", behavior: "instant" });
   const body = h("div", { class: "notification-booking-summary" },
     h("p", { class: "booking-summary-person" }, h("strong", {}, booking.applicant_name || booking.student_name),
-      booking.grade ? ` · ${booking.grade}학년` : "", " ", badge(STATUS_LABEL[booking.status] || "상태 확인 필요", booking.status)),
-    h("p", {}, h("strong", {}, fmtDateTime(booking.slot.start_at)),
-      booking.slot.end_at ? `–${fmtTime(booking.slot.end_at)}` : ""),
+      booking.grade ? ` · ${booking.grade}학년` : "", ""),
+    h("p", {}, "현재 상태: ", badge(booking.status === "completed" ? "상담 완료" : STATUS_LABEL[booking.status] || "상태 확인 필요", booking.status)),
+    h("p", {}, h("strong", {}, fmtDateTimeRange(booking.slot.start_at, booking.slot.end_at))),
     h("p", { class: "hint" }, "현재 예약 정보입니다."),
     booking.topic ? h("p", {}, `상담 주제: ${booking.topic}`) : null,
     notification.arrived_at ? h("small", { class: "muted" }, `알림 시각: ${fmtDateTime(notification.arrived_at)} (한국시간)`) : null);
-  void modal(notification.title || "예약 요약", body, [
+  void modal(({ "새 상담 예약": "예약 접수 알림", "상담 예약 취소": "예약 취소 알림" })[notification.title] || notification.title || "예약 알림", body, [
     { label: "닫기", value: null },
     { label: "기록·예약 관리", value: "manage", primary: true },
   ]).then(async result => {

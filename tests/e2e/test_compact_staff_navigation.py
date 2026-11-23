@@ -15,28 +15,28 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
     page = s.page
     try:
         s.go('/bookings')
-        # Booking work is a list; the shared timetable remains available.
-        page.locator('#view').get_by_role('link', name='시간표', exact=True).click()
-        page.locator('.week-wrap').wait_for(state='visible')
-        if width <= 720:
-            page.get_by_role('button', name='더보기 메뉴').click()
-            assert page.locator('#nav summary').first.evaluate('e => e === document.activeElement')
         menu = page.locator('#nav')
-        menu.locator('summary').filter(has_text='예약 관리').click()
-        assert menu.get_by_role('link', name='시간표', exact=True).is_visible()
-        page.keyboard.press('Escape')
-        assert menu.locator('.nav-group').first.evaluate('e => !e.open')
         if width <= 720:
+            page.locator('#mobile-tabs').get_by_role('link', name='시간표', exact=True).click()
+            page.get_by_role('button', name='더보기 메뉴').click()
+            assert menu.get_by_role('link', name='계정·권한').is_visible()
+            assert not menu.get_by_role('link', name='시간표', exact=True).is_visible()
+            menu.get_by_role('link', name='계정·권한').click()
+            page.get_by_role('button', name='더보기 메뉴').click()
+            page.keyboard.press('Escape')
             trigger = page.get_by_role('button', name='더보기 메뉴')
             assert trigger.get_attribute('aria-expanded') == 'false'
             assert trigger.evaluate('e => e === document.activeElement')
-            trigger.click()
-        menu.locator('summary').filter(has_text='상담 기록·알림').click()
-        assert menu.get_by_role('link', name='내 알림', exact=True).is_visible()
-        menu.locator('summary').filter(has_text='관리').last.click()
-        assert menu.get_by_role('link', name='계정·권한').is_visible()
-        if width <= 720:
-            page.get_by_role('button', name='더보기 메뉴').click()
+        else:
+            page.locator('#view').get_by_role('link', name='시간표', exact=True).click()
+            menu.locator('summary').filter(has_text='예약 관리').click()
+            assert menu.get_by_role('link', name='시간표', exact=True).is_visible()
+            page.keyboard.press('Escape')
+            assert menu.locator('.nav-group').first.evaluate('e => !e.open')
+            menu.locator('summary').filter(has_text='상담 기록·알림').click()
+            assert menu.get_by_role('link', name='내 알림', exact=True).is_visible()
+            menu.locator('summary').filter(has_text='관리').last.click()
+            assert menu.get_by_role('link', name='계정·권한').is_visible()
         event = {'id': 30, 'booking_id': 7, 'action': 'cancel', 'actor_name': '테스트 학생',
                  'student_name': '예약 학생', 'actor_is_student': True,
                  'at': '2026-11-17T01:02:03Z', 'start_at': '2026-11-18T04:00:00Z',

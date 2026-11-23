@@ -1,3 +1,4 @@
+import { preference, savePreference } from "../preferences.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { availableDaysPanel, loadAvailableDays } from "../components/available-days.js";
 // 학생: 상담 시간표 보기 · 예약 · 변경
@@ -13,9 +14,10 @@ let weekStart = null;
 let selectedDay = null;
 let detach = null;
 let drawVersion = 0;
-let mobileView = "week";
+let mobileView = "list";
 
 export async function render(root) {
+  mobileView = preference("student-calendar-view", "list");
   clearCalendarCache(); // Fresh route entry; week-to-week draws still reuse prefetch.
   if (!weekStart) {
     weekStart = mondayOf(todayKst());
@@ -63,10 +65,10 @@ async function draw(root, revealDay = false) {
       " · 다른 ‘예약 가능’ 시간을 누르면 취소 없이 변경됩니다. ",
       h("a", { href: "#/my-bookings" }, "예약 내역")) : null,
     calendarLegend(true),
-    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), studentBooking: true, weekStart, slots: [...slots, ...lectures].sort((a, b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
       onTimeSelect: () => toast("이 시간에는 예약 가능한 상담이 없습니다. 등록된 상담 시간을 선택해 주세요."),
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },
-      onViewChange: (mode) => { mobileView = mode; draw(root); },
+      onViewChange: (mode) => { mobileView = mode; savePreference("student-calendar-view", mode); draw(root); },
       onDay: (d) => { selectedDay = d; draw(root, true); },
       onSlot: (s) => openSlot(root, s, active, policy) }),
     h("details", { class: "booking-guide" }, h("summary", {}, "예약 방법·마감 시간"),

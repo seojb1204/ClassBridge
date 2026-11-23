@@ -18,12 +18,18 @@ export function staffToday() {
       can('support:manage') ? '#/help/inbox' : '#/help/mine', '/api/support/counts',
       data => can('support:manage') ? data.inbox : data.mine]);
     const results = await Promise.allSettled(entries.map(async ([label, href, url, count]) =>
-      h('a', { class: 'btn', href }, `${label} ${count(await get(url))}건`)));
-    box.replaceChildren(h('div', { class: 'page-head' }, h('h2', {}, '오늘 할 일'),
-      h('button', { class: 'btn small', onclick: draw }, '요약 새로고침')),
-      h('p', { class: 'hint' }, `${todayKst()} · 한국시간 · 오늘 예약을 누르면 오늘 상담만 표시합니다.`),
-      h('div', { class: 'actions' }, ...results.map((r, i) => r.status === 'fulfilled' ? r.value :
-        h('span', { class: 'muted' }, `${entries[i][0]} · 확인 불가`))));
+      ({ label, href, count: count(await get(url)) })));
+    const failed = results.some(r => r.status === 'rejected');
+    const active = results.filter(r => r.status === 'fulfilled' && r.value.count > 0).map(r => r.value);
+    const links = active.map(({label, href, count}) => h('a', { class: 'btn small', href }, `${label} ${count}건`));
+    box.replaceChildren(h('div', { class: 'staff-today-summary' },
+      h('span', {}, failed ? '일부 항목 확인 필요' : active.length ? '오늘 할 일' : '오늘 확인할 항목 없음'),
+      ...links,
+      h('button', { class: 'btn small', onclick: draw, 'aria-label': '오늘 할 일 다시 확인' }, '갱신')));
+    if (failed) box.append(h('details', {}, h('summary', {}, '확인하지 못한 항목'),
+      ...results.flatMap((result, i) => result.status === 'rejected'
+        ? [h('p', {class: 'muted'}, `${entries[i][0]} · 확인 불가`)] : [])));
+
   }
   box.append(h('p', {}, '오늘 할 일 불러오는 중…'));
   draw();

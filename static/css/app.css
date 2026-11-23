@@ -764,3 +764,53 @@ tr[hidden] { display: none; }
   .user-table td:nth-child(2) { overflow-wrap: anywhere; }
   .user-table .btn { min-height: 44px; }
 }
+
+/* Mobile content-first layout: preserve touch targets, reduce surrounding chrome. */
+.staff-today-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.staff-today-summary > button { margin-left: auto; }
+.inbox-read-all { margin-left: auto; }
+.personal-alert-form .field { align-items: stretch; text-align: left; }
+.slot-select { color: var(--primary); }
+.survey-history > summary, .other-events > summary { cursor: pointer; padding: 12px 0; }
+.announcement-panel > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 6px; }
+.announcement-panel > summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) {
+  .topbar { min-height: 52px; padding: calc(4px + env(safe-area-inset-top, 0px)) 12px 4px; }
+  .brand { font-size: 1.35rem; }
+  .view { padding: 12px 12px calc(var(--mobile-tabs-height, 76px) + 20px); }
+  .view h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  .page-head { padding-bottom: 4px; margin-bottom: 8px; border-bottom: 0; }
+  .page-head h1 { margin: 0; }
+  .desktop-timetable-link { display: none; }
+  #nav .bottom-tab-duplicate { display: none; }
+  #nav .nav-group:has(.nav-group-links > .bottom-tab-duplicate):not(:has(.nav-group-links > a:not(.bottom-tab-duplicate))) { display: none; }
+  #nav .nav-group > summary { pointer-events: none; padding: 8px 12px 0; font-size: .75rem; color: var(--muted); }
+  #nav .nav-group > summary::after { content: none; }
+  #nav .nav-group-links { border: 0; padding: 0; margin: 0; }
+  #nav a:not(.bottom-tab-duplicate), #nav .mobile-help-link { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; margin: 0; border: 0; width: 100%; background: transparent; font-size: .95rem; }
+  .staff-today { padding: 8px; margin-bottom: 8px; }
+  .staff-today-summary { font-size: .85rem; }
+  .calendar-toggle { margin: 8px 0; gap: 6px; }
+  .calendar-toggle .btn { font-size: .85rem; padding: 6px 10px; }
+  .filters { gap: 8px; margin: 8px 0; }
+  .filters .field { margin: 0; }
+  .mobile-bookings .card { padding: 10px; }
+  .inbox-controls { gap: 6px; margin: 8px 0; }
+  .inbox-controls .btn { padding: 6px 8px; font-size: .8rem; }
+  .inbox-controls .inbox-read-all { margin-left: auto; }
+  .inbox-item { padding: 12px; margin-bottom: 10px; }
+  .announcement-panel { padding: 0 8px; margin: 4px 0; }
+  .available-days { padding: 4px 0; margin: 4px 0; border: 0; background: transparent; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .available-days h2 { margin: 0; font-size: .75rem; }
+  .available-day-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+  .available-day-buttons .btn { flex-direction: row; align-items: center; gap: 4px; padding: 4px 8px; }
+  .calendar-view-switch { margin: 4px 0; }
+  .calendar-view-switch .btn { min-height: 44px; padding: 4px 8px; font-size: .85rem; }
+  .calendar-help { font-size: .75rem; margin: 0 0 4px; }
+  .day-chips .chip { min-height: 60px; padding: 4px; }
+  .day-chips .chip strong { font-size: 1.1rem; }
+  .day-count-hint { margin: 4px 0; font-size: .75rem; }
+  .daily-title { font-size: 1rem; margin: 8px 0; }
+  .daily .card { padding: 10px; gap: 2px; }
+  .legend { font-size: .75rem; margin: 4px 0; }
+}

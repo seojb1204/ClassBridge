@@ -68,7 +68,7 @@ function registerRoutes() {
 function closeMobileMenu(restoreFocus = false) {
   const nav = document.getElementById("nav");
   nav?.classList.remove("open");
-  nav?.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
+  nav?.querySelectorAll(".nav-group").forEach(group => { group.open = matchMedia("(max-width: 720px)").matches; });
   const button = document.getElementById("menu-btn");
   button?.setAttribute("aria-expanded", "false");
   if (restoreFocus) button?.focus({ preventScroll: true });
@@ -88,7 +88,7 @@ function renderMobileTabs() {
         const nav = document.getElementById("nav");
         const open = nav.classList.toggle("open");
         event.currentTarget.setAttribute("aria-expanded", String(open));
-        if (open) [...nav.querySelectorAll("summary, a, button")].find(el => el.getClientRects().length > 0)?.focus({ preventScroll: true });
+        if (open) [...nav.querySelectorAll("a, button")].find(el => el.getClientRects().length > 0)?.focus({ preventScroll: true });
       } },
     h("span", { class: "mobile-tab-icon", "aria-hidden": "true" }, "☰"), h("span", {}, "더보기")));
   // Keep the sheet attached to the real tab-bar height, including safe areas.
@@ -108,7 +108,7 @@ function renderMobileTabs() {
 function renderChrome() {
   const nav = document.getElementById("nav");
   const items = navItems();
-  const link = (r) => h("a", { href: `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
+  const link = (r) => h("a", { class: (["/slots", "/bookings", "/inbox", "/booking", "/my-bookings", ...(!can("slot:manage") ? ["/surveys"] : [])].includes(r.pattern) ? "bottom-tab-duplicate" : ""), href: `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
   if (can("slot:manage")) {
     const groups = [
       ["예약 관리", ["/slots", "/bookings"]],
@@ -120,16 +120,16 @@ function renderChrome() {
       const entries = paths.map(path => items.find(r => r.pattern === path)).filter(Boolean);
       if (!entries.length) return null;
       if (entries.length === 1) return link(entries[0]);
-      return h("details", { class: "nav-group" },
+      return h("details", { class: "nav-group", open: matchMedia("(max-width: 720px)").matches },
         h("summary", {}, label), h("div", { class: "nav-group-links" }, entries.map(link)));
     }));
   } else mount(nav, items.map(link));
   nav.addEventListener("toggle", event => {
-    if (!event.target.matches(".nav-group[open]")) return;
-    nav.querySelectorAll(".nav-group").forEach(group => { if (group !== event.target) group.open = false; });
+    if (matchMedia("(max-width: 720px)").matches || !event.target.matches(".nav-group[open]")) return;
+    nav.querySelectorAll(".nav-group").forEach(group => { if (group !== event.target) group.open = matchMedia("(max-width: 720px)").matches; });
   }, true);
   document.addEventListener("click", event => {
-    if (!nav.contains(event.target)) nav.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
+    if (!nav.contains(event.target)) nav.querySelectorAll(".nav-group").forEach(group => { group.open = matchMedia("(max-width: 720px)").matches; });
   });
   document.addEventListener("click", event => {
     if (!nav.contains(event.target) && !event.target.closest("#menu-btn") && !event.target.closest(".userbox")) closeMobileMenu();
@@ -138,11 +138,13 @@ function renderChrome() {
     if (event.key !== "Escape") return;
     if (matchMedia("(max-width: 720px)").matches) { closeMobileMenu(true); return; }
     const group = event.target.closest(".nav-group");
-    if (group) { group.open = false; group.querySelector("summary").focus(); }
+    if (group) { group.open = matchMedia("(max-width: 720px)").matches; group.querySelector("summary").focus(); }
   });
-  nav.append(support.helpLink("mobile-help-link"));
+  const help = support.helpLink("mobile-help-link");
+  help.prepend(navIcon("/help"));
+  nav.append(help);
   const personal = pushButton("mobile-help-link");
-  if (personal) nav.append(personal);
+  if (personal) { personal.prepend(navIcon("/personal")); nav.append(personal); }
   const install = installButton("btn mobile-help-link");
   if (install) nav.append(install);
   const roleLabel = { student: "학생", professor: "교수자", admin: "관리자" }[state.me.role];
@@ -157,9 +159,12 @@ function renderChrome() {
   if (["professor", "admin"].includes(state.me.role)) document.querySelector(".topbar").append(inboxBell());
   nav.addEventListener("click", (event) => {
     if (!event.target.closest("a")) return;
-    nav.querySelectorAll(".nav-group").forEach(group => { group.open = false; });
+    nav.querySelectorAll(".nav-group").forEach(group => { group.open = matchMedia("(max-width: 720px)").matches; });
     nav.classList.remove("open");
     document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
+  });
+  matchMedia("(max-width: 720px)").addEventListener("change", event => {
+    nav.querySelectorAll(".nav-group").forEach(group => { group.open = event.matches; });
   });
   renderMobileTabs();
   support.rememberSource();

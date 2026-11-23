@@ -1,3 +1,4 @@
+import { watchRefresh } from "../live-refresh.js";
 import { inboxRow } from "../components/inbox-row.js";
 import { get } from "../api.js";
 import { h, mount, toast } from "../ui.js";
@@ -10,11 +11,11 @@ export async function render(root) {
   const isCurrent = () => renderId === renderVersion && location.hash === "#/inbox";
   const list = h("section", { "aria-label": "내 알림 목록" });
   const count = h("p", { "aria-live": "polite" });
-  const refresh = h("button", { class: "btn", type: "button" }, "알림 새로고침");
+  const refresh = h("button", { class: "btn", type: "button", hidden: true }, "다시 시도");
   const more = h("button", { class: "btn inbox-more", type: "button", hidden: true }, "이전 알림 더 보기");
   const all = h("button", { class: "btn primary", type: "button", "aria-pressed": "true" }, "전체 알림");
   const unread = h("button", { class: "btn", type: "button", "aria-pressed": "false" }, "미읽음만");
-  const readAll = h("button", { class: "btn", type: "button", disabled: true }, "모두 읽음");
+  const readAll = h("button", { class: "btn", type: "button", disabled: true }, "모두 읽음 처리");
   let items = [], cursor = null, unreadOnly = false, pending = false, refreshAgain = false;
   function paint() {
     mount(list, ...items.map(item => {
@@ -36,7 +37,7 @@ export async function render(root) {
     }));
     if (!items.length) mount(list, h("p", { class: "empty" }, unreadOnly ? "읽지 않은 알림이 없습니다." : "새 알림이 없습니다. 기능 적용 후 접수된 알림부터 표시됩니다."));
   }
-  async function draw(reset = true) {
+  async function draw(reset = true, automatic = false) {
     if (!isCurrent()) return;
     if (pending) { refreshAgain = true; return; }
     pending = true;
@@ -51,11 +52,22 @@ export async function render(root) {
       publishInboxCount(data.unread);
       readAll.disabled = !data.unread;
       count.textContent = `읽지 않은 알림 ${data.unread}건`;
-      items = reset ? data.items : [...items, ...data.items.filter(x => !items.some(old => old.id === x.id))];
-      cursor = data.next_before_id ?? null;
-      more.hidden = !data.has_more;
+      refresh.hidden = true;
+      const anchor = automatic ? [...list.querySelectorAll('[data-notification-id]')].find(el => el.getBoundingClientRect().bottom > (document.querySelector('.topbar')?.getBoundingClientRect().bottom || 0)) : null;
+      const anchorId = anchor?.dataset.notificationId, anchorY = anchor?.getBoundingClientRect().top;
+      const previousScroll = window.scrollY;
+      // Keep older loaded pages during background refresh; explicit filters reset them.
+      if (automatic) {
+        const freshIds = new Set(data.items.map(item => item.id));
+        items = [...data.items, ...items.filter(item => !freshIds.has(item.id) && item.id < (data.items.at(-1)?.id ?? Infinity))];
+      } else items = reset ? data.items : [...items, ...data.items.filter(x => !items.some(old => old.id === x.id))];
+      if (!automatic || cursor === null) { cursor = data.next_before_id ?? null; more.hidden = !data.has_more; }
       paint();
-    } catch (e) { toast(e.message, "error"); }
+      if (automatic && previousScroll > 0) {
+        const nextAnchor = [...list.querySelectorAll('[data-notification-id]')].find(el => el.dataset.notificationId === anchorId);
+        window.scrollTo({top: nextAnchor ? previousScroll + nextAnchor.getBoundingClientRect().top - anchorY : previousScroll, behavior: 'instant'});
+      }
+    } catch (e) { refresh.hidden = false; toast(e.message, "error"); }
     finally { pending = false; refresh.disabled = more.disabled = all.disabled = unread.disabled = false;
       if (refreshAgain) { refreshAgain = false; draw(true); }
     }
@@ -72,10 +84,10 @@ export async function render(root) {
     try { await markInboxRead(null); }
     catch (e) { readAll.disabled = false; toast(e.message, "error"); }
   };
-  const update = () => { if (isCurrent() && !document.hidden) draw(true); };
+  const update = () => { if (isCurrent() && !document.hidden) draw(true, true); };
   window.addEventListener("inbox-changed", update);
-  window.addEventListener("focus", update);
-  document.addEventListener("visibilitychange", update);
+
+
   const cleanup = () => {
     window.removeEventListener("inbox-changed", update);
     window.removeEventListener("focus", update);
@@ -85,14 +97,13 @@ export async function render(root) {
   window.addEventListener("hashchange", cleanup);
   all.onclick = () => filter(false); unread.onclick = () => filter(true);
   refresh.onclick = () => draw(true); more.onclick = () => draw(false);
+  readAll.classList.add("inbox-read-all");
   mount(root, h("h1", {}, "내 알림"),
-    h("p", { class: "inbox-intro" }, "최신순 · 시각은 한국시간"),
-    h("details", { class: "help-details" }, h("summary", {}, "알림 시각·갱신 안내"),
-      h("p", {}, "새 건의는 접수 즉시 알림을 생성합니다. 모두 읽음으로 미확인 표시를 한 번에 지울 수 있습니다. 앱으로 돌아오거나 새로고침할 때 갱신합니다."),
-      h("p", {}, "알림 시각은 앱에서 확인 가능해진 시각이며 실제 휴대폰 수신 시각이 아닙니다. 이전 지연 알림은 당시 예정 시각을 표시하며 제출 시각을 뜻하지 않습니다.")),
-    h("a", { class: "btn small", href: "#/personal" }, "휴대폰 알림 설정"), count,
-    h("div", { class: "toolbar" }, all, unread, readAll, refresh), list, more);
+    count, h("div", { class: "toolbar inbox-controls" }, all, unread, readAll), refresh, list, more,
+    h("details", {class: "help-details"}, h("summary", {}, "알림 시각·갱신 안내"),
+      h("p", {}, "최신순 · 한국시간. 이 화면을 보는 동안 60초마다, 화면으로 돌아올 때 갱신합니다. 알림 시각은 앱에서 확인 가능해진 시각이며 휴대폰 수신 시각과 다를 수 있습니다.")));
   await draw();
+  if (isCurrent()) watchRefresh(root, () => draw(true, true), () => { refresh.hidden = false; }, 60000);
 }
 
 

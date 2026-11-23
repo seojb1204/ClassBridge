@@ -17,7 +17,7 @@ export async function personalAlerts(root) {
     const input = h("input", { type: "checkbox", checked: prefs[key], name: key });
     return h("label", {}, input, " " + label);
   };
-  const at = h("input", { type: "time", value: prefs.at, required: true });
+  const at = h("input", { type: "time", value: prefs.at, required: true, disabled: !prefs.daily });
   const save = h("button", { class: "btn primary", type: "submit" }, "저장");
   // One option per row: a checklist reads top to bottom, with the save button last.
   const form = h("form", { class: "panel personal-alert-form" },
@@ -29,6 +29,7 @@ export async function personalAlerts(root) {
       check("names", "요약·30분 전 알림에 학생 이름 표시"),
       h("p", { class: "hint" }, "이름을 표시하면 잠금화면에도 보일 수 있습니다.")),
     h("div", { class: "actions" }, save));
+  form.elements.daily.addEventListener("change", () => { at.disabled = !form.elements.daily.checked; });
   form.addEventListener("submit", busy(save, async e => {
     e.preventDefault();
     const body = { at: at.value };

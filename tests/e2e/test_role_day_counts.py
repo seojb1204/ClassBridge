@@ -58,7 +58,6 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
         p.get_by_role('button', name='더보기 메뉴', exact=True).click()
         expect(p.locator('#nav')).to_be_visible()
         if role == 'admin':
-            p.locator('#nav summary').filter(has_text=re.compile('^관리$')).click()
             expect(p.locator('#nav').get_by_role('link', name='계정·권한', exact=True)).to_be_visible()
         elif role == 'prof':
             assert p.locator('#nav a[href="#/admin/users"]').count() == 0

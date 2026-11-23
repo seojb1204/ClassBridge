@@ -1,4 +1,5 @@
 import { calendarGet as get, put } from "../api.js";
+import { preference, savePreference } from "../preferences.js";
 import { can } from "../state.js";
 import { errorToast, field, h, modal, select, toast } from "../ui.js";
 
@@ -12,21 +13,17 @@ export function announcementPanel(value, refresh) {
   const manage = can("announcement:manage");
   if (value === undefined) return h("p", { class: "muted" }, "공지를 불러오지 못했습니다. 새로고침해 주세요.");
   if (!manage && !value) return null;
-  const body = value.body ? h("p", { class: "announcement-body" }, value.body) : null;
-  const collapsible = body && (value.body.length > 120 || value.body.split("\n").length > 2);
-  const toggle = collapsible ? h("button", { type: "button", class: "link announcement-toggle", "aria-expanded": "true", onclick: (e) => {
-    const expanded = e.currentTarget.getAttribute("aria-expanded") !== "true";
-    body.classList.toggle("is-collapsed", !expanded);
-    e.currentTarget.setAttribute("aria-expanded", String(expanded));
-    e.currentTarget.textContent = expanded ? "공지 접기" : "공지 전체 보기";
-  } }, "공지 접기") : null;
-  return h("section", { class: "announcement-panel", "aria-label": "공지사항" },
-    h("div", { class: "announcement-head" }, h("strong", {}, "공지사항"),
-      manage ? h("span", { class: "muted" }, value.published ? "게시 중" : "학생에게 숨김") : null,
-      manage ? h("button", { class: "btn small", onclick: () => edit(value, refresh) },
-        value.revision ? "공지 수정" : "공지 작성") : null),
-    value.title ? h("h2", {}, value.title) : null,
-    body || h("p", { class: "muted" }, "학생 예약 화면 위에 표시할 대표 공지를 작성하세요."), toggle);
+  if (!value) return null;
+  const unread = value.published && preference('announcement-read') !== String(value.revision);
+  const marker = h('span', { class: 'badge', hidden: !unread }, '새 공지');
+  const details = h('details', { class: 'announcement-panel', 'aria-label': '공지사항', open: manage },
+    h('summary', {}, h('strong', {}, value.title || '공지사항'), ' ', marker),
+    value.body ? h('p', { class: 'announcement-body' }, value.body) : h('p', {}, '등록된 공지가 없습니다.'),
+    manage ? h('button', { class: 'btn small', onclick: () => edit(value, refresh) }, value.revision ? '공지 수정' : '공지 작성') : null);
+  details.addEventListener('toggle', () => {
+    if (details.open && value.published) { savePreference('announcement-read', value.revision); marker.hidden = true; }
+  });
+  return details;
 }
 
 async function edit(value, refresh) {

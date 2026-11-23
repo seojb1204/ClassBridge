@@ -233,7 +233,7 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     prof.page.get_by_role("button", name="공지 저장", exact=True).click()
     prof.toast("게시했습니다")
     student.page.reload()
-    student.page.get_by_role("heading", name="상담 전 준비 안내").wait_for()
+    student.page.locator(".announcement-panel > summary").click()
     assert student.page.locator(".announcement-body").inner_text().endswith("</script>")
     assert student.page.evaluate("window.noticeInjected === undefined")
     assert student.page.get_by_role("button", name="공지 수정").count() == 0
@@ -762,8 +762,7 @@ def test_mobile_student_flow(server, browser):
     base, _ = server
     st = Session(browser, base, "mobile1@test.ac.kr", MOBILE)
     st.go("/booking")
-    assert st.page.locator(".week-grid .day-head").count() == 5
-    st.page.get_by_role("button", name="목록형", exact=True).click()
+    assert st.page.get_by_role("button", name="목록형", exact=True).get_attribute("aria-pressed") == "true"
     st.page.locator(".day-chips").wait_for()
     assert st.page.locator(".day-chips").is_visible()
     slot = _find_slot(st, mobile=True)
@@ -806,7 +805,6 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
     assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
-    prof.page.locator("#nav summary").filter(has_text="상담 기록·알림").click()
     prof.page.locator("#nav").get_by_role("link", name="상담 기록·통계", exact=True).click()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
@@ -1152,7 +1150,7 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     # More than three dates may already exist from other end-to-end scenarios.
     if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
         summary.get_by_role('button', name='전체 일정 보기', exact=True).click()
-    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*6개 시간')).click()
+    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*예약 가능 6건')).click()
     prof.page.locator('.card.slot.open').first.click()
     prof.page.get_by_role('button', name='이 시간 취소', exact=True).click()
     prof.page.get_by_role('button', name='취소하기', exact=True).click()

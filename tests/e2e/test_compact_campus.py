@@ -32,17 +32,17 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     notice = page.locator('.announcement-panel')
     notice.wait_for()
     availability = page.locator('.available-days')
-    for panel in [notice, availability]:
-        assert panel.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgb(255, 252, 247)'
-        assert panel.evaluate('e => getComputedStyle(e).borderLeftColor') == 'rgb(221, 211, 197)'
     body = notice.locator('.announcement-body')
+    if email.startswith('compact-student'):
+        assert not notice.evaluate('e => e.open')
+        assert notice.get_by_text('새 공지').is_visible()
+        notice.locator('summary').click()
+        assert not notice.get_by_text('새 공지').is_visible()
     assert body.bounding_box()['height'] > 100
-    toggle = notice.get_by_role('button', name='공지 접기')
-    assert toggle.get_attribute('aria-expanded') == 'true'
+    notice.locator('summary').click()
+    assert not body.is_visible()
     s.shot(f'compact_support_{email.split("@")[0]}_{width}')
-    toggle.click()
-    assert body.bounding_box()['height'] <= 44
-    notice.get_by_role('button', name='공지 전체 보기').click()
+    notice.locator('summary').click()
     assert body.bounding_box()['height'] > 100
     buttons = availability.locator('.available-day-buttons button')
     assert buttons.count() == 3
