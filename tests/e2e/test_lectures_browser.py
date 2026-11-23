@@ -103,6 +103,8 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     p.route("**/api/lectures?*", lambda route: events(route, lecture=True))
     p.reload()
     session.go(path)
+    if path == "/booking":
+        p.get_by_role("button", name="달력형", exact=True).click()
     p.locator(".calendar-week .week-grid").wait_for()
     assert p.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
     assert p.locator(".calendar-view-switch button").all_text_contents() == ["달력형", "목록형"]

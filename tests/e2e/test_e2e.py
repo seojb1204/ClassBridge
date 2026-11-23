@@ -117,6 +117,7 @@ def test_staff_today_and_actionable_notification_error(server, browser):
     s.go('/bookings')
     panel = p.locator('.staff-today')
     panel.get_by_role('link', name='오늘 예약 2건').wait_for()
+    panel.locator('.staff-other-tasks > summary').click()
     panel.get_by_role('link', name='새 건의 3건').wait_for()
     panel.get_by_role('link', name='진행 중 설문 1건').wait_for()
     s.shot('mobile_staff_today')
@@ -155,7 +156,7 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
             # Phones start with the calendar first; the support panel opens on demand.
             assert page.locator(".calendar-support").get_attribute("open") is None
             page.locator(".calendar-support > summary").click()
-        page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
+        page.locator(".announcement-panel > summary").get_by_text("먼저 읽을 공지").wait_for()
         if page.locator('.other-available-days').count():
             page.locator('.other-available-days > summary').click()
         assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]

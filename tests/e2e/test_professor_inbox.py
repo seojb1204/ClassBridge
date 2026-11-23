@@ -77,8 +77,8 @@ def test_header_bell_is_accessible_and_preserves_more(server, browser, viewport,
         button_box = staff.page.locator('.inbox-bell').bounding_box()
         assert button_box['y'] < 70 and button_box['x'] > viewport['width'] / 2
         staff.page.get_by_role('button', name='더보기 메뉴').click()
-        staff.page.locator('#nav summary').filter(has_text='상담 기록·알림').click()
-        staff.page.locator('#nav').get_by_role('link', name='내 알림', exact=True).wait_for()
+        assert not staff.page.locator('#nav').get_by_role('link', name='내 알림', exact=True).is_visible()
+        assert staff.page.locator('#nav').get_by_role('link', name='상담 기록·통계', exact=True).is_visible()
     staff.ctx.close()
 
 

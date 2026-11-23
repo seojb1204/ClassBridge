@@ -61,6 +61,7 @@ def test_first_action_and_flat_menu(server, browser, width, height, role):  # no
         if role == "student":
             s.go("/booking")
             expect(p.get_by_role("button", name="목록형", exact=True)).to_have_attribute("aria-pressed", "true")
+            p.screenshot(path=str(SHOTS / f"student-initial-{width}x{height}.png"))
             visible_above_tabs(p, p.locator(".daily .card").first)
             expect(p.locator(".daily .card").first).to_contain_text("선택 ›")
             expect(p.locator(".daily .card").first).to_contain_text("장소: m205")

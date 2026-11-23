@@ -48,6 +48,8 @@ def test_one_click_same_id_change_beyond_new_booking_horizon(server, browser, vi
     # Navigating to the unchanged hash need not reload that already-ready view.
     student.page.reload()
     student.page.wait_for_selector('body[data-ready="/booking"]')
+    if student.page.locator(".other-available-days").count():
+        student.page.locator(".other-available-days > summary").click()
     panel = student.page.locator(".available-days")
     if panel.get_by_role("button", name="전체 일정 보기", exact=True).count():
         panel.get_by_role("button", name="전체 일정 보기", exact=True).click()
