@@ -101,7 +101,7 @@ export async function render(root) {
   mount(root, h("h1", {}, "내 알림"),
     count, h("div", { class: "toolbar inbox-controls" }, all, unread, readAll), refresh, list, more,
     h("details", {class: "help-details"}, h("summary", {}, "알림 시각·갱신 안내"),
-      h("p", {}, "최신순 · 한국시간. 이 화면을 보는 동안 60초마다, 화면으로 돌아올 때 갱신합니다. 알림 시각은 앱에서 확인 가능해진 시각이며 휴대폰 수신 시각과 다를 수 있습니다.")));
+      h("p", {}, "최신순 · 한국시간. 이 화면을 보는 동안 60초마다, 화면으로 돌아올 때 갱신합니다. 알림 시각은 앱에서 확인 가능해진 시각이며 실제 휴대폰 수신 시각이 아닙니다.")));
   await draw();
   if (isCurrent()) watchRefresh(root, () => draw(true, true), () => { refresh.hidden = false; }, 60000);
 }
