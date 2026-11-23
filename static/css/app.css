@@ -782,7 +782,7 @@ tr[hidden] { display: none; }
   .page-head { padding-bottom: 4px; margin-bottom: 8px; border-bottom: 0; }
   .page-head h1 { margin: 0; }
   .desktop-timetable-link { display: none; }
-  #nav .bottom-tab-duplicate { display: none; }
+  #nav a.bottom-tab-duplicate { display: none; }
   #nav .nav-group:has(.nav-group-links > .bottom-tab-duplicate):not(:has(.nav-group-links > a:not(.bottom-tab-duplicate))) { display: none; }
   #nav .nav-group > summary { pointer-events: none; padding: 8px 12px 0; font-size: .75rem; color: var(--muted); }
   #nav .nav-group > summary::after { content: none; }

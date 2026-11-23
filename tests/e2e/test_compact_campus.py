@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 
 import pytest
+from playwright.sync_api import expect
 
 from app.db import utcnow
 from app.timeutil import today_kst
@@ -39,7 +40,7 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
         assert not notice.evaluate('e => e.open')
         assert notice.get_by_text('새 공지').is_visible()
         notice.locator('summary').click()
-        assert not notice.get_by_text('새 공지').is_visible()
+        expect(notice.get_by_text('새 공지')).not_to_be_visible()
     assert body.bounding_box()['height'] > 100
     notice.locator('summary').click()
     assert not body.is_visible()
