@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from tests.e2e.test_e2e import browser, server  # noqa: F401
+from tests.e2e.test_e2e import Session, browser, server  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E 미설정")
 
@@ -54,3 +54,29 @@ def test_shared_editor_preserves_notes_and_allows_outcome_correction(server, bro
     assert dialog.get_by_role("button", name="미참석", exact=True).is_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
     page.close()
+
+
+def test_history_period_is_independent_of_status(server, browser):  # noqa: F811
+    base, _ = server
+    staff = Session(browser, base, "prof@test.ac.kr", {"width": 390, "height": 900}, service_workers="block")
+    page = staff.page
+    requests = []
+
+    def bookings(route):
+        requests.append(route.request.url)
+        route.fulfill(json=[])
+
+    page.route("**/api/bookings?*", bookings)
+    staff.go("/bookings")
+    page.get_by_label("예약 상태", exact=True).select_option("completed")
+    page.get_by_text("전체 기간 · 0건 (한국시간)", exact=True).wait_for()
+    assert "from_date=" not in requests[-1]
+    assert "status=completed" in requests[-1]
+    page.get_by_label("기간", exact=True).select_option("future")
+    page.get_by_text("오늘 이후 · 0건 (한국시간)", exact=True).wait_for()
+    assert "from_date=" in requests[-1]
+    assert "status=completed" in requests[-1]
+    page.get_by_label("기간", exact=True).select_option("all")
+    page.get_by_text("전체 기간 · 0건 (한국시간)", exact=True).wait_for()
+    assert "from_date=" not in requests[-1]
+    staff.close()

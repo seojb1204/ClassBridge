@@ -110,7 +110,7 @@ function renderChrome() {
   const link = (r) => h("a", { href: `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
   if (can("slot:manage")) {
     const groups = [
-      ["예약 관리", ["/bookings", "/slots"]],
+      ["예약 관리", ["/slots", "/bookings"]],
       ["상담 기록·알림", ["/staff/insights", "/inbox"]],
       ["설문·건의", ["/surveys", "/suggestions"]],
       ["관리", ["/admin/users", "/admin/settings", "/admin/audit"]],

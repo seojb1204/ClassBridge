@@ -54,9 +54,17 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
     const discard = () => !dirty() || window.confirm("저장하지 않은 상담 기록을 버릴까요? 취소하면 계속 작성할 수 있습니다.");
     const actions = [{ label: "닫기", value: null },
       { label: "기록 저장", primary: true, handler: async () => {
-        await put(`/api/bookings/${b.id}/note`, { note: note.value });
-        b.professor_note = note.value; changed = true;
-        toast("상담 기록을 저장했습니다.", "success"); return "saved";
+        const savedNote = note.value;
+        note.disabled = true;
+        if (picker) picker.disabled = true;
+        try {
+          await put(`/api/bookings/${b.id}/note`, { note: savedNote });
+          b.professor_note = savedNote; changed = true;
+          toast("상담 기록을 저장했습니다.", "success"); return "saved";
+        } finally {
+          note.disabled = false;
+          if (picker) picker.disabled = false;
+        }
       } }];
     const started = new Date(b.slot.start_at) <= new Date();
     if (["booked", "expired", "completed", "no_show"].includes(b.status) && started) {
