@@ -64,7 +64,9 @@ def test_history_period_is_independent_of_status(server, browser):  # noqa: F811
     requests = []
 
     def bookings(route):
-        requests.append(route.request.url)
+        # The independent "today" summary fetches concurrently; inspect list requests only.
+        if "days=1&status=booked" not in route.request.url:
+            requests.append(route.request.url)
         route.fulfill(json=[])
 
     page.route("**/api/bookings?*", bookings)
