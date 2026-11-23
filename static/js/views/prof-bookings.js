@@ -10,7 +10,7 @@ import { calendarGet, clearCalendarCache, get, post, put } from "../api.js";
 import { addDays, fmtDateTime, fmtTime, kstParts, mondayOf, todayKst } from "../time.js";
 import { isMobile, onLayoutChange, calendarLegend, renderCalendar, weekNav } from "../components/week-calendar.js";
 import {
-  STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
+  STATUS_LABEL, badge, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
 
 let filter = { status: "booked", period: "all" };
@@ -42,6 +42,7 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
     if (r === "book") location.hash = "#/slots/new";
     return;
   }
+  const openedPath = location.hash;
   let b = related[0];
   let changed = false;
   while (true) {
@@ -79,6 +80,10 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
       h("p", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`),
       picker ? field("학생 선택", picker) : null,
       h("p", {}, `${b.applicant_name || b.student_name} · ${STATUS_LABEL[b.status]}`),
+      h("p", { class: "muted" }, [b.student_number, b.grade ? `${b.grade}학년` : "", b.student_email].filter(Boolean).join(" · ")),
+      h("p", {}, bookingType(b)),
+      b.slot.location ? h("p", {}, `장소: ${b.slot.location}`) : null,
+      b.slot.note ? h("p", {}, `상담 안내: ${b.slot.note}`) : null,
       h("p", {}, b.topic || "상담 내용 미입력"),
       field("교수자 상담 기록", note),
       h("p", { class: "muted" }, "교수자·관리자만 볼 수 있습니다. 학업·진로·취업 진행사항만 기록하고 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.")),
@@ -104,7 +109,7 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
       }
     } catch (e) { errorToast(e); }
   }
-  if (changed) await refresh();
+  if (changed && root.isConnected && location.hash === openedPath) await refresh();
 }
 
 async function renderCalendarView(root) {

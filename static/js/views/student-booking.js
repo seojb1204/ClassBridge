@@ -119,7 +119,7 @@ async function openSlot(root, s, active, policy) {
     s.location ? h("p", { class: "muted" }, `장소: ${s.location}`) : null,
     s.note ? h("p", { class: "muted" }, s.note) : null,
     active ? h("div", { class: "notice" },
-      h("p", {}, `변경 전: ${`${fmtDateTime(active.slot.start_at)}–${kstParts(active.slot.end_at).time}`}`),
+      h("p", {}, `변경 전: ${fmtDateTime(active.slot.start_at)}–${kstParts(active.slot.end_at).time}`),
       h("p", {}, `변경 후: ${fmtDateTime(s.start_at)}–${kstParts(s.end_at).time}`),
       h("p", {}, "예약을 취소하거나 새로 만들지 않고 기존 예약의 시간만 변경합니다. 상담 내용은 유지됩니다."),
       h("p", { class: "muted" }, `기존 상담과 새 상담 모두 시작 ${policy.booking_deadline_minutes}분 전까지 변경할 수 있습니다.`))
