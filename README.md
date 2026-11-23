@@ -3,7 +3,7 @@
 교수자 1명, 최고 관리자 1명, 다수 학생을 위한 **상담 예약 · 강의 설문 · 익명 건의함** 통합 웹서비스.
 
 - **스테이징**: https://classbridge-staging.onrender.com (허용된 테스트 계정만 로그인 가능 · [로그인 없는 익명 건의 화면](https://classbridge-staging.onrender.com/static/suggest.html)은 누구나 열람 가능)
-- **기본 개발 브랜치**: `staging` (작업 브랜치 → PR → `staging` → Render 수동 배포)
+- **개발 브랜치**: `staging` (작업 브랜치 → PR → `staging` → Render 수동 배포)
 
 | 학생 · 모바일 상담 예약 | 교수자 · PC 주간 시간표 |
 |---|---|
