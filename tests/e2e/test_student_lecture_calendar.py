@@ -27,6 +27,8 @@ def test_student_real_lectures_and_consultation_priority(server, browser, viewpo
     p = student.page
     try:
         student.go('/booking')
+        if viewport == MOBILE:
+            p.get_by_role('button', name='달력형', exact=True).click()
         # Navigate to the created week if another viewport's earlier slot is selected first.
         if not p.locator(f'[data-event-type="consultation"][data-slot-id="{slot_id}"]').count():
             p.get_by_role('button', name='다음 주', exact=True).click()

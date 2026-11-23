@@ -811,6 +811,8 @@ tr[hidden] { display: none; }
   .day-chips .chip strong { font-size: 1.1rem; }
   .day-count-hint { margin: 4px 0; font-size: .75rem; }
   .daily-title { font-size: 1rem; margin: 8px 0; }
-  .daily .card { padding: 10px; gap: 2px; }
+  .daily .card.slot { padding: 10px; gap: 2px; }
   .legend { font-size: .75rem; margin: 4px 0; }
 }
+
+.announcement-panel .badge[hidden], .inbox-retry[hidden] { display: none; }

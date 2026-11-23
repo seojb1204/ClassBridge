@@ -11,7 +11,7 @@ export async function render(root) {
   const isCurrent = () => renderId === renderVersion && location.hash === "#/inbox";
   const list = h("section", { "aria-label": "내 알림 목록" });
   const count = h("p", { "aria-live": "polite" });
-  const refresh = h("button", { class: "btn", type: "button", hidden: true }, "다시 시도");
+  const refresh = h("button", { class: "btn inbox-retry", type: "button", hidden: true }, "다시 시도");
   const more = h("button", { class: "btn inbox-more", type: "button", hidden: true }, "이전 알림 더 보기");
   const all = h("button", { class: "btn primary", type: "button", "aria-pressed": "true" }, "전체 알림");
   const unread = h("button", { class: "btn", type: "button", "aria-pressed": "false" }, "미읽음만");

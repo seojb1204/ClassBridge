@@ -311,11 +311,12 @@ def test_anonymous_survey_qr_and_direct_response(server, browser):
     student = Session(browser, base, "anonymous-list@test.ac.kr", MOBILE)
     student.go("/surveys")
     card = student.page.locator(".card").filter(has_text="QR 익명 소감")
-    card.get_by_text("계정과 연결하지 않습니다.", exact=False).wait_for()
+    card.get_by_text("익명 설문", exact=True).wait_for()
     student_requests = []
     student.page.on("request", lambda r: student_requests.append(r.url))
     card.get_by_role("link", name="익명 설문 열기", exact=True).click()
     student.page.locator(".survey-form").wait_for()
+    assert student.page.get_by_text("이름·계정은 수집하지 않습니다.", exact=False).is_visible()
     assert not any("/api/me" in url for url in student_requests)
     student.page.fill("textarea", "로그인 상태에서도 익명 참여")
     student.page.get_by_role("button", name="제출", exact=True).click()
