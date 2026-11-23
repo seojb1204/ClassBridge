@@ -31,6 +31,8 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
         support.locator('summary').click()
     notice = page.locator('.announcement-panel')
     notice.wait_for()
+    if page.locator('.other-available-days').count():
+        page.locator('.other-available-days > summary').click()
     availability = page.locator('.available-days')
     body = notice.locator('.announcement-body')
     if email.startswith('compact-student'):

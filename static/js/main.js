@@ -121,7 +121,7 @@ function renderChrome() {
       if (!entries.length) return null;
       if (entries.length === 1) return link(entries[0]);
       return h("details", { class: "nav-group", open: matchMedia("(max-width: 720px)").matches },
-        h("summary", {}, label), h("div", { class: "nav-group-links" }, entries.map(link)));
+        h("summary", { tabindex: matchMedia("(max-width: 720px)").matches ? "-1" : "0", onclick: e => { if (matchMedia("(max-width: 720px)").matches) e.preventDefault(); } }, label), h("div", { class: "nav-group-links" }, entries.map(link)));
     }));
   } else mount(nav, items.map(link));
   nav.addEventListener("toggle", event => {
@@ -164,7 +164,7 @@ function renderChrome() {
     document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
   });
   matchMedia("(max-width: 720px)").addEventListener("change", event => {
-    nav.querySelectorAll(".nav-group").forEach(group => { group.open = event.matches; });
+    nav.querySelectorAll(".nav-group").forEach(group => { group.open = event.matches; group.querySelector("summary").tabIndex = event.matches ? -1 : 0; });
   });
   renderMobileTabs();
   support.rememberSource();

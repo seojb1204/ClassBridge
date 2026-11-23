@@ -59,7 +59,7 @@ export async function render(root) {
       // Keep older loaded pages during background refresh; explicit filters reset them.
       if (automatic) {
         const freshIds = new Set(data.items.map(item => item.id));
-        items = [...data.items, ...items.filter(item => !freshIds.has(item.id) && item.id < (data.items.at(-1)?.id ?? Infinity))];
+        items = [...data.items, ...(data.has_more ? items.filter(item => !freshIds.has(item.id) && item.id < data.items.at(-1)?.id) : [])];
       } else items = reset ? data.items : [...items, ...data.items.filter(x => !items.some(old => old.id === x.id))];
       if (!automatic || cursor === null) { cursor = data.next_before_id ?? null; more.hidden = !data.has_more; }
       paint();
@@ -84,7 +84,7 @@ export async function render(root) {
     try { await markInboxRead(null); }
     catch (e) { readAll.disabled = false; toast(e.message, "error"); }
   };
-  const update = () => { if (isCurrent() && !document.hidden) draw(true, true); };
+  const update = () => { if (isCurrent() && !document.hidden) draw(true); };
   window.addEventListener("inbox-changed", update);
 
 

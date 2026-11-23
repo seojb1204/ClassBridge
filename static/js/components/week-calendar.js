@@ -4,6 +4,7 @@ import { h, errorToast } from "../ui.js";
 
 const MOBILE = window.matchMedia("(max-width: 720px)");
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const visitedCalendarRoutes = new Set();
 const STEP = 15; // 분 단위 행 높이
 
 export function isMobile() { return MOBILE.matches; }
@@ -230,6 +231,19 @@ function renderWeekly(o, byDay) {
   const wrap = h("div", { class: `week-wrap${o.compactGrid ? " mobile-grid-wrap" : ""}`,
     ...(o.compactGrid ? { tabindex: "0", role: "region", "aria-label": "시간표 스크롤 영역" } : {}) }, grid);
   wrap.dataset.weekStart = o.weekStart;
+  wrap.dataset.route = globalThis.location?.hash || "";
+  if (o.compactGrid) {
+    const route = location.hash;
+    const previous = [...document.querySelectorAll('.week-wrap')].find(el => el.dataset.route === route);
+    const firstVisit = !visitedCalendarRoutes.has(route);
+    const firstHour = o.slots.length ? Math.min(...o.slots.map(s => kstParts(s.start_at).hour)) : minH;
+    const scroll = previous?.scrollTop ?? (firstVisit ? Math.max(0, firstHour - minH) * 4 * rowPx : 0);
+    requestAnimationFrame(() => {
+      if (!wrap.isConnected || location.hash !== route) return;
+      wrap.scrollTop = scroll;
+      visitedCalendarRoutes.add(route);
+    });
+  }
   if (o.compactGrid && o.onWeekChange) enableWeekSwipe(wrap, grid, o);
   return wrap;
 }

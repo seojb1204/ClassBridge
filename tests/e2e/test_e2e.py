@@ -156,6 +156,8 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
             assert page.locator(".calendar-support").get_attribute("open") is None
             page.locator(".calendar-support > summary").click()
         page.get_by_role("heading", name="먼저 읽을 공지").wait_for()
+        if page.locator('.other-available-days').count():
+            page.locator('.other-available-days > summary').click()
         assert page.locator(".announcement-panel").bounding_box()["y"] < page.locator(".available-days").bounding_box()["y"]
         page.locator(".available-day-buttons button").nth(1).click()
         title = page.locator(".daily-title:focus")
