@@ -62,7 +62,7 @@ async function draw(root, revealDay = false) {
       h("p", {}, `‘예약 가능’ 시간을 눌러 예약하세요. 앞으로 ${policy.booking_window_days}일 이내 상담을 ` +
         `시작 ${policy.booking_deadline_minutes}분 전까지 신규 예약할 수 있습니다. 기존 예약의 시간 변경에는 이 ${policy.booking_window_days}일 범위 제한이 없습니다. 취소·변경은 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 변경할 때는 기존 상담과 새 상담 모두 이 마감을 충족해야 합니다.`)),
     active ? h("div", { class: "notice", role: "status" }, "예약 확정: ",
-      h("strong", {}, fmtDateTime(active.slot.start_at)),
+      h("strong", {}, `${fmtDateTime(active.slot.start_at)}–${kstParts(active.slot.end_at).time}`),
       " · 취소하지 않고 다른 가능한 시간을 눌러 바로 변경할 수 있습니다.",
       h("a", { class: "btn small", href: "#/my-bookings" }, "예약 내역")) : null,
     calendarLegend(true),
@@ -88,7 +88,7 @@ async function openSlot(root, s, active, policy) {
   }
   if (s.mine) {
     const result = await modal("내 상담 예약", h("div", { class: "booking-detail" },
-      h("p", {}, h("strong", {}, fmtDateTime(s.start_at))),
+      h("p", {}, h("strong", {}, `${fmtDateTime(s.start_at)}–${kstParts(s.end_at).time}`)),
       h("p", { class: "muted" }, "예약 확정 · " + (s.kind === "group" ? "단체 상담" : "개인 상담")),
       h("p", {}, `예약 취소는 상담 시작 ${policy.booking_deadline_minutes}분 전까지 가능합니다. 이 예약을 취소하시겠습니까?`)), [
       { label: "돌아가기", value: null },
@@ -115,12 +115,12 @@ async function openSlot(root, s, active, policy) {
     ["campus", "학교생활"], ["other", "기타"]]);
   const consultationMode = select([["in_person", "대면"], ["online", "온라인"]]);
   const info = h("div", {},
-    h("p", {}, h("strong", {}, fmtDateTime(s.start_at)), ` (${s.kind === "group" ? `단체 · 남은 자리 ${s.remaining}` : "개인 상담"})`),
+    h("p", {}, h("strong", {}, `${fmtDateTime(s.start_at)}–${kstParts(s.end_at).time}`), ` (${s.kind === "group" ? `단체 · 남은 자리 ${s.remaining}` : "개인 상담"})`),
     s.location ? h("p", { class: "muted" }, `장소: ${s.location}`) : null,
     s.note ? h("p", { class: "muted" }, s.note) : null,
     active ? h("div", { class: "notice" },
-      h("p", {}, `변경 전: ${fmtDateTime(active.slot.start_at)}`),
-      h("p", {}, `변경 후: ${fmtDateTime(s.start_at)}`),
+      h("p", {}, `변경 전: ${`${fmtDateTime(active.slot.start_at)}–${kstParts(active.slot.end_at).time}`}`),
+      h("p", {}, `변경 후: ${fmtDateTime(s.start_at)}–${kstParts(s.end_at).time}`),
       h("p", {}, "예약을 취소하거나 새로 만들지 않고 기존 예약의 시간만 변경합니다. 상담 내용은 유지됩니다."),
       h("p", { class: "muted" }, `기존 상담과 새 상담 모두 시작 ${policy.booking_deadline_minutes}분 전까지 변경할 수 있습니다.`))
       : h("div", {}, field("이름", applicantName), field("학번", studentNumber),

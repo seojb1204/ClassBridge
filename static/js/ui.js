@@ -41,7 +41,7 @@ export function toast(message, kind = "info") {
 export function errorToast(e) { toast(e?.message || String(e), "error"); }
 
 // window.confirm 대신 자체 모달 (브라우저 차단 대화상자 회피)
-export function modal(title, body, actions, { closeOnBack = false } = {}) {
+export function modal(title, body, actions, { closeOnBack = false, beforeClose = () => true } = {}) {
   return new Promise((resolve) => {
     const root = document.getElementById("modal-root");
     const returnFocus = document.activeElement;
@@ -54,7 +54,7 @@ export function modal(title, body, actions, { closeOnBack = false } = {}) {
     let closeValue = null;
     const ownsHistory = () => historyKey && history.state?.classbridgeModal === historyKey;
     const finish = (value) => {
-      if (closed) return;
+      if (closed || !beforeClose(value)) return;
       closed = true;
       document.removeEventListener("keydown", handleKeys);
       window.removeEventListener("hashchange", handleNavigation);

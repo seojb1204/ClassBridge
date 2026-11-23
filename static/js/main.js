@@ -21,7 +21,7 @@ import * as support from "./views/support.js";
 import * as inbox from "./views/inbox.js";
 
 function home(root) {
-  if (can("slot:manage")) return go(isStandalone() ? "/bookings" : "/slots");
+  if (can("slot:manage")) return go("/slots");
   if (can("booking:self")) return go("/booking");
   mount(root, h("p", {}, "환영합니다."));
 }
@@ -40,7 +40,7 @@ function registerRoutes() {
   route("/slots", "slot:manage", profSlots.render, "시간표");
   route("/slots/new", "slot:manage", profSlots.renderRegistration);
   route("/bookings", "booking:manage", profBookings.render, "예약 관리");
-  route("/staff/insights", "booking:manage", staffInsights.render, "상담 정보");
+  route("/staff/insights", "booking:manage", staffInsights.render, "상담 기록·통계");
   if (feature("surveys")) {
     route("/surveys", null, surveys.renderList, "설문");
     // Restart in the public-only entry point, without reading the login session.
@@ -79,7 +79,7 @@ function renderMobileTabs() {
   const items = can("slot:manage")
     ? [{ pattern: "/slots", navLabel: "시간표" }, { pattern: "/bookings", navLabel: "예약 관리" },
        { pattern: "/inbox", navLabel: "내 알림" }]
-    : navItems().slice(0, 3);
+    : ["/booking", "/my-bookings", "/surveys"].map(path => navItems().find(r => r.pattern === path)).filter(Boolean);
   mount(tabs,
     ...items.map((r) => h("a", { href: `#${r.pattern}` },
       navIcon(r.pattern), h("span", {}, r.navLabel))),
@@ -107,16 +107,16 @@ function renderMobileTabs() {
 function renderChrome() {
   const nav = document.getElementById("nav");
   const items = navItems();
-  const link = (r) => h("a", { href: r.pattern === "/suggestions" && !can("suggestion:read") ? "/static/suggest.html" : `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
+  const link = (r) => h("a", { href: `#${r.pattern}` }, navIcon(r.pattern), h("span", {}, r.navLabel));
   if (can("slot:manage")) {
     const groups = [
       ["예약 관리", ["/bookings", "/slots"]],
-      ["상담 정보", ["/staff/insights", "/inbox"]],
+      ["상담 기록·알림", ["/staff/insights", "/inbox"]],
       ["설문·건의", ["/surveys", "/suggestions"]],
       ["관리", ["/admin/users", "/admin/settings", "/admin/audit"]],
     ];
     mount(nav, groups.map(([label, paths]) => {
-      const entries = items.filter(r => paths.includes(r.pattern));
+      const entries = paths.map(path => items.find(r => r.pattern === path)).filter(Boolean);
       if (!entries.length) return null;
       if (entries.length === 1) return link(entries[0]);
       return h("details", { class: "nav-group" },

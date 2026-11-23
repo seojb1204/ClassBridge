@@ -378,7 +378,7 @@ def test_pwa_standalone_staff_home(server, browser):
         ? {matches: true, addEventListener() {}} : original(query);
     })();""")
     prof.page.goto(base + "/")
-    prof.page.wait_for_selector('body[data-ready="/bookings"]')
+    prof.page.wait_for_selector('body[data-ready="/slots"]')
     assert prof.page.locator(".pwa-install").count() == 0
     prof.close()
 
@@ -541,8 +541,8 @@ def test_student_booking_flow_pc(server, browser):
     prof.page.locator(".modal button:text-is('기록 저장')").click()
     prof.toast("상담 기록을 저장")
     prof.go("/staff/insights")
-    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
-    assert prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).is_visible()
+    prof.page.locator("#nav summary").filter(has_text="상담 기록·알림").click()
+    assert prof.page.locator("#nav").get_by_role("link", name="상담 기록·통계", exact=True).is_visible()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     note_card = prof.page.locator(".consult-note-card:has-text('학생 상담 테스트 기록')")
@@ -614,12 +614,13 @@ def test_professor_completes_consultation(server, browser):
         c.execute("update slots set start_at=?, end_at=? where id=(select slot_id from bookings where id=?)",
                   (past, (now + timedelta(minutes=5)).replace(tzinfo=None).isoformat(" ", timespec="microseconds"), bid))
     prof.go("/bookings")
-    prof.page.locator("select").nth(0).select_option("")  # 전체 상태
+    prof.page.get_by_label("예약 상태", exact=True).select_option("")  # 전체 상태
     prof.page.wait_for_timeout(400)
-    prof.page.locator(f"tr[data-booking-id='{bid}'] details.action-more summary").click()
-    prof.page.locator(f"tr[data-booking-id='{bid}'] >> text=완료").click()
-    prof.toast("완료 처리")
-    prof.page.locator("select").nth(0).select_option("")
+    prof.page.locator(f"tr[data-booking-id='{bid}']").get_by_role("button", name="예약·상담 상세").click()
+    prof.page.get_by_role("button", name="상담 완료", exact=True).click()
+    prof.toast("상담 결과를 저장")
+    prof.page.get_by_role("dialog").get_by_role("button", name="닫기", exact=True).click()
+    prof.page.get_by_label("예약 상태", exact=True).select_option("")
     prof.page.wait_for_timeout(400)
     assert prof.page.locator(f"tr[data-booking-id='{bid}'] .badge.completed").count() == 1
     prof.shot("pc_05_prof_bookings")
@@ -631,7 +632,7 @@ def test_admin_uses_professor_features_and_changes_role(server, browser):
     adm = Session(browser, base, "admin@test.ac.kr", PC)
     nav = adm.page.locator("#nav")
     for group, labels in [("예약 관리", ("시간표", "예약 관리")),
-                          ("상담 정보", ("상담 정보", "내 알림")),
+                          ("상담 기록·알림", ("상담 기록·통계", "내 알림")),
                           ("설문·건의", ("설문", "건의함")),
                           ("관리", ("계정·권한", "운영 설정", "작업 이력"))]:
         nav.locator("summary").filter(has_text=re.compile("^" + re.escape(group) + "$" )).click()
@@ -800,12 +801,12 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/staff/insights")
     tabs = prof.page.locator("#mobile-tabs")
-    assert tabs.get_by_role("link", name="상담 정보").count() == 0
+    assert tabs.get_by_role("link", name="상담 기록·통계").count() == 0
     assert prof.page.locator('.topbar button[aria-controls="nav"]').count() == 0
     assert prof.page.locator('.topbar button[aria-controls="inbox-popover"]').count() == 1
     tabs.get_by_role("button", name="더보기 메뉴").click()
-    prof.page.locator("#nav summary").filter(has_text="상담 정보").click()
-    prof.page.locator("#nav").get_by_role("link", name="상담 정보", exact=True).click()
+    prof.page.locator("#nav summary").filter(has_text="상담 기록·알림").click()
+    prof.page.locator("#nav").get_by_role("link", name="상담 기록·통계", exact=True).click()
     prof.page.locator("#staff-overview .insight-metric").first.wait_for(state="visible")
     assert prof.page.locator("#staff-overview .insight-metric").count() >= 5
     assert prof.page.get_by_text("전체 상담 기록", exact=True).is_visible()
@@ -1266,7 +1267,8 @@ def test_mobile_booking_summary(server, browser):
     staff = Session(browser, base, "prof@test.ac.kr", MOBILE)
     page = staff.page
     page.clock.install(time="2026-11-10T09:00:00+09:00")
-    booking = {"id": 214, "slot": {"id": 7, "start_at": "2026-11-10T10:00:00+09:00", "kind": "individual"},
+    booking = {"id": 214, "slot": {"id": 7, "start_at": "2026-11-10T10:00:00+09:00",
+                               "end_at": "2026-11-10T10:30:00+09:00", "kind": "individual"},
                "applicant_name": "예약 학생", "student_number": "20260001", "student_email": "example@test.ac.kr",
                "status": "booked", "topic": "상담 주제"}
     page.route("**/api/bookings?*", lambda r: r.fulfill(json=[booking]))
@@ -1279,7 +1281,7 @@ def test_mobile_booking_summary(server, browser):
     assert "상담 주제" not in card.inner_text()
     summary.click()
     assert card.get_by_text("상담 주제", exact=True).is_visible()
-    assert card.get_by_role("button", name="일정 조정").is_visible()
+    assert card.get_by_role("button", name="예약·상담 상세").is_visible()
     summary.click()
     page.clock.fast_forward(3600000)
     assert " 후" not in summary.inner_text()
@@ -1307,13 +1309,13 @@ def test_unresolved_history_filter_includes_past_and_allows_staff_correction(ser
     page.get_by_label("예약 상태", exact=True).select_option("expired")
     page.locator(".badge.expired").wait_for(state="attached")
     assert "from_date=" not in requests[-1]
-    assert page.get_by_text("과거 포함 · 결과 확인 필요 · 1건 (한국시간)", exact=True).count() == 1
+    assert page.get_by_text("전체 기간 · 1건 (한국시간)", exact=True).count() == 1
     row = page.locator('[data-booking-id="987654"]')
     if viewport == MOBILE:
         row.locator("summary").first.click()
-    row.locator("details.action-more summary").click()
-    assert row.get_by_role("button", name="완료", exact=True).is_visible()
-    assert row.get_by_role("button", name="미참석", exact=True).is_visible()
+    row.get_by_role("button", name="예약·상담 상세").click()
+    assert page.get_by_role("dialog").get_by_role("button", name="상담 완료", exact=True).is_visible()
+    assert page.get_by_role("dialog").get_by_role("button", name="미참석", exact=True).is_visible()
     staff.close()
 
 

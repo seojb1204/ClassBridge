@@ -31,7 +31,7 @@ def test_staff_menu_calendar_and_activity_rows(server, browser, width):  # noqa:
             assert trigger.get_attribute('aria-expanded') == 'false'
             assert trigger.evaluate('e => e === document.activeElement')
             trigger.click()
-        menu.locator('summary').filter(has_text='상담 정보').click()
+        menu.locator('summary').filter(has_text='상담 기록·알림').click()
         assert menu.get_by_role('link', name='내 알림', exact=True).is_visible()
         menu.locator('summary').filter(has_text='관리').last.click()
         assert menu.get_by_role('link', name='계정·권한').is_visible()
@@ -78,7 +78,7 @@ def test_role_navigation_and_disabled_features(server, browser, email, staff):  
         assert nav.locator('a[href="#/surveys"]').count() == 0
         assert nav.locator('a[href="#/suggestions"]').count() == 0
         if staff:
-            nav.locator('summary').filter(has_text='상담 정보').click()
+            nav.locator('summary').filter(has_text='상담 기록·알림').click()
             nav.get_by_role('link', name='내 알림', exact=True).click()
             page.wait_for_selector('body[data-ready="/inbox"]', state='attached')
             nav.locator('summary').filter(has_text='예약 관리').click()

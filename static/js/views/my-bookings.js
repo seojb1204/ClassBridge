@@ -2,7 +2,7 @@
 import { watchRefresh } from "../live-refresh.js";
 import { get, post } from "../api.js";
 import { downloadConsultationIcs } from "../calendar-ics.js";
-import { fmtDateTime } from "../time.js";
+import { fmtDateTime, fmtTime } from "../time.js";
 import { STATUS_LABEL, badge, busy, confirmAction, empty, errorToast, h, modal, mount, toast } from "../ui.js";
 
 export async function render(root) {
@@ -14,7 +14,7 @@ async function draw(root) {
   const [list, counts] = await Promise.all([get("/api/bookings/mine"), get("/api/support/counts").catch(() => ({mine: 0}))]);
   mount(root, h("div", { class: "page-head" }, h("h1", {}, "내 예약")),
     counts.mine ? h("a", { class: "notice", href: "#/help/mine" }, `문의 답변·상태 변경 ${counts.mine}건 확인하기`) : null,
-    list.length ? h("div", { class: "cards" }, list.map((b) => item(root, b))) : empty("예약 내역이 없습니다."));
+    list.length ? h("div", { class: "cards" }, list.map((b) => item(root, b))) : h("div", {}, empty("예약 내역이 없습니다."), h("a", { class: "btn primary", href: "#/booking" }, "상담 예약하기")));
 }
 
 function item(root, b) {
@@ -28,7 +28,7 @@ function item(root, b) {
     await render(root);
   }));
   return h("div", { class: `card booking ${b.status}`, dataset: { bookingId: b.id } },
-    h("div", { class: "row" }, h("strong", {}, fmtDateTime(b.slot.start_at)), badge(b.status === "cancelled" && b.cancel_reason === "예약 변경" ? "변경 전 기록" : STATUS_LABEL[b.status], b.status)),
+    h("div", { class: "row" }, h("strong", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`), badge(b.status === "cancelled" && b.cancel_reason === "예약 변경" ? "변경 전 기록" : STATUS_LABEL[b.status], b.status)),
     h("span", { class: "muted" }, b.slot.kind === "group" ? "단체 상담" : "개인 상담",
       b.slot.location ? ` · ${b.slot.location}` : ""),
     h("p", { class: "muted" },
@@ -40,9 +40,9 @@ function item(root, b) {
     b.topic ? h("p", {}, b.topic) : null,
     b.cancel_reason ? h("p", { class: "muted" }, b.cancel_reason === "예약 변경"
       ? "이전 방식으로 변경된 예약의 과거 기록입니다." : `취소 사유: ${b.cancel_reason}`) : null,
-    b.status === "booked" ? h("div", { class: "actions" }, cancelBtn,
-      h("a", { class: "btn", href: "#/booking" }, "취소 없이 시간 변경"),
-      h("button", { class: "btn", onclick: () => downloadConsultationIcs(b) }, "내 달력에 추가")) : null);
+    b.status === "booked" ? h("div", { class: "actions" },
+      h("a", { class: "btn primary", href: "#/booking" }, "취소 없이 시간 변경"),
+      h("button", { class: "btn", onclick: () => downloadConsultationIcs(b) }, "내 달력에 추가"), cancelBtn) : null);
 }
 
 

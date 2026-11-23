@@ -8,7 +8,7 @@
   --control-line: #9c8f7e; --reserved-line: #8aa991; --reserved-bg: #e5f1e7;
   --reserved-text: #315b42; --reserved-hover: #d7e8da; --available-hover: #f7e7d1;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
-  --lecture-bg: #e8f0fc; --lecture-text: #234b78; --lecture-line: #416fa8; --lecture-hover: #d9e7fa;
+  --lecture-bg: #e9e1d8; --lecture-text: #594737; --lecture-line: #8b7057; --lecture-hover: #ded2c5;
   --radius: 6px; --shadow: none;
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
 }
@@ -679,4 +679,18 @@ textarea { line-height: 1.75; }
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
   .mobile-grid-wrap .slot-time { font-size: .625rem; line-height: 1.2; flex-shrink: 0; }
   .mobile-grid-wrap .slot.lecture:hover, .mobile-grid-wrap .slot.lecture:focus-visible { background: var(--lecture-hover); }
+}
+
+/* Short mobile consultations reserve a full line for the attendee name. */
+@media (max-width: 720px) {
+  .mobile-grid-wrap .slot.compact-short { padding-block: 0; }
+  .mobile-grid-wrap .compact-short .slot-time { white-space: nowrap; }
+  .mobile-grid-wrap .compact-short .slot-time-end { display: none; }
+  .mobile-grid-wrap .compact-short .slot-meta { display: block; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+}
+
+@media (max-width: 720px) {
+  .mobile-grid-wrap .compact-tiny .slot-time { display: none; }
+  .mobile-grid-wrap .slot.compact-tiny { justify-content: center; }
 }

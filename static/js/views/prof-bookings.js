@@ -13,7 +13,7 @@ import {
   STATUS_LABEL, badge, busy, empty, errorToast, field, h, modal, mount, promptText, select, toast,
 } from "../ui.js";
 
-let filter = { status: "booked" };
+let filter = { status: "booked", period: "all" };
 let viewMode = "list";
 let weekStart = null;
 let selectedDay = null;
@@ -43,62 +43,68 @@ export async function showStaffSlot(root, slot, bookings, highlight = false, ref
     return;
   }
   let b = related[0];
-  const picker = related.length > 1 ? select(related.map((x) => [
-    x.id, `${x.applicant_name || x.student_name} · ${x.student_number || x.student_email}`,
-  ])) : null;
-  const info = h("p", { class: "muted" }, "");
-  const note = h("textarea", { rows: 5, maxlength: 10000 });
-  const reason = h("input", { type: "text", maxlength: 500, placeholder: "취소 시 학생에게 보여줄 사유" });
-  const update = () => {
-    b = related.find((x) => String(x.id) === String(picker?.value)) || related[0];
-    info.textContent = `${b.applicant_name || b.student_name} · ${b.grade ? b.grade + "학년" : "학년 미입력"} · ${STATUS_LABEL[b.status] || "상태 확인 필요"}${b.topic ? " · " + b.topic : ""}`;
+  let changed = false;
+  while (true) {
+    const picker = related.length > 1 ? select(related.map(x => [x.id,
+      `${x.applicant_name || x.student_name} · ${STATUS_LABEL[x.status]}`]), String(b.id)) : null;
+    const note = h("textarea", { rows: 5, maxlength: 10000 });
     note.value = b.professor_note || "";
-  };
-  picker?.addEventListener("change", update);
-  update();
-  const actions = [
-    { label: "닫기", value: null },
-    { label: "기록 저장", primary: true, handler: async () => {
-      try { await put(`/api/bookings/${b.id}/note`, { note: note.value }); toast("상담 기록을 저장했습니다.", "success"); return true; }
-      catch (e) { errorToast(e); return false; }
-    } },
-  ];
-  if (related.some((x) => x.status === "booked")) {
-    actions.push({ label: "예약 취소", danger: true, handler: async () => {
-      if (b.status !== "booked") { toast("진행 중인 예약을 선택해 주세요.", "error"); return false; }
-      if (!reason.value.trim()) { toast("취소 사유를 입력해 주세요.", "error"); reason.focus(); return false; }
-      try { await post(`/api/bookings/${b.id}/cancel`, { reason: reason.value }); toast("예약을 취소했습니다.", "success"); return true; }
-      catch (e) { errorToast(e); return false; }
-    } });
-    if (new Date(slot.start_at) <= new Date()) actions.push({
-      label: "상담 완료", handler: async () => {
-        if (b.status !== "booked") { toast("진행 중인 예약을 선택해 주세요.", "error"); return false; }
-        try { await post(`/api/bookings/${b.id}/outcome`, { outcome: "completed" }); toast("완료 처리했습니다.", "success"); return true; }
-        catch (e) { errorToast(e); return false; }
-      },
+    const dirty = () => note.value !== (b.professor_note || "");
+    const discard = () => !dirty() || window.confirm("저장하지 않은 상담 기록을 버릴까요? 취소하면 계속 작성할 수 있습니다.");
+    const actions = [{ label: "닫기", value: null },
+      { label: "기록 저장", primary: true, handler: async () => {
+        await put(`/api/bookings/${b.id}/note`, { note: note.value });
+        b.professor_note = note.value; changed = true;
+        toast("상담 기록을 저장했습니다.", "success"); return "saved";
+      } }];
+    const started = new Date(b.slot.start_at) <= new Date();
+    if (["booked", "expired", "completed", "no_show"].includes(b.status) && started) {
+      for (const [value, label] of [["completed", "상담 완료"], ["no_show", "미참석"]]) {
+        if (b.status !== value) actions.push({ label, handler: () => discard() ? value : false });
+      }
+    }
+    if (b.status === "booked") actions.push(
+      { label: "일정 조정", handler: () => discard() ? "reschedule" : false },
+      { label: "예약 취소", danger: true, handler: () => discard() ? "cancel" : false });
+    actions.push({ label: "변경 이력", handler: () => discard() ? "history" : false });
+    // Switching students reopens the same editor only after guarding the current draft.
+    let nextId = null;
+    picker?.addEventListener("change", () => {
+      if (!discard()) { picker.value = String(b.id); return; }
+      nextId = picker.value;
+      note.value = b.professor_note || "";
+      document.querySelector("#modal-root .modal-actions button")?.click();
     });
+    const result = await modal("예약·상담 상세", h("div", { class: "booking-detail" },
+      h("p", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`),
+      picker ? field("학생 선택", picker) : null,
+      h("p", {}, `${b.applicant_name || b.student_name} · ${STATUS_LABEL[b.status]}`),
+      h("p", {}, b.topic || "상담 내용 미입력"),
+      field("교수자 상담 기록", note),
+      h("p", { class: "muted" }, "교수자·관리자만 볼 수 있습니다. 학업·진로·취업 진행사항만 기록하고 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요.")),
+      actions, { beforeClose: value => value !== null || discard() });
+    if (nextId) { b = related.find(x => String(x.id) === nextId); continue; }
+    if (result === null) break;
+    try {
+      if (result === "completed" || result === "no_show") {
+        await post(`/api/bookings/${b.id}/outcome`, { outcome: result });
+        b.status = result; changed = true; toast("상담 결과를 저장했습니다.", "success");
+      } else if (result === "reschedule") {
+        await reschedule(b); changed = true; break;
+      } else if (result === "cancel") {
+        const reason = await promptText("예약 취소", "취소 사유 (학생에게 표시됨)", { required: true });
+        if (reason !== null) {
+          await post(`/api/bookings/${b.id}/cancel`, { reason });
+          b.status = "cancelled"; changed = true;
+        }
+      } else if (result === "history") {
+        const events = await get(`/api/bookings/${b.id}/history`);
+        await modal("변경 이력", h("ul", {}, events.map(e => h("li", {},
+          `${fmtDateTime(e.at)} · ${eventLabels[e.action] || e.action} ${e.detail}`))), [{ label: "닫기", value: null }]);
+      }
+    } catch (e) { errorToast(e); }
   }
-  if (related.some(x => x.status === "completed")) actions.push({
-    label: "미참석으로 정정", handler: async () => {
-      if (b.status !== "completed") { toast("완료된 상담을 선택해 주세요.", "error"); return false; }
-      try { await post(`/api/bookings/${b.id}/outcome`, { outcome: "no_show" }); toast("미참석으로 정정했습니다.", "success"); return true; }
-      catch (e) { errorToast(e); return false; }
-    },
-  });
-  const dialog = modal("예약·상담 상세", h("div", { class: "booking-detail" },
-    h("p", {}, h("strong", {}, fmtDateTime(slot.start_at)), highlight ? " · 이 알림의 예약" : ` · 예약 ${related.length}/${slot.capacity}명`),
-    picker ? field("학생 선택", picker) : null, info,
-    field("교수자 상담 기록", note),
-    h("p", { class: "muted" }, "학업·진로·취업 진행사항만 기록해 주세요. 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요."),
-    reason && related.some((x) => x.status === "booked") ? field("예약 취소 사유", reason) : null,
-  ), actions);
-  if (highlight) {
-    const target = document.querySelector("#modal-root .booking-detail");
-    target?.classList.add("notification-target");
-    setTimeout(() => target?.classList.remove("notification-target"), 2800);
-  }
-  const result = await dialog;
-  if (result !== null) await refresh();
+  if (changed) await refresh();
 }
 
 async function renderCalendarView(root) {
@@ -159,13 +165,17 @@ export async function render(root) {
   }
   detach?.();
   detach = null;
-  const q = new URLSearchParams(filter.status === "expired" ? {} : { from_date: todayKst() });
+  const q = new URLSearchParams();
+  if (filter.period === "future") q.set("from_date", todayKst());
+  if (filter.period === "recent") { q.set("start", addDays(todayKst(), -90)); q.set("days", "91"); }
   if (filter.status) q.set("status", filter.status);
   const list = await get(`/api/bookings?${q}`);
   const status = select([["", "전체"], ["booked", "예약됨"], ["completed", "완료"], ["no_show", "미참석"],
     ["expired", "기간 종료·결과 미확인"], ["cancelled", "취소됨"]], filter.status);
   status.setAttribute("aria-label", "예약 상태");
-  const apply = () => { filter = { status: status.value }; render(root); };
+  const period = select([["all", "전체 기간"], ["future", "오늘 이후"], ["recent", "최근 90일·오늘"]], filter.period);
+  const apply = () => { filter = { status: status.value, period: period.value }; render(root); };
+  period.addEventListener("change", apply);
   status.addEventListener("change", apply);
   const results = h("div", { class: "table-wrap" });
   const showList = () => mount(results, isMobile() ? mobileList(root, list) : table(root, list));
@@ -177,8 +187,8 @@ export async function render(root) {
     h("div", { class: "page-head" }, h("h1", {}, "예약 관리")),
     staffToday(),
     viewSwitcher(root),
-    h("div", { class: "filters" }, field("상태", status)),
-    h("p", { class: "muted" }, `${filter.status === "expired" ? "과거 포함 · 결과 확인 필요" : "오늘 이후"} · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
+    h("div", { class: "filters" }, field("기간", period), field("상태", status)),
+    h("p", { class: "muted" }, `${period.selectedOptions[0].textContent} · ${filter.status === "booked" ? "현재 예약 " : ""}${list.length}건 (한국시간)`),
     list.length ? results : empty("해당 조건의 예약이 없습니다."));
 }
 
@@ -196,7 +206,7 @@ function mobileList(root, list) {
     if (b.status === "booked") clocks.push({ start: b.slot.start_at, time });
     const summary = h("summary", {},
       h("strong", {}, b.applicant_name || b.student_name, " · ", b.student_number || "학번 미입력"),
-      h("span", {}, fmtDateTime(b.slot.start_at), time));
+      h("span", {}, `${fmtDateTime(b.slot.start_at)}–${fmtTime(b.slot.end_at)}`, time));
     cards.append(h("details", { class: "card", dataset: { bookingId: b.id } }, summary,
       h("p", {}, badge(STATUS_LABEL[b.status], b.status), " ", bookingType(b)),
       h("p", { class: "muted" }, [b.grade && b.grade + "학년", b.student_email].filter(Boolean).join(" · ")),
@@ -247,46 +257,8 @@ function table(root, list) {
 }
 
 function actions(root, b) {
-  const started = new Date(b.slot.start_at) <= new Date();
-  const out = [];
-  const act = (label, fn, cls = "btn small") => {
-    const btn = h("button", { class: cls }, label);
-    btn.addEventListener("click", busy(btn, async () => {
-      try { await fn(); await render(root); } catch (e) { errorToast(e); if (e.code === "booking_changed") await render(root); }
-    }));
-    out.push(btn);
-  };
-  if (["booked", "expired", "completed", "no_show"].includes(b.status) && started) {
-    if (b.status !== "completed") act("완료", async () => { await post(`/api/bookings/${b.id}/outcome`, { outcome: "completed" }); toast("완료 처리", "success"); });
-    if (b.status !== "no_show") act("미참석", async () => { await post(`/api/bookings/${b.id}/outcome`, { outcome: "no_show" }); toast("미참석 처리", "success"); });
-  }
-  if (b.status === "booked") {
-    act("일정 조정", () => reschedule(b));
-    act("취소", async () => {
-      const reason = await promptText("예약 취소", "취소 사유 (학생에게 표시됨)", { required: true });
-      if (reason === null) return;
-      await post(`/api/bookings/${b.id}/cancel`, { reason });
-      toast("취소했습니다", "success");
-    }, "btn small danger");
-  }
-  act("상담 기록", async () => {
-    const note = await promptText("상담 기록", "교수자·관리자만 볼 수 있습니다. 학업·진로·취업 진행사항만 기록하고 건강·심리 상태 등 민감한 개인정보는 입력하지 마세요. 외부 AI로 전송되지 않습니다.",
-      { multiline: true, value: b.professor_note });
-    if (note === null) return;
-    await put(`/api/bookings/${b.id}/note`, { note });
-    toast("저장했습니다", "success");
-  });
-  act("이력", async () => {
-    const ev = await get(`/api/bookings/${b.id}/history`);
-    await modal("변경 이력", h("ul", { class: "plain" }, ev.map((e) => h("li", {}, `${fmtDateTime(e.at)} · ${eventLabels[e.action] || e.action} ${e.detail}`))),
-      [{ label: "닫기", value: null }]);
-  });
-  if (out.length <= 2) return out;
-  const main = out.find((btn) => btn.textContent === "일정 조정") || out[0];
-  const more = h("details", { class: "action-more" },
-    h("summary", { class: "btn small", "aria-label": "추가 예약 관리 작업" }, "⋯ 더보기"),
-    h("div", { class: "action-more-panel" }, ...out.filter((btn) => btn !== main)));
-  return [main, more];
+  return [h("button", { class: "btn small primary", onclick: () =>
+    showStaffSlot(root, b.slot, [b]).catch(errorToast) }, "예약·상담 상세")];
 }
 
 async function reschedule(b) {

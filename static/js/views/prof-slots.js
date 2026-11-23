@@ -51,7 +51,7 @@ export function renderRegistration(root) {
   mount(root,
     h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록"),
       h("a", { class: "btn", href: "#/slots" }, "시간표로 돌아가기"),
-      h("button", { class: "btn", onclick: () => bookForStudent() }, "학생 대신 예약")),
+      h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약")),
     h("div", { class: "calendar-toggle", "aria-label": "등록할 일정 종류" }, ...buttons),
     h("p", { class: "muted" }, "상담과 강의는 같은 시간표에 표시됩니다. 등록할 종류를 선택해 주세요."), panel);
 }
@@ -95,7 +95,7 @@ async function draw(root, revealDay = false) {
   mountCalendarPreservingScroll(root, () => [
     h("div", { class: "page-head" }, h("h1", {}, "시간표"),
       h("a", { class: "btn primary", href: "#/slots/new" }, "+ 일정 등록"),
-      h("button", { class: "btn", onclick: () => bookForStudent() }, "학생 대신 예약"),
+      h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약"),
       isMobile() ? null : h("button", { class: "btn primary", onclick: () => { showForm = !showForm; draw(root); },
         "aria-expanded": String(showForm), "aria-controls": "slot-create-panel" },
         showForm ? "등록 양식 접기" : "+ 상담 시간 등록")),

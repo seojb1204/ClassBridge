@@ -203,9 +203,10 @@ function renderWeekly(o, byDay) {
       const a = kstParts(s.start_at), b = kstParts(s.end_at);
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
-      const btn = h("button", { class: slotClass(s), onclick: () => o.onSlot(s.originalSlot || s),
+      const shortConsultation = s.event_type !== "lecture" && end - start <= 30;
+      const btn = h("button", { class: `${slotClass(s)}${shortConsultation ? " compact-short" : ""}${shortConsultation && end - start < 20 ? " compact-tiny" : ""}`, onclick: () => o.onSlot(s.originalSlot || s),
         "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
-        h("span", { class: "slot-time" }, `${a.time}–${b.time}`),
+        h("span", { class: "slot-time" }, a.time, h("span", { class: "slot-time-end" }, `–${b.time}`)),
         h("span", { class: "slot-meta" }, o.compactGrid
           ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? s.title : s.status === "cancelled" ? "취소"
             : s.mine ? "내 예약" : s.reason || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명` : "상담"))
