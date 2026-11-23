@@ -115,12 +115,13 @@ const TARGETS = { announcement: "공지", booking: "예약", lecture: "강의", 
   slot: "상담 시간", slot_series: "반복 상담 묶음", staff_reminder: "교수자 알림", suggestion: "건의", survey: "설문",
   user: "계정", support_ticket: "개발자 문의" };
 const DETAIL_KEYS = { count: "건수", kind: "유형", capacity: "정원", reason: "사유", role: "역할", from: "이전", to: "이후",
-  cancelled_bookings: "취소된 예약", changes: "변경 항목" };
+  cancelled_bookings: "취소된 예약", changes: "변경 항목", title: "제목" };
+const DETAIL_VALUES = { individual: "개인", group: "단체", student: "학생", professor: "교수자", admin: "관리자" };
 
 function detailText(detail) {
   const entries = Object.entries(detail || {});
   if (!entries.length) return "—";
-  return entries.map(([k, v]) => `${DETAIL_KEYS[k] || k}: ${typeof v === "object" ? JSON.stringify(v) : v === "" ? "없음" : v}`).join(" · ");
+  return entries.map(([k, v]) => `${DETAIL_KEYS[k] || k}: ${typeof v === "object" ? JSON.stringify(v) : v === "" ? "없음" : DETAIL_VALUES[v] || v}`).join(" · ");
 }
 
 export async function renderAudit(root) {
