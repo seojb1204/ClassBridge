@@ -16,10 +16,19 @@ from app.services.booking_service import kst_range
 from app.timeutil import today_kst
 
 
+UPCOMING_DAYS = 14
+
+
 def overview(db: Session, days: int) -> dict:
+    """Past ``days`` (including today) plus the next two weeks.
+
+    A past-only window showed "예약 중 0" while students had booked tomorrow, so
+    upcoming appointments are part of the period and every card counts the same rows.
+    """
     today = today_kst(utcnow())
     start_day = today - timedelta(days=days - 1)
-    start_at, end_at = kst_range(start_day, days)
+    start_at, _ = kst_range(start_day, days)
+    _, end_at = kst_range(today, UPCOMING_DAYS)
     scoped = (Slot.start_at >= start_at, Slot.start_at < end_at)
 
     status_rows = db.execute(
@@ -52,7 +61,7 @@ def overview(db: Session, days: int) -> dict:
         select(func.count(Slot.id)).where(*scoped, Slot.status == "open")
     ).scalar_one()
 
-    next_start, next_end = kst_range(today, 14)
+    next_start, next_end = kst_range(today, UPCOMING_DAYS)
     upcoming = db.execute(
         select(func.count(Booking.id))
         .join(Slot, Slot.id == Booking.slot_id)
@@ -63,8 +72,9 @@ def overview(db: Session, days: int) -> dict:
     decided = statuses["completed"] + statuses["no_show"]
     return {
         "period_start": start_day,
-        "period_end": today,
+        "period_end": today + timedelta(days=UPCOMING_DAYS - 1),
         "days": days,
+        "upcoming_days": UPCOMING_DAYS,
         "total_bookings": sum(statuses.values()),
         "status_counts": statuses,
         "recorded_notes": recorded_notes,

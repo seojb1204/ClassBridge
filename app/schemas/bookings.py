@@ -125,6 +125,7 @@ class StaffOverviewOut(BaseModel):
     period_start: date
     period_end: date
     days: int
+    upcoming_days: int = 14
     total_bookings: int
     status_counts: dict[str, int]
     recorded_notes: int
