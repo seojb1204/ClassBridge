@@ -8,6 +8,7 @@
   --control-line: #9c8f7e; --reserved-line: #8aa991; --reserved-bg: #e5f1e7;
   --reserved-text: #315b42; --reserved-hover: #d7e8da; --available-hover: #f7e7d1;
   --booking-mine: #8d3a1c; --booking-mine-hover: #713019;
+  --lecture-bg: #e8f0fc; --lecture-text: #234b78; --lecture-line: #416fa8; --lecture-hover: #d9e7fa;
   --radius: 6px; --shadow: none;
   --editorial: Georgia, "Noto Serif KR", "Nanum Myeongjo", "Batang", "AppleMyungjo", serif;
 }
@@ -98,6 +99,8 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; font-size: .85rem; color: var(--text); margin-bottom: .5rem; }
 .lg::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .3rem; vertical-align: -1px; }
 .lg.open::before { background: var(--available-bg); border: 2px solid var(--available-line); }
+.lg.reserved::before { background: var(--reserved-bg); border: 2px solid var(--reserved-line); }
+.lg.lecture::before { background: var(--lecture-bg); border: 1px solid var(--lecture-line); border-left: 4px solid var(--lecture-line); }
 .lg.mine::before { background: var(--booking-mine); }
 .lg.closed::before { background: var(--closed); border: 1px dashed var(--muted); }
 .week-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -509,7 +512,7 @@ textarea { line-height: 1.75; }
 }
 
 /* Lectures are staff calendar events, not bookable slots. */
-.slot.lecture { background: #e6ece3; color: #29442c; border: 1px solid #7d9276; border-inline-start: 4px solid #526b49; }
+.slot.lecture { background: var(--lecture-bg); color: var(--lecture-text); border: 1px solid var(--lecture-line); border-inline-start: 4px solid var(--lecture-line); }
 
 /* Mobile timetable: editorial week overview and readable daily lists, shared details. */
 @media (max-width: 720px) {
@@ -549,7 +552,7 @@ textarea { line-height: 1.75; }
 @media (max-width: 720px) {
   .mobile-grid-wrap .slot.open { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-line); }
   .mobile-grid-wrap .slot.open:hover, .mobile-grid-wrap .slot.open:focus-visible { background: var(--available-hover); }
-  .mobile-grid-wrap .slot.lecture { background: #e6ece3; color: #29442c; border-color: #7d9276; }
+  .mobile-grid-wrap .slot.lecture { background: var(--lecture-bg); color: var(--lecture-text); border-color: var(--lecture-line); }
 }
 
 /* Horizontal week gestures do not consume vertical scroll or pinch zoom. */
@@ -667,4 +670,13 @@ textarea { line-height: 1.75; }
   .inbox-row-link .inbox-item-heading { flex-wrap: wrap; gap: .2rem .65rem; }
   .inbox-arrival { margin-left: auto; }
   .inbox-popover .inbox-preview { padding-block: .8rem; }
+}
+
+/* Keep compact event text readable without changing the time-axis geometry. */
+.slot.lecture:hover, .slot.lecture:focus-visible { background: var(--lecture-hover); }
+@media (max-width: 720px) {
+  .mobile-grid-wrap .slot-meta { font-size: .6875rem; line-height: 1.25; flex-shrink: 0;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .mobile-grid-wrap .slot-time { font-size: .625rem; line-height: 1.2; flex-shrink: 0; }
+  .mobile-grid-wrap .slot.lecture:hover, .mobile-grid-wrap .slot.lecture:focus-visible { background: var(--lecture-hover); }
 }

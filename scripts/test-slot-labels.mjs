@@ -9,7 +9,7 @@ assert.equal(c.label({staffBookingNames:'가, 나',reason:'마감'}),'가, 나')
 assert.equal(c.label({staffBookingNames:'방민서',reason:'강의 시간'}),'방민서 · 강의 시간');
 assert.equal(c.label({staffBookingNames:'방민서',reason:''}),'방민서 · 예약');
 assert.equal(c.label({reason:'마감'}),'마감 · 개인');
-assert.equal(c.label({event_type:'lecture',title:'강의',reason:'마감'}),'강의 · 강의');
+assert.equal(c.label({event_type:'lecture',title:'강의',reason:'마감'}),'강의');
 assert.equal(c.label({status:'cancelled'}),'취소됨');
 const slots=fs.readFileSync('static/js/views/prof-slots.js','utf8');
 assert.ok(!slots.includes('showCancelled'));
