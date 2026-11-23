@@ -802,7 +802,7 @@ tr[hidden] { display: none; }
   .announcement-panel { padding: 0 8px; margin: 4px 0; }
   .available-days { padding: 4px 0; margin: 4px 0; border: 0; background: transparent; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
   .available-days h2 { margin: 0; font-size: .75rem; }
-  .available-day-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+  .available-day-buttons { display: flex; flex-wrap: nowrap; gap: 4px; max-width: 100%; overflow-x: auto; }
   .available-day-buttons .btn { flex-direction: row; align-items: center; gap: 4px; padding: 4px 8px; }
   .calendar-view-switch { margin: 4px 0; }
   .calendar-view-switch .btn { min-height: 44px; padding: 4px 8px; font-size: .85rem; }

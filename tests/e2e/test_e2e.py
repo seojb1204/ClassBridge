@@ -534,7 +534,7 @@ def test_student_booking_flow_pc(server, browser):
     # Professor sees student-entered details; do not expose the professor's private note.
     prof = Session(browser, base, "prof@test.ac.kr", PC)
     prof.go("/bookings")
-    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
+    prof.page.locator("#view").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".week-grid").wait_for(state="visible")
     # The fixture can fall in next week (e.g. when this test runs on Saturday).
     today = today_kst(utcnow())
@@ -777,7 +777,7 @@ def test_mobile_student_flow(server, browser):
     assert st.page.locator(".week-grid .day-head").count() == 5
     assert st.page.locator(".week-grid .slot.open").count() > 0
     st.page.get_by_role("button", name="목록형", exact=True).click()
-    st.page.locator(".daily .cards").wait_for(state="visible")
+    st.page.locator(".daily > .cards").wait_for(state="visible")
     slot = _find_slot(st, mobile=True)
     st.shot("mobile_01_daily")
     slot.click()
