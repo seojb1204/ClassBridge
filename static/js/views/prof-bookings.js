@@ -187,6 +187,7 @@ export async function render(root) {
     ["expired", "기간 종료·결과 미확인"], ["cancelled", "취소됨"]], filter.status);
   status.setAttribute("aria-label", "예약 상태");
   const period = select([["all", "전체 기간"], ["future", "오늘 이후"], ["recent", "최근 90일·오늘"]], filter.period);
+  period.setAttribute("aria-label", "기간");
   const apply = () => { filter = { status: status.value, period: period.value }; render(root); };
   period.addEventListener("change", apply);
   status.addEventListener("change", apply);
