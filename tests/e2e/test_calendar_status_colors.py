@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from tests.e2e.test_e2e import browser, server  # noqa: F401
+from tests.e2e.test_e2e import SHOTS, browser, server  # noqa: F401
 
 pytestmark = pytest.mark.skipif(not os.getenv("RUN_E2E"), reason="RUN_E2E 미설정")
 
@@ -26,7 +26,7 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
                  end_at: '2026-11-16T10:30:00+09:00', bookable: true,
                  managerState: 'free', remaining: 1},
                 {...common, id: 2, start_at: '2026-11-16T11:00:00+09:00',
-                 end_at: '2026-11-16T11:30:00+09:00', bookable: false,
+                 end_at: '2026-11-16T11:20:00+09:00', bookable: false,
                  managerState: 'reserved', staffBookingNames: '예약 학생',
                  reason: '마감', bookingCount: 1},
                 {id: 'lecture-3', event_type: 'lecture', title: '기업가정신과 AI기반관광창업 (2-A)',
@@ -43,9 +43,9 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
         assert "강의 ·" not in lecture.inner_text()
         assert "기업가정신과 AI기반관광창업 (2-A)" in lecture.inner_text()
         assert "강의 ·" in lecture.get_attribute("aria-label")
-        assert lecture.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(232, 240, 252)"
+        assert lecture.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(233, 225, 216)"
         assert page.locator('.lg.lecture').evaluate(
-            "e => getComputedStyle(e, '::before').backgroundColor") == "rgb(232, 240, 252)"
+            "e => getComputedStyle(e, '::before').backgroundColor") == "rgb(233, 225, 216)"
         lecture.click()
         assert page.locator('main').get_attribute('data-selected') == 'lecture-3'
         page.locator('[data-slot-id="lecture-4"]').click()
@@ -53,7 +53,7 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         if width < 720 and mode == "week":
             assert lecture.locator('.slot-meta').evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
-        page.screenshot(path=f"/tmp/classbridge-{width}-{mode}.png", full_page=True)
+        page.screenshot(path=str(SHOTS / f"classbridge-{width}-{mode}.png"), full_page=True)
         available = page.locator(".slot.open").first
         reserved = page.locator(".slot.reserved").first
         assert available.is_visible() and reserved.is_visible()
@@ -70,6 +70,13 @@ def test_available_and_reserved_are_distinct(server, browser, width, mode):  # n
             assert blank.evaluate(color) == "rgba(0, 0, 0, 0)"
             assert page.locator(".week-wrap").first.evaluate(color) == "rgb(255, 252, 247)"
             assert "open" not in (blank.get_attribute("class") or "").split()
+        if width < 720 and mode == "week":
+            assert reserved.locator('.slot-time').inner_text() == "11:00"
+            assert "11:00-11:20" in reserved.get_attribute('aria-label')
+            assert reserved.locator('.slot-meta').evaluate("""e => {
+                const name = e.getBoundingClientRect(), card = e.parentElement.getBoundingClientRect();
+                return name.top >= card.top && name.bottom <= card.bottom;
+            }""")
         assert "예약 학생" in reserved.inner_text()
         assert "마감" not in reserved.inner_text()
     finally:

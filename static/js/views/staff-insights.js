@@ -130,7 +130,7 @@ export async function render(root) {
     loadOverview();
   });
   mount(root, exportPanel(true),
-    h("div", { class: "page-head" }, h("h1", {}, "상담 정보"),
+    h("div", { class: "page-head" }, h("h1", {}, "상담 기록·통계"),
       h("p", { class: "muted" }, "교수자·관리자만 볼 수 있는 상담 통계와 비공개 상담 기록입니다.")),
     h("section", { class: "insight-section" },
       h("div", { class: "insight-section-head" }, h("h2", {}, "상담 현황"),

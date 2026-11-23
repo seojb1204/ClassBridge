@@ -39,3 +39,7 @@ export function isoToKstInput(iso) {
   const p = kstParts(iso);
   return `${p.date}T${p.time}`;
 }
+
+// Some historical or partial responses omit the end time; keep the rest readable.
+export const fmtDateTimeRange = (start, end) => fmtDateTime(start)
+  + (end && Number.isFinite(Date.parse(end)) ? `–${fmtTime(end)}` : "");
