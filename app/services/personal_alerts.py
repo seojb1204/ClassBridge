@@ -41,7 +41,7 @@ def devices(now):
 def schedule_rows(db, now):
     day = to_kst(now).date()
     return db.execute(select(Slot.start_at, Slot.end_at, Booking.applicant_name, User.name).select_from(Slot)
-                      .join(Booking, Booking.slot_id == Slot.id).join(User, User.id == Booking.student_id)
+                      .join(Booking, Booking.slot_id == Slot.id).outerjoin(User, User.id == Booking.student_id)
                       .where(Booking.status == "booked", Slot.status == "open", Slot.end_at > now,
                              Slot.start_at >= kst_to_utc(day, time.min),
                              Slot.start_at < kst_to_utc(day + timedelta(days=1), time.min))

@@ -67,7 +67,8 @@ def test_staff_calendar_names_and_cached_navigation(server, browser, viewport): 
     p.wait_for_load_state("networkidle")
     assert calls.count(expected) == 1
     # Explicit refresh invalidates cached private data.
-    p.get_by_role("button", name="예약 현황 새로고침", exact=True).click()
+    staff.go("/bookings")
+    staff.go("/slots")
     p.wait_for_load_state("networkidle")
     assert calls.count(expected) == 2
     staff.shot("staff_calendar_names_" + str(viewport["width"]))

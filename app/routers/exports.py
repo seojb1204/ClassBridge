@@ -40,7 +40,7 @@ def export_consultations(start: date, end: date, format: Literal["xlsx", "csv", 
     if days < 1 or days > 366:
         raise BadRequest("시작일과 종료일을 확인해 주세요. 한 번에 최대 366일입니다")
     since, until = kst_range(start, days)
-    stmt = (select(Booking, User, Slot).join(User, User.id == Booking.student_id)
+    stmt = (select(Booking, User, Slot).outerjoin(User, User.id == Booking.student_id)
             .join(Slot, Slot.id == Booking.slot_id).where(Slot.start_at >= since, Slot.start_at < until))
     if student_id is not None:
         stmt = stmt.where(Booking.student_id == student_id)
@@ -57,12 +57,12 @@ def export_consultations(start: date, end: date, format: Literal["xlsx", "csv", 
     rows = []
     for b, u, slot in items:
         row = [as_kst(slot.start_at).strftime("%Y-%m-%d %H:%M"), as_kst(slot.end_at).strftime("%Y-%m-%d %H:%M"),
-               b.applicant_name or u.name, LABELS.get(b.consultation_type, b.consultation_type),
+               b.applicant_name or (u.name if u else "계정 미연결"), LABELS.get(b.consultation_type, b.consultation_type),
                LABELS.get(b.consultation_mode, b.consultation_mode), LABELS[b.status], slot.location, b.topic]
         if include_numbers:
             row += [b.student_number, b.grade or ""]
         if include_contacts:
-            row += [u.email]
+            row += [u.email if u else ""]
         if include_notes:
             row += [b.professor_note]
         rows.append(row)

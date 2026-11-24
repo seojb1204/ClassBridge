@@ -1,34 +1,46 @@
 import { get, post, clearCalendarCache } from "../api.js";
-import { todayKst, kstParts } from "../time.js";
-import { errorToast, field, h, modal, select, toast } from "../ui.js";
+import { todayKst, kstInputToIso } from "../time.js";
+import { busy, errorToast, field, h, select, toast } from "../ui.js";
 
-async function pickSlot(title, noteLabel = "사유 (선택)") {
-  const from = todayKst();
-  const slots = (await get(`/api/slots?start=${from}&days=31`)).filter((s) => s.status === "open" && s.remaining > 0
-    && new Date(s.start_at) > new Date());
-  if (!slots.length) { toast("남은 자리가 있는 상담 시간이 없습니다", "error"); return null; }
-  const sel = select(slots.map((s) => [s.id, `${kstParts(s.start_at).date} ${kstParts(s.start_at).time} (${s.kind === "group" ? `단체 ${s.remaining}석` : "개인"})`]));
-  const reason = h("input", { type: "text", maxlength: 500 });
-  const r = await modal(title, h("div", {}, field("상담 시간", sel), field(noteLabel, reason)), [
-    { label: "취소", value: null }, { label: "확인", primary: true, handler: () => ({ slot: +sel.value, reason: reason.value }) },
-  ]);
-  return r;
+// Account linkage is optional; an unlinked reservation always requires a name.
+export function staffBookingForm(onSaved = () => {}, seed = null) {
+  const name = h("input", {type: "text", required: true, maxlength: 100, autocomplete: "off"});
+  const who = select([["", "연결하지 않음"]], "");
+  who.setAttribute("aria-label", "학생 계정 연결 (선택)");
+  const hint = h("p", {class: "hint"}, "계정 미연결 예약은 학생의 내 예약에 표시되지 않아요.");
+  const date = h("input", {type: "date", required: true, value: seed?.date || todayKst()});
+  const start = h("input", {type: "time", required: true, value: seed?.start || "14:00"});
+  const end = h("input", {type: "time", required: true, value: seed?.end || "14:30"});
+  const place = h("input", {type: "text", maxlength: 200, value: "", placeholder: "예: 상담실"});
+  const topic = h("textarea", {rows: 2, maxlength: 500});
+  const save = h("button", {type: "submit", class: "btn primary"}, "예약 등록");
+  const accountStatus = h("small", {class: "hint", role: "status"});
+  const form = h("form", {class: "staff-booking-form"},
+    field("학생 이름 *", name), field("학생 계정 연결 (선택)", who), accountStatus,
+    field("날짜", date), h("div", {class: "booking-time-fields"}, field("시작", start), field("종료", end)),
+    field("장소 (선택)", place),
+    h("details", {}, h("summary", {}, "상담 주제 (선택)"), field("상담 주제", topic)), hint, save);
+  let students = [];
+  get("/api/students").then(rows => {
+    students = rows;
+    rows.forEach(s => who.append(h("option", {value: s.id}, `${s.name} (${s.email})`)));
+  }).catch(() => { accountStatus.textContent = "계정 목록을 불러오지 못했습니다. 이름만 입력해 등록할 수 있습니다."; });
+  who.onchange = () => {
+    const student = students.find(s => String(s.id) === who.value);
+    if (student) name.value = student.name;
+    hint.textContent = student ? "연결한 학생의 내 예약에 표시됩니다." : "계정 미연결 예약은 학생의 내 예약에 표시되지 않아요.";
+  };
+  form.addEventListener("submit", busy(save, async event => {
+    event.preventDefault();
+    if (!name.value.trim()) { name.focus(); toast("학생 이름을 입력하세요", "error"); return; }
+    try {
+      const result = await post("/api/bookings", {student_id: who.value ? Number(who.value) : null,
+        applicant_name: name.value.trim(), start_at: kstInputToIso(`${date.value}T${start.value}`),
+        end_at: kstInputToIso(`${date.value}T${end.value}`), location: place.value, topic: topic.value});
+      clearCalendarCache();
+      toast("예약을 등록했습니다", "success");
+      await onSaved(result);
+    } catch (error) { errorToast(error); }
+  }));
+  return form;
 }
-
-export async function bookForStudent(onSaved = () => {}) {
-  try {
-    const students = await get("/api/students");
-    if (!students.length) { toast("등록된 학생이 없습니다", "error"); return; }
-    const who = select(students.map((s) => [s.id, `${s.name} (${s.email})`]));
-    const r1 = await modal("학생 선택", field("학생", who), [{ label: "취소", value: null }, { label: "다음", primary: true, handler: () => +who.value }]);
-    if (!r1) return;
-    const r2 = await pickSlot("상담 시간 선택", "상담 주제 (선택)");
-    if (!r2) return;
-    await post("/api/bookings", { slot_id: r2.slot, student_id: r1, topic: r2.reason });
-    clearCalendarCache();
-    toast("예약했습니다", "success");
-    await onSaved();
-  } catch (e) { errorToast(e); }
-}
-
-

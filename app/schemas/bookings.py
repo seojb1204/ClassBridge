@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SlotOut(BaseModel):
@@ -55,7 +55,20 @@ class SlotCancelIn(BaseModel):
 
 
 class BookingCreateIn(BaseModel):
-    slot_id: int
+    slot_id: int | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    location: str = Field(default="", max_length=200)
+
+    @model_validator(mode="after")
+    def booking_time_source(self):
+        if self.slot_id is not None:
+            if self.start_at is not None or self.end_at is not None:
+                raise ValueError("상담 시간 선택과 날짜 직접 입력 중 하나만 사용하세요")
+        elif self.start_at is None or self.end_at is None:
+            raise ValueError("상담 시간 또는 시작·종료 시각이 필요합니다")
+        return self
+
     student_id: int | None = None  # 교수자·관리자만 사용 가능 (서버에서 검증)
     topic: str = Field(default="", max_length=500)
     # The student enters these values; do not treat them as verified credentials.
@@ -115,7 +128,7 @@ class MyBookingOut(BaseModel):
 
 
 class StaffBookingOut(MyBookingOut):
-    student_id: int
+    student_id: int | None
     student_name: str
     student_email: str
     professor_note: str

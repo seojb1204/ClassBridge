@@ -16,7 +16,7 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
     try:
         s.go('/slots')
         p.locator('.week-grid').wait_for()
-        assert p.get_by_role('heading', name='시간표', exact=True).is_visible()
+        assert not p.get_by_role('heading', name='시간표', exact=True).is_visible()
         current_week = p.locator('.week-nav strong').inner_text()
         p.get_by_role('button', name='다음 주', exact=True).click()
         from playwright.sync_api import expect
@@ -24,9 +24,8 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
         p.get_by_role('button', name='이번 주로 이동', exact=True).click()
         expect(p.locator('.week-nav strong')).to_have_text(current_week)
         if width <= 720:
-            toggle = p.locator('.calendar-view-switch').bounding_box()
-            nav = p.locator('.week-nav').bounding_box()
-            assert toggle['y'] + toggle['height'] <= nav['y']
+            assert p.locator('.calendar-view-switch').count() == 0
+            assert p.locator('.schedule-fab').is_visible()
             menu_button = p.get_by_role('button', name='더보기 메뉴')
             menu_button.click()
             menu = p.locator('#nav')
@@ -46,25 +45,10 @@ def test_calendar_default_and_compact_controls(server, browser, width):  # noqa:
         p.reload()
         support = p.locator('.calendar-support')
         support.wait_for(state='attached')
-        if width <= 720:
-            # Phones start calendar-first with the support panel closed.
-            assert support.get_attribute('open') is None
-            support.locator(':scope > summary').click()
-        p.locator('.available-day-buttons').wait_for()
-        dates = p.locator('.available-day-buttons')
-        if width <= 720:
-            # The date strip scrolls internally; every date remains reachable.
-            dates.locator('button').last.scroll_into_view_if_needed()
-            strip_box = dates.bounding_box()
-            last_box = dates.locator('button').last.bounding_box()
-            assert last_box['x'] >= strip_box['x'] - 1
-            assert last_box['x'] + last_box['width'] <= strip_box['x'] + strip_box['width'] + 1
-            assert last_box['height'] >= 44
-        else:
-            assert dates.evaluate('e => e.scrollWidth <= e.clientWidth')
+        assert not support.is_visible()
         assert p.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
         s.go('/slots/new')
-        assert p.get_by_role('button', name='상담', exact=True).is_visible()
+        assert p.get_by_role('button', name='상담 시간', exact=True).is_visible()
         s.shot(f'calendar_usability_{width}')
     finally:
         s.close()

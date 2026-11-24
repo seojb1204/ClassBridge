@@ -818,3 +818,37 @@ tr[hidden] { display: none; }
 .announcement-panel .badge[hidden], .inbox-retry[hidden] { display: none; }
 
 .personal-alert-form .check { word-break: keep-all; }
+
+/* Approved minimal staff timetable. Support components are temporarily hidden, not deleted. */
+.minimal-timetable .slots-head { margin: 0; padding: 0; border: 0; }
+.minimal-timetable .slots-head h1,
+.minimal-timetable .calendar-support,
+.minimal-timetable .calendar-tools,
+.minimal-timetable .reserved-day-count { display: none; }
+.schedule-fab { position: fixed; right: 20px; bottom: 24px; z-index: 20;
+  min-height: 52px; padding: 12px 20px; border-radius: 999px; box-shadow: 0 4px 12px #59331730; }
+.minimal-timetable .week-wrap { padding-bottom: 76px; }
+.registration-backdrop { position: fixed; inset: 0; z-index: 40; background: #29272170;
+  display: flex; align-items: center; justify-content: center; padding: 24px; }
+.registration-sheet { width: min(680px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto;
+  overscroll-behavior: contain; padding: 20px; background: var(--panel); border-radius: 18px; }
+.registration-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.registration-heading h1 { margin: 0; font-size: 1.4rem; }
+.registration-close { border: 0; background: transparent; font-size: 1.6rem; min-width: 44px; min-height: 44px; }
+.registration-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.registration-tabs .btn { min-width: 0; padding: 8px 4px; }
+.staff-booking-form { display: grid; gap: 8px; }
+.staff-booking-form .field { margin: 0; }
+.booking-time-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.staff-booking-form > .btn { width: 100%; min-height: 48px; margin-top: 8px; }
+body:has(.registration-sheet) { overflow: hidden; }
+@media (max-width: 720px) {
+  .minimal-timetable .week-nav { margin-top: 0; }
+  .minimal-timetable .mobile-grid-wrap { max-height: calc(100dvh - 172px - var(--mobile-tabs-height, 76px)); }
+  .schedule-fab { right: 16px; bottom: calc(var(--mobile-tabs-height, 76px) + 14px); }
+  .registration-backdrop { padding: 0; align-items: flex-end; }
+  .registration-sheet { width: 100%; max-height: calc(100dvh - 60px); border-radius: 20px 20px 0 0;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .registration-sheet::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 4px;
+    background: var(--line); margin: 0 auto 10px; }
+}

@@ -103,7 +103,7 @@ def notes(db: Session, query: str, limit: int, offset: int) -> dict:
             func.lower(Booking.professor_note).like(pattern, escape="\\"),
         ))
     base = (select(Booking, User, Slot)
-            .join(User, User.id == Booking.student_id)
+            .outerjoin(User, User.id == Booking.student_id)
             .join(Slot, Slot.id == Booking.slot_id)
             .where(*criteria))
     total = db.execute(select(func.count()).select_from(base.subquery())).scalar_one()
@@ -117,7 +117,7 @@ def notes(db: Session, query: str, limit: int, offset: int) -> dict:
             {
                 "booking_id": b.id,
                 "start_at": slot.start_at,
-                "student_name": b.applicant_name or user.name,
+                "student_name": b.applicant_name or (user.name if user else "계정 미연결"),
                 "student_number": b.student_number,
                 "consultation_type": b.consultation_type,
                 "consultation_mode": b.consultation_mode,

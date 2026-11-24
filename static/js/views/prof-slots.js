@@ -1,6 +1,6 @@
 import { mountCalendarPreservingScroll } from "../components/calendar-scroll.js";
 import { showStaffSlot } from "./prof-bookings.js";
-import { bookForStudent } from "../components/book-for-student.js";
+import { staffBookingForm } from "../components/book-for-student.js";
 import { prefetchWeeks } from "../calendar-prefetch.js";
 import { loadLectures, lectureEditor, lectureCreateForm } from "../components/lecture-editor.js";
 import { schedulePreview } from "../components/schedule-preview.js";
@@ -32,29 +32,52 @@ export function startRegistrationAt(seed) {
   location.hash = "#/slots/new";
 }
 
-export function renderRegistration(root) {
+export async function renderRegistration(root) {
   const seed = registrationSeed;
   registrationSeed = null;
+  weekStart ||= mondayOf(todayKst());
+  selectedDay ||= todayKst();
+  await draw(root, false, true);
+  if (!root.isConnected || location.hash !== "#/slots/new") return;
   const consultation = createForm(root, seed);
-  const lecture = lectureCreateForm((value) => {
-    weekStart = mondayOf(value.date); selectedDay = value.date; revealCreated = true; showForm = false;
+  const saved = (day) => {
+    weekStart = mondayOf(day); selectedDay = day; revealCreated = true; showForm = false;
     location.hash = "#/slots";
-  }, seed);
-  const panel = h("section", { class: "panel", id: "slot-create-panel" });
-  const buttons = [["consultation", "상담"], ["lecture", "강의"]].map(([kind, label]) =>
-    h("button", { class: "btn", "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind) }, label));
-  const choose = (kind) => {
+  };
+  const lecture = lectureCreateForm(value => saved(value.date), seed);
+  const booking = staffBookingForm(value => saved(kstParts(value.slot.start_at).date), seed);
+  const panel = h("section", {id: "slot-create-panel"});
+  const kinds = [["consultation", "상담 시간"], ["lecture", "강의"], ["booking", "예약 등록"]];
+  const buttons = kinds.map(([kind, label]) => h("button", {type: "button", class: "btn",
+    "aria-pressed": String(registrationKind === kind), onclick: () => choose(kind)}, label));
+  const choose = kind => {
     registrationKind = kind;
-    buttons.forEach((button, index) => button.setAttribute("aria-pressed", String((index === 1) === (kind === "lecture"))));
-    mount(panel, kind === "lecture" ? lecture : consultation);
+    buttons.forEach((button, i) => {
+      button.setAttribute("aria-pressed", String(kinds[i][0] === kind));
+      button.classList.toggle("primary", kinds[i][0] === kind);
+    });
+    mount(panel, kind === "lecture" ? lecture : kind === "booking" ? booking : consultation);
   };
   choose(registrationKind);
-  mount(root,
-    h("div", { class: "page-head" }, h("h1", {}, "상담·강의 등록"),
-      h("a", { class: "btn", href: "#/slots" }, "시간표로 돌아가기"),
-      h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약")),
-    h("div", { class: "calendar-toggle", "aria-label": "등록할 일정 종류" }, ...buttons),
-    h("p", { class: "muted" }, "상담과 강의는 같은 시간표에 표시됩니다. 등록할 종류를 선택해 주세요."), panel);
+  const close = () => { if (!panel.querySelector('button[type="submit"]:disabled')) location.hash = "#/slots"; };
+  const sheet = h("section", {class: "registration-sheet", role: "dialog", "aria-modal": "true",
+    "aria-label": "일정 등록", tabindex: -1},
+    h("div", {class: "registration-heading"}, h("h1", {}, "일정 등록"),
+      h("button", {class: "btn registration-close", type: "button", "aria-label": "등록 창 닫기", onclick: close}, "×")),
+    h("div", {class: "calendar-toggle registration-tabs", "aria-label": "등록할 일정 종류"}, buttons), panel);
+  sheet.addEventListener('keydown', event => {
+    if (document.querySelector('#modal-root [role="dialog"]')) return;
+    if (event.key === 'Escape') { event.preventDefault(); close(); }
+    if (event.key !== 'Tab') return;
+    const controls = [...sheet.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href]')].filter(el => el.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
+  [...root.children].forEach(el => { el.inert = true; });
+  root.append(h("div", {class: "registration-backdrop", onclick: event => { if (event.target.classList.contains('registration-backdrop')) close(); }}, sheet));
+  // The router focuses #view after rendering. Move focus into the dialog on the next frame.
+  requestAnimationFrame(() => { if (sheet.isConnected) sheet.focus({preventScroll: true}); });
 }
 
 export async function render(root) {
@@ -80,8 +103,9 @@ export async function render(root) {
   await draw(root, reveal);
 }
 
-async function draw(root, revealDay = false) {
-  if (location.hash !== "#/slots") return;
+async function draw(root, revealDay = false, registration = false) {
+  if (location.hash !== (registration ? "#/slots/new" : "#/slots")) return;
+  root.classList.add("minimal-timetable");
   const version = ++drawVersion, path = location.hash;
   const [slots, announcement, availableDays, lectures, bookings] = await Promise.all([
     get(`/api/slots?start=${weekStart}&days=7`), loadAnnouncement(), loadAvailableDays(), loadLectures(weekStart), get(`/api/bookings?start=${weekStart}&days=7`),
@@ -97,15 +121,14 @@ async function draw(root, revealDay = false) {
   mountCalendarPreservingScroll(root, () => [
     h("div", { class: "page-head slots-head" }, h("h1", {}, "시간표"),
       h("div", { class: "head-actions" },
-        h("a", { class: "btn primary", href: "#/slots/new" }, "+ 일정 등록"),
-        h("button", { class: "btn", onclick: () => bookForStudent(() => { clearCalendarCache(); return render(root); }) }, "학생 대신 예약"))),
+        h("a", { class: "btn primary schedule-fab", href: "#/slots/new" }, "+ 일정 등록"))),
     h("details", { class: "calendar-support", open: supportOpen ?? !isMobile(),
       ontoggle: (e) => { if (e.currentTarget.isConnected) supportOpen = e.currentTarget.open; } },
       h("summary", {}, "공지 · 예약 가능한 날짜"),
       announcementPanel(announcement, () => draw(root)),
       availableDaysPanel(availableDays, (day) => { weekStart = mondayOf(day); selectedDay = day; draw(root, true); })),
     h("div", { class: "calendar-tools" }, calendarLegend(), isMobile() ? null : refreshButton(root)),
-    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...enhanced.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView,
+    renderCalendar({ navigation: weekNav(weekStart, (w) => { weekStart = w; selectedDay = w; draw(root); }), weekStart, slots: [...enhanced.filter(s => s.status !== "cancelled"), ...lectures].sort((a,b) => a.start_at.localeCompare(b.start_at)), selectedDay, mobileView: "week", simplified: true,
       dayCountMode: "booked",
       onTimeSelect: startRegistrationAt,
       onWeekChange: (w) => { weekStart = w; selectedDay = w; return draw(root); },

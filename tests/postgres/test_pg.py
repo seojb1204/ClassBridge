@@ -706,3 +706,43 @@ def test_new_booking_rechecks_staff_time_edit_after_slot_lock(pg_app):
     with pg_app.state.SessionLocal() as db:
         assert db.scalar(select(func.count()).select_from(Booking)) == 0
         assert db.get(Slot, sid).booked_count == 0
+
+
+def test_unlinked_concurrent_direct_registration_keeps_one_seat(pg_app):
+    from datetime import datetime
+
+    from app.timeutil import KST
+    from tests.conftest import future_day
+    prof = login(pg_app, "prof@test.ac.kr")
+    start = datetime.combine(future_day(), time(14), tzinfo=KST)
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            booking_service.book(db, db.get(User, prof.me["id"]), None,
+                                 applicant_name=f"미연결 {i}", start_at=start, end_at=start + timedelta(minutes=30))
+    results = _race(8, attempt)
+    assert results.count("ok") == 1, results
+    assert all(result in ("ok", "slot_full") for result in results), results
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Slot)) == 1
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
+        assert db.scalar(select(Slot.booked_count)) == 1
+
+
+def test_nullable_booking_migration_preserves_linked_history_and_guards_downgrade(pg_app):
+    from app.models import BookingEvent
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = login(pg_app, "migration-student@test.ac.kr")
+    slots = make_slots(prof)
+    original = student.post("/api/bookings", json={"slot_id": slots[0]}).json()
+    command.downgrade(_alembic(PG_URL), "0014")
+    command.upgrade(_alembic(PG_URL), "head")
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Booking, original["id"]).student_id == student.me["id"]
+        assert db.scalar(select(func.count()).select_from(BookingEvent)) == 1
+    added = prof.post("/api/bookings", json={"slot_id": slots[1], "applicant_name": "미연결"})
+    assert added.status_code == 201, added.text
+    with pytest.raises(RuntimeError, match="계정 미연결"):
+        command.downgrade(_alembic(PG_URL), "0014")
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Booking, added.json()["id"]).student_id is None
+        assert db.scalar(select(func.count()).select_from(Booking)) == 2

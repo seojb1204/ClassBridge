@@ -55,7 +55,7 @@ def test_lecture_discoverable_before_notice(server, browser, email, viewport):  
     p.locator(".lecture-create-form").wait_for()
     assert p.get_by_role("button", name="강의", exact=True).get_attribute("aria-pressed") == "true"
     p.get_by_label("강의명", exact=True).fill("취소할 입력")
-    p.get_by_role("button", name="상담", exact=True).click()
+    p.get_by_role("button", name="상담 시간", exact=True).click()
     assert p.get_by_role("button", name="등록 미리보기", exact=True).is_visible()
     assert p.locator(".lecture-create-form").count() == 0
     p.get_by_role("button", name="강의", exact=True).click()
@@ -106,8 +106,11 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     if path == "/booking":
         p.get_by_role("button", name="달력형", exact=True).click()
     p.locator(".calendar-week .week-grid").wait_for()
-    assert p.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
-    assert p.locator(".calendar-view-switch button").all_text_contents() == ["달력형", "목록형"]
+    if path == "/booking":
+        assert p.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
+        assert p.locator(".calendar-view-switch button").all_text_contents() == ["달력형", "목록형"]
+    else:
+        assert p.locator(".calendar-view-switch").count() == 0
     assert p.get_by_role("grid", name="달력형 주간 시간표", exact=True).is_visible()
     assert p.locator(".week-grid .day-head").count() == 5
     expect(p.locator(".week-grid .slot.open")).to_have_count(5)
@@ -131,6 +134,10 @@ def test_mobile_calendar_week_list_and_details(server, browser, email, path, vie
     expect(p.locator(".week-grid .day-head").first).not_to_have_text(before)
     assert p.locator(".week-grid .day-head").count() == 5
     expect(p.get_by_role("button", name="3일", exact=True)).to_have_count(0)
+    if path == "/slots":
+        expect(p.locator(".calendar-view-switch")).to_have_count(0)
+        session.close()
+        return
     expect(p.get_by_role("group", name="일정 보기 방식").get_by_role("button")).to_have_count(2)
     p.get_by_role("button", name="목록형", exact=True).click()
     p.locator(".day-chips").wait_for()
@@ -178,7 +185,6 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     p.route("**/api/lectures?*", lambda route: route.fulfill(json=[]))
     session.go("/bookings")
     session.go("/slots")
-    p.get_by_role("button", name="달력형", exact=True).click()
     grid = p.locator(".mobile-grid-wrap")
     expect(grid.locator(".slot")).to_have_count(5)
     p.wait_for_timeout(500)
@@ -186,6 +192,8 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     p.evaluate("""() => {
         const spacer = document.createElement('div');
         spacer.style.height = '1200px'; document.body.append(spacer);
+        const topSpace = document.createElement('div');
+        topSpace.style.height = '240px'; document.querySelector('#view').prepend(topSpace);
     }""")
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"
@@ -221,7 +229,7 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
         }
         print(diagnostics)
         assert (p.evaluate("scrollY") - before) * direction > 20
-    expect(p.get_by_role("button", name="달력형", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(p.locator(".week-grid")).to_be_visible()
     cdp.detach()
     session.close()
 

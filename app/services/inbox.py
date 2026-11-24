@@ -54,7 +54,7 @@ def booking_targets(db, rows):
     matches = {event_id: (action, booking, student) for event_id, action, booking, student in db.execute(
         select(BookingEvent.id, BookingEvent.action, Booking, User)
         .join(Booking, Booking.id == BookingEvent.booking_id)
-        .join(User, User.id == Booking.student_id)
+        .outerjoin(User, User.id == Booking.student_id)
         .where(BookingEvent.id.in_(set(event_ids.values())))
     ).unique()}
     resolved = {}
@@ -67,7 +67,7 @@ def booking_targets(db, rows):
 
 def booking_summary(booking, student):
     """Minimal in-app staff summary, never a push payload or historical snapshot."""
-    return {"student_name": booking.applicant_name or student.name or "예약자",
+    return {"student_name": booking.applicant_name or (student.name if student else "예약자"),
             "start_at": to_kst(booking.slot.start_at).isoformat(timespec="seconds"),
             "end_at": to_kst(booking.slot.end_at).isoformat(timespec="seconds"),
             "status": booking.status, "status_label": STATUS_LABELS.get(booking.status, "상태 확인 필요"),

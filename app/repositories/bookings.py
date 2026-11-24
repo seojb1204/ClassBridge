@@ -76,7 +76,7 @@ def active_bookings_for_slot(db: Session, slot_id: int) -> list[Booking]:
 
 def search_bookings(db: Session, start: datetime | None, end: datetime | None,
                     status: str | None) -> list[tuple[Booking, User]]:
-    stmt = select(Booking, User).join(User, User.id == Booking.student_id).join(Slot, Slot.id == Booking.slot_id)
+    stmt = select(Booking, User).outerjoin(User, User.id == Booking.student_id).join(Slot, Slot.id == Booking.slot_id)
     if start:
         stmt = stmt.where(Slot.start_at >= start)
     if end:
