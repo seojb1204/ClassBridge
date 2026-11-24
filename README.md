@@ -81,3 +81,48 @@ ruff check app tests migrations scripts
 학생 상담 예약·변경 작성창에서 휴대폰/브라우저 뒤로가기는 창만 닫습니다. 시간표 URL과 선택 주차는 유지하며, 창을 닫은 다음 뒤로가기는 원래 페이지 이동으로 동작합니다.
 
 학생 시간표는 로그인 사용자 전용 조회 API로 강의명·시간·강의실을 표시합니다. 강의 수정·삭제 및 관리용 조회 권한은 확대하지 않습니다. 겹치는 구간은 상담을 우선 표시합니다. 화면 알림은 터치/클릭 또는 키보드 Enter·Space·Escape로 즉시 닫을 수 있습니다.
+
+## 캘린더 초대 독립 시험 (미배포)
+
+`exp/calendar-invite-test` 전용. 앱·DB·큐·Render 설정을 변경하지 않는다.
+발신 `sender@example.com`, 수신 `recipient@example.com` 본인 계정만 사용한다.
+로컬 가상환경에 `icalendar`, `httpx`를 설치하고 기존 발신 인증 4개
+(`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER_EMAIL`)를
+프로세스 환경변수로 제공한다. 비밀값은 코드/명령 이력/보고서에 넣지 않는다.
+
+```sh
+python scripts/dev/send_test_invite.py --self-test
+python scripts/dev/send_test_invite.py request --to recipient@example.com --dry-run
+python scripts/dev/send_test_invite.py update --to recipient@example.com --dry-run
+python scripts/dev/send_test_invite.py cancel --to recipient@example.com --dry-run
+# 실제 순서: request → 폰 확인 및 30분 전 알림 확인 → update → 폰 확인 → cancel
+python scripts/dev/send_test_invite.py request --to recipient@example.com --send
+python scripts/dev/send_test_invite.py update --to recipient@example.com --send
+python scripts/dev/send_test_invite.py cancel --to recipient@example.com --send
+```
+
+기본은 dry-run이며 상태 파일을 만들거나 발송 횟수를 소모하지 않는다.
+각 dry-run은 합성 미리보기다. 실제 세 번의 발송은 `.invite_state.json`의
+같은 UID와 증가하는 SEQUENCE를 사용한다. 파일을 삭제/복사하여 한도를 초기화하지 않는다.
+발송 시도는 최대 3회이며 네트워크 결과 불명 또는 중단 시 재시도하지 않는다.
+명령 동시 실행은 파일 잠금으로 차단한다. 실행 환경은 Linux/macOS이다.
+Gmail API 접수 성공은 수신·캘린더 반영·알림 성공을 의미하지 않는다.
+
+실행 순서 및 현재 결과 (2026-11-24):
+1. request/update/cancel dry-run 전문 출력 및 icalendar 재파싱 완료. 오프라인 단위 테스트 2개 통과.
+2. 개발자 승인 후 request --send. 현재 기존 인증 접근 대기, 실제 발송 0통.
+3. 개발자가 30분 전 알림 확인 후 update --send, 중복 여부 확인. 미실행.
+4. cancel --send, 삭제 또는 취소 표시 확인. 미실행.
+
+| 질문 | 기대·확인 기준 | Gmail 웹 실제 | Gmail 앱 실제 | Google 캘린더 실제 | 삼성 캘린더 실제 | 비고 |
+|---|---|---|---|---|---|---|
+| 1 초대 카드 | 참석/미정/불참 제공 여부 | 개발자 입력 | 개발자 입력 | 해당 없음 | 해당 없음 | 파일 첨부 표시와 구분 |
+| 2 수락 전 등록 | 수락 전·후 따로 기록 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 초대 자동 추가 설정 기록 |
+| 3 일정·시간 | 두 앱에서 동일 한국시간 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 시작은 실제 발송 시각+40분 |
+| 4 사전 알림 | 시작 30분 전 실제 알림 | 해당 없음 | 해당 없음 | 개발자 입력 | 개발자 입력 | VALARM 적용인지 앱 기본값인지 구분 |
+| 5 시간 변경 | 같은 일정 1개, 15분 이동 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 수동 ICS 가져오기는 별도 기록 |
+| 6 취소 | 삭제 또는 취소 표시 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 개발자 입력 | 앱별 동기화 지연 기록 |
+
+결론: 실기기 관찰 전이므로 학생 알림 방식 채택 여부는 미정.
+자동 추가/VALARM이 수신자 설정에 따라 다르면 메일+선택적 캘린더 초대만 제공하고,
+정시 알림은 기존 웹 푸시 또는 별도로 검증한 알림톡을 검토한다. 이번 시험에서 연결하지 않는다.

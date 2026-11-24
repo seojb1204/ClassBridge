@@ -9,3 +9,6 @@ venv/
 *.db-journal
 e2e-shots/
 test-results.xml
+
+# Isolated calendar invite experiment
+scripts/dev/.invite_state*
