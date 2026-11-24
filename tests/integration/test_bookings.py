@@ -249,7 +249,7 @@ def test_staff_books_on_behalf_and_audit(clients):
 def test_professor_cannot_self_book(clients):
     p = clients["prof"]
     ids = make_slots(p)
-    assert p.post("/api/bookings", json={"slot_id": ids[0]}).status_code == 403
+    assert p.post("/api/bookings", json={"slot_id": ids[0], "student_id": p.me["id"]}).status_code == 403
 
 
 def test_db_unavailable_returns_503(app, clients):

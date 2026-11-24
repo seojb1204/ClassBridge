@@ -25,6 +25,7 @@ export async function resolve() {
   // route may finish rendering, but must never replace the current screen.
   const previousView = document.getElementById("view");
   const view = previousView.cloneNode(false);
+  view.classList.remove("minimal-timetable");
   previousView.replaceWith(view);
   document.body.dataset.ready = ""; // 렌더링 완료 표시 (접근성·E2E 대기용)
   for (const r of routes) {

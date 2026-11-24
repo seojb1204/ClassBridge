@@ -45,12 +45,13 @@ def booking_events(kind: Literal["all", "cancel", "change"] = "all",
 
 def _staff_out(b, u) -> StaffBookingOut:
     base = MyBookingOut.model_validate(b).model_dump()
-    return StaffBookingOut(**base, student_id=u.id, student_name=u.name, student_email=u.email,
+    return StaffBookingOut(**base, student_id=u.id if u else None,
+                           student_name=u.name if u else b.applicant_name, student_email=u.email if u else "",
                            professor_note=b.professor_note)
 
 
 def _student(db: Session, b):
-    return users_repo.get(db, b.student_id)
+    return users_repo.get(db, b.student_id) if b.student_id is not None else None
 
 
 def _out(p: Principal, db: Session, b):
@@ -134,7 +135,8 @@ def create_booking(body: BookingCreateIn, p: Principal = Depends(require(P.SLOT_
     return _out(p, db, svc.book(db, p.user, body.slot_id, body.student_id, body.topic,
                                 applicant_name=body.applicant_name, student_number=body.student_number,
                                 grade=body.grade, consultation_type=body.consultation_type,
-                                consultation_mode=body.consultation_mode))
+                                consultation_mode=body.consultation_mode,
+                                start_at=body.start_at, end_at=body.end_at, location=body.location))
 
 
 @router.post("/bookings/{booking_id}/cancel")

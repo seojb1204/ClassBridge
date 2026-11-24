@@ -141,7 +141,7 @@ def test_mobile_day_selection_scroll_notice_order_and_student_no_export(server, 
               "remaining": 1, "status": "open", "bookable": True, "mine": False,
               "location": "m205", "note": "", "reason": ""}
              for d, day in enumerate(days) for i in range(6)]
-    for email, path in [("scroll-student@test.ac.kr", "/booking"), ("prof@test.ac.kr", "/slots")]:
+    for email, path in [("scroll-student@test.ac.kr", "/booking")]:
         session = Session(browser, base, email, MOBILE, service_workers="block")
         page = session.page
         page.emulate_media(reduced_motion="reduce")
@@ -222,21 +222,18 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     base, _ = server
     prof = Session(browser, base, "prof@test.ac.kr", MOBILE)
     prof.go("/slots")
-    assert prof.page.locator(".calendar-support").get_attribute("open") is None
-    prof.page.locator(".calendar-support > summary").click()
-    prof.page.get_by_role("button", name="공지 작성", exact=True).click()
-    prof.page.get_by_label("공지 제목").fill("상담 전 준비 안내")
-    prof.page.get_by_label("공지 내용").fill("질문을 정리해 주세요.\n<script>window.noticeInjected=true</script>")
-    prof.page.get_by_role("button", name="공지 저장", exact=True).click()
-    prof.toast("숨김 상태")
+    assert not prof.page.locator(".calendar-support").is_visible()
+    headers = {"X-CSRF-Token": prof.page.request.get(base + "/api/me").json()["csrf_token"]}
+    content = dict(title="상담 전 준비 안내", body="질문을 정리해 주세요.\n<script>window.noticeInjected=true</script>",
+                   published=False, revision=0)
+    response = prof.page.request.put(base + "/api/announcement", data=content, headers=headers)
+    assert response.status == 200
     student = Session(browser, base, "notice-student@test.ac.kr", MOBILE)
     student.go("/booking")
     assert student.page.locator(".announcement-panel").count() == 0
-    assert prof.page.locator(".calendar-support").get_attribute("open") is not None
-    prof.page.get_by_role("button", name="공지 수정", exact=True).click()
-    prof.page.get_by_label("공개 상태").select_option("true")
-    prof.page.get_by_role("button", name="공지 저장", exact=True).click()
-    prof.toast("게시했습니다")
+    content.update(published=True, revision=response.json()["announcement"]["revision"])
+    response = prof.page.request.put(base + "/api/announcement", data=content, headers=headers)
+    assert response.status == 200
     student.page.reload()
     student.page.locator(".announcement-panel > summary").click()
     assert student.page.locator(".announcement-body").inner_text().endswith("</script>")
@@ -248,11 +245,10 @@ def test_booking_announcement_mobile_lifecycle(server, browser):
     student.page.get_by_text("‘예약 가능’ 시간을 눌러 예약하세요.", exact=False).wait_for()
     admin = Session(browser, base, "admin@test.ac.kr", PC)
     admin.go("/slots")
-    assert admin.page.locator(".calendar-support").get_attribute("open") is not None
-    admin.page.get_by_role("button", name="공지 수정", exact=True).click()
-    admin.page.get_by_label("공개 상태").select_option("false")
-    admin.page.get_by_role("button", name="공지 저장", exact=True).click()
-    admin.toast("숨김 상태")
+    assert not admin.page.locator(".calendar-support").is_visible()
+    headers = {"X-CSRF-Token": admin.page.request.get(base + "/api/me").json()["csrf_token"]}
+    content.update(published=False, revision=response.json()["announcement"]["revision"])
+    assert admin.page.request.put(base + "/api/announcement", data=content, headers=headers).status == 200
     student.page.reload()
     student.page.wait_for_selector('body[data-ready="/booking"]')
     assert student.page.locator(".announcement-panel").count() == 0
@@ -822,21 +818,11 @@ def test_mobile_staff_insights_and_timetable(server, browser):
     prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
     prof.page.locator(".calendar-week").wait_for()
     assert prof.page.locator(".week-grid .day-head").count() == 5
-    prof.page.get_by_role("button", name="목록형", exact=True).click()
-    prof.page.locator(".day-chips").wait_for()
-    day_chip = prof.page.locator(".chip").filter(
-        has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
-    if not day_chip.count():
-        prof.page.click("button[aria-label='다음 주']")
-        day_chip = prof.page.locator(".chip").filter(
-            has=prof.page.locator(f"strong:text-is('{SLOT_DAY.day:02d}')"))
-    day_chip.first.click()
-    prof.page.get_by_role("button", name="달력형", exact=True).click()
-    prof.page.locator(".week-grid").wait_for(state="visible")
-    assert prof.page.locator(".week-grid .day-head").count() == 5
-    assert prof.page.locator(".week-grid .slot").count() >= 1
-    prof.page.get_by_role("button", name="목록형", exact=True).click()
-    prof.page.locator(".daily .cards").wait_for(state="visible")
+    assert prof.page.locator(".calendar-view-switch").count() == 0
+    assert prof.page.locator(".week-grid").is_visible()
+    if not prof.page.locator(".week-grid .slot").count():
+        prof.page.get_by_role("button", name="다음 주", exact=True).click()
+    prof.page.locator(".week-grid .slot").first.wait_for()
     prof.close()
 
 
@@ -847,7 +833,7 @@ def test_mobile_professor_views(server, browser):
                        ("/surveys", "mobile_06_prof_surveys")):
         prof.go(path)
         if path == "/slots":
-            assert prof.page.get_by_role("button", name="달력형", exact=True).get_attribute("aria-pressed") == "true"
+            assert prof.page.locator(".week-grid").is_visible()
             assert prof.page.locator(".week-grid .day-head").count() == 5
             assert prof.page.locator("form.grid-form").count() == 0
             assert prof.page.locator("#mobile-tabs").is_visible()
@@ -1036,10 +1022,9 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=[]))
     prof.page.reload()
     prof.go("/slots")
-    prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile(rf"{int(day[5:7])}월 {int(day[8:])}일 .*예약 0명"))
-    chip.wait_for()
-    assert chip.locator("em").inner_text() == "0명"
+    counts = prof.page.locator(".reserved-day-count")
+    assert all(text == "예약 0명" for text in counts.all_text_contents())
+    assert prof.page.locator(".reserved-day-count:visible").count() == 0
     slots[3].update(kind="group", capacity=3)
     bookings = [{"id": 8000 + i, "slot": slots[slot], "student_name": "검증 학생",
                  "student_id": 8100 + i, "student_email": "synthetic@test.ac.kr", "topic": "",
@@ -1047,12 +1032,11 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
                 for i, (slot, status) in enumerate([(2, "booked"), (3, "booked"), (3, "booked"),
                     (3, "booked"), (0, "cancelled"), (1, "completed")])]
     prof.page.route("**/api/bookings?*", lambda route: route.fulfill(json=bookings))
-    prof.go("/bookings")
-    prof.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
-    prof.page.get_by_role("button", name="목록형", exact=True).click()
-    chip = prof.page.get_by_role("tab", name=re.compile("예약 4명"))
-    chip.wait_for()
-    assert chip.locator("em").inner_text() == "4명"
+    prof.go("/slots")
+    prof.page.reload()
+    prof.go("/slots")
+    prof.page.locator('.reserved-day-count').filter(has_text="예약 4명").wait_for(state="attached")
+    assert not prof.page.locator('.reserved-day-count').filter(has_text="예약 4명").is_visible()
     prof.shot("mobile_reserved_student_counts")
     prof.page.set_viewport_size(PC)
     prof.page.locator(".week-grid .slot.reserved").first.wait_for()
@@ -1062,8 +1046,7 @@ def test_mobile_reserved_student_counts_in_staff_views(server, browser):
     slots[2].update(bookable=True, remaining=1, reason="")
     prof.page.reload()
     prof.go("/slots")
-    prof.page.get_by_role("button", name="목록형", exact=True).click()
-    prof.page.get_by_role("tab", name=re.compile("예약 3명")).wait_for()
+    prof.page.locator(".reserved-day-count").filter(has_text="예약 3명").wait_for(state="attached")
     prof.close()
 
 
@@ -1146,17 +1129,10 @@ def test_simple_weekly_schedule_preview_summary_and_delete(server, browser):
     prof.toast('12개 등록')
     prof.page.locator('.daily-title:focus, .week-nav strong:focus').wait_for()
     assert prof.page.locator('#slot-create-panel').count() == 0
-    prof.page.get_by_role('button', name='목록형', exact=True).click()
-    prof.page.locator('.daily .card.slot.open').first.wait_for()
-    assert prof.page.locator('.daily .card.slot.open').count() == 6
-    if prof.page.locator('.calendar-support').get_attribute('open') is None:
-        prof.page.locator('.calendar-support > summary').click()
-    summary = prof.page.get_by_role('region', name='예약 가능한 상담 일정')
-    # More than three dates may already exist from other end-to-end scenarios.
-    if summary.get_by_role('button', name='전체 일정 보기', exact=True).count():
-        summary.get_by_role('button', name='전체 일정 보기', exact=True).click()
-    summary.get_by_role('button', name=re.compile(f'{day.month}월 {day.day}일.*예약 가능 6건')).click()
-    prof.page.locator('.card.slot.open').first.click()
+    prof.page.locator('.week-grid .slot.open').first.wait_for()
+    assert prof.page.locator('.week-grid .slot.open').count() >= 6
+    assert not prof.page.locator('.calendar-support').is_visible()
+    prof.page.locator('.week-grid .slot.open').first.click()
     prof.page.get_by_role('button', name='이 시간 취소', exact=True).click()
     prof.page.get_by_role('button', name='취소하기', exact=True).click()
     prof.toast('취소했습니다')

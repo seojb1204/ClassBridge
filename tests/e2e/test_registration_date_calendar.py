@@ -40,7 +40,7 @@ def test_registration_calendar_and_sentence_sync(server, browser, width):  # noq
         expect(p.locator('.notice').first).to_contain_text('2027-01-06')
         p.get_by_role('button', name='강의', exact=True).click()
         expect(p.get_by_label('날짜', exact=True)).to_have_attribute('type', 'date')
-        p.get_by_role('button', name='상담', exact=True).click()
+        p.get_by_role('button', name='상담 시간', exact=True).click()
         expect(date).to_have_value('2027-01-06')
         s.shot(f'registration_date_calendar_{width}')
     finally:

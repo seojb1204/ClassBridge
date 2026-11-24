@@ -28,6 +28,13 @@ def test_compact_support_panels(server, browser, width, email, path):  # noqa: F
     page.reload()
     s.go(path)
     support = page.locator('.calendar-support')
+    if path == '/slots':
+        expect(support).to_be_hidden()
+        expect(page.locator('.schedule-fab')).to_be_visible()
+        expect(page.locator('.week-grid')).to_be_visible()
+        s.shot(f'compact_support_prof_{width}')
+        s.close()
+        return
     if support.count() and not support.evaluate('e => e.open'):
         support.locator(':scope > summary').click()
     notice = page.locator('.announcement-panel')

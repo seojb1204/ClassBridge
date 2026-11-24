@@ -56,7 +56,7 @@ class Booking(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     slot_id: Mapped[int] = mapped_column(ForeignKey("slots.id"))
-    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    student_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="booked")
     topic: Mapped[str] = mapped_column(String(500), default="")
     # User-entered metadata, not independently verified university identity.

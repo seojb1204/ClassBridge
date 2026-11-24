@@ -25,7 +25,7 @@ def test_empty_time_prefills_both_registration_kinds(server, browser, email):  #
     # Pick 11:15 within the hourly hit area, not its keyboard default (11:00).
     box = cell.bounding_box()
     cell.click(position={"x": box["width"] / 2, "y": box["height"] * .375})
-    expect(p.get_by_role("heading", name="상담·강의 등록")).to_be_visible()
+    expect(p.get_by_role("heading", name="일정 등록")).to_be_visible()
     expect(p.get_by_label("시작", exact=True)).to_have_value("11:15")
     expect(p.get_by_label("종료", exact=True)).to_have_value("11:45")
     picked_date = p.get_by_label("날짜(시작일)", exact=True).input_value()

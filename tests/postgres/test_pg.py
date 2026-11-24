@@ -706,3 +706,23 @@ def test_new_booking_rechecks_staff_time_edit_after_slot_lock(pg_app):
     with pg_app.state.SessionLocal() as db:
         assert db.scalar(select(func.count()).select_from(Booking)) == 0
         assert db.get(Slot, sid).booked_count == 0
+
+
+def test_unlinked_concurrent_direct_registration_keeps_one_seat(pg_app):
+    from datetime import datetime
+
+    from app.timeutil import KST
+    from tests.conftest import future_day
+    prof = login(pg_app, "prof@test.ac.kr")
+    start = datetime.combine(future_day(), time(14), tzinfo=KST)
+    def attempt(i):
+        with pg_app.state.SessionLocal() as db:
+            booking_service.book(db, db.get(User, prof.me["id"]), None,
+                                 applicant_name=f"미연결 {i}", start_at=start, end_at=start + timedelta(minutes=30))
+    results = _race(8, attempt)
+    assert results.count("ok") == 1, results
+    assert all(result in ("ok", "slot_full") for result in results), results
+    with pg_app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Slot)) == 1
+        assert db.scalar(select(func.count()).select_from(Booking)) == 1
+        assert db.scalar(select(Slot.booked_count)) == 1

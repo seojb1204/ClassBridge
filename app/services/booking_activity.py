@@ -13,7 +13,7 @@ def list_activity(db: Session, kind: str, before_id: int | None, limit: int):
     student, actor = aliased(User), aliased(User)
     stmt = (select(BookingEvent, Booking, student.name, actor.name)
             .join(Booking, Booking.id == BookingEvent.booking_id)
-            .join(student, student.id == Booking.student_id)
+            .outerjoin(student, student.id == Booking.student_id)
             .join(actor, actor.id == BookingEvent.actor_id)
             .where(BookingEvent.action.in_(CANCELLATIONS if kind == "cancel" else
                                           CHANGES if kind == "change" else ACTIONS)))

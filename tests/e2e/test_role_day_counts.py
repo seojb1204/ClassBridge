@@ -39,7 +39,7 @@ def test_role_counts_and_navigation(server, browser, role, width):  # noqa: F811
     p.reload()  # Reload after routing to replace the initial authenticated page data.
     s.go('/booking' if role == 'student' else '/slots')
     p.get_by_role('button', name='이번 주로 이동', exact=True).click()
-    if width <= 720:
+    if width <= 720 and role == 'student':
         p.get_by_role('button', name='목록형', exact=True).click()
         chips = p.locator('.day-chips')
         chips.wait_for()

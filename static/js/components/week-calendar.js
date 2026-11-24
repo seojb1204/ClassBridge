@@ -129,7 +129,7 @@ export function renderCalendar(o) {
 // to the role-specific choice; list mode provides readable event details.
 function renderMobile(o, byDay) {
   const mode = ["week", "list", "timeline"].includes(o.mobileView) ? o.mobileView : "week";
-  const toggle = h("div", { class: "mobile-view-toggle calendar-view-switch", role: "group", "aria-label": "일정 보기 방식" },
+  const toggle = o.simplified ? null : h("div", { class: "mobile-view-toggle calendar-view-switch", role: "group", "aria-label": "일정 보기 방식" },
     ...[["week", "달력형"], ["list", "목록형"]].map(([value, label]) =>
       h("button", { type: "button", class: mode === value ? "btn primary" : "btn",
         "aria-pressed": String(mode === value), onclick: () => o.onViewChange?.(value) }, label)));
@@ -140,7 +140,7 @@ function renderMobile(o, byDay) {
   const days = Array.from({ length: 5 }, (_, i) => addDays(o.weekStart, i));
   return h("div", { class: "mobile-calendar calendar-week" }, toggle, o.navigation,
     o.navigation ? null : h("h3", { class: "daily-title calendar-grid-title", tabindex: "-1" }, `${fmtDate(o.weekStart)} – ${fmtDate(days[4])}`),
-    h("details", { class: "calendar-help" }, h("summary", {}, "시간표 사용 안내"), h("p", {}, "좌우로 밀어 주 이동 · 작은 일정은 목록형에서 크게 볼 수 있어요.")),
+    o.simplified ? null : h("details", { class: "calendar-help" }, h("summary", {}, "시간표 사용 안내"), h("p", {}, "좌우로 밀어 주 이동 · 작은 일정은 목록형에서 크게 볼 수 있어요.")),
     renderWeekly({ ...o, gridDays: days, compactGrid: true }, byDay));
 }
 

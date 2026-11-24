@@ -27,7 +27,7 @@ from app.repositories import users as users_repo
 from app.services import booking_policy as policy_mod
 from app.services.booking_policy import Policy
 from app.services.calendar_policy import ensure_weekday, touches_weekend
-from app.services.lecture_policy import lock_calendar
+from app.services.lecture_policy import lecture_overlap, lock_calendar
 from app.services.notifications import enqueue
 from app.services.settings_service import get_settings
 from app.timeutil import KST
@@ -381,35 +381,69 @@ def _check_slot_for(db: Session, actor: User, slot: Slot | None, now: datetime, 
     return slot
 
 
-def book(db: Session, actor: User, slot_id: int, student_id: int | None = None,
+def book(db: Session, actor: User, slot_id: int | None, student_id: int | None = None,
          topic: str = "", now: datetime | None = None, *,
          applicant_name: str = "", student_number: str = "", grade: int | None = None,
-         consultation_type: str = "other", consultation_mode: str = "in_person") -> Booking:
+         consultation_type: str = "other", consultation_mode: str = "in_person",
+         start_at: datetime | None = None, end_at: datetime | None = None, location: str = "") -> Booking:
     pol = _policy(db)
-    student = _resolve_student(db, actor, student_id)
+    unlinked = _is_staff(actor) and student_id is None
+    student = None if unlinked else _resolve_student(db, actor, student_id)
+    if unlinked and not applicant_name.strip():
+        raise BadRequest("계정 없이 예약하려면 학생 이름을 입력하세요")
+    if slot_id is None and not _is_staff(actor):
+        raise Forbidden("상담 시간 직접 등록은 교수자·관리자만 가능합니다")
 
     def work():
+        target_slot_id = slot_id
+        if target_slot_id is None:
+            if not start_at or not end_at or start_at.tzinfo is None or end_at.tzinfo is None:
+                raise BadRequest("시간대가 포함된 시작·종료 시각이 필요합니다")
+            duration = end_at - start_at
+            if not timedelta(minutes=5) <= duration <= timedelta(minutes=240):
+                raise BadRequest("상담은 5분 이상 240분 이하로 등록하세요")
+            ensure_weekday(start_at, end_at)
+            if start_at.astimezone(KST).date() != end_at.astimezone(KST).date():
+                raise BadRequest("같은 날짜의 시작·종료 시각을 선택하세요")
+            if lecture_overlap(db, start_at, end_at):
+                raise Conflict("강의와 시간이 겹칩니다", code="lecture_overlap")
+            overlaps = repo.overlapping_open_slots(db, start_at, end_at)
+            if overlaps:
+                existing = overlaps[0]
+                if len(overlaps) != 1 or existing.start_at != start_at or existing.end_at != end_at:
+                    raise Conflict("기존 상담 시간과 겹칩니다. 기존 시작·종료 시각을 선택하세요", code="slot_overlap")
+                if location.strip() and location.strip() != existing.location:
+                    raise Conflict("기존 상담 장소와 다릅니다. 시간표에서 장소를 확인하세요", code="slot_location")
+                target_slot_id = existing.id
+            else:
+                fresh = Slot(start_at=start_at, end_at=end_at, kind="individual", capacity=1,
+                             location=location.strip()[:200], created_by_id=actor.id)
+                db.add(fresh)
+                db.flush()
+                target_slot_id = fresh.id
+
         # Serialize against staff time edits before validating the latest slot.
         # populate_existing prevents an earlier identity-map read from staying stale.
-        locked = db.scalar(select(Slot).where(Slot.id == slot_id).with_for_update()
+        locked = db.scalar(select(Slot).where(Slot.id == target_slot_id).with_for_update()
                            .execution_options(populate_existing=True))
         slot = _check_slot_for(db, actor, locked, now or utcnow(), pol)
-        if repo.active_booking_of(db, student.id) is not None:
+        if student is not None and repo.active_booking_of(db, student.id) is not None:
             raise Conflict("이미 진행 중인 상담 예약이 있습니다. 기존 예약을 취소하거나 변경하세요",
                            code="active_booking_exists")
         if not repo.try_take_seat(db, slot.id):
             raise Conflict("정원이 마감되었습니다", code="slot_full")
-        b = Booking(slot_id=slot.id, student_id=student.id, topic=topic[:500], created_by_id=actor.id,
+        b = Booking(slot_id=slot.id, student_id=student.id if student else None, topic=topic[:500], created_by_id=actor.id,
                     applicant_name=(applicant_name.strip() or student.name)[:100],
                     student_number=student_number.strip()[:30], grade=grade,
                     consultation_type=consultation_type, consultation_mode=consultation_mode)
         db.add(b)
         db.flush()  # 부분 유니크 인덱스 위반은 여기서 IntegrityError
-        ev = repo.add_event(db, b.id, actor.id, "book" if actor.id == student.id else "book_by_staff")
+        action = "book" if student is not None and actor.id == student.id else "book_by_staff"
+        ev = repo.add_event(db, b.id, actor.id, action)
         enqueue(db, b, ev, "created")
-        if actor.id != student.id:
+        if student is None or actor.id != student.id:
             audit_repo.add(db, actor.id, "booking.create_for_student", "booking", b.id,
-                           {"student_id": student.id, "slot_id": slot.id})
+                           {"student_id": student.id if student else None, "slot_id": slot.id})
         return b
 
     b = _atomic(db, work)

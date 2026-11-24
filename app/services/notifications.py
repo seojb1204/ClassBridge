@@ -27,7 +27,8 @@ def enqueue(db, booking, event, kind, *, old=None):
                "start": booking.slot.start_at.isoformat(), "end": booking.slot.end_at.isoformat(),
                "url": settings.base_url + "/#/bookings"}
     if not payload["student_name"]:
-        payload["student_name"] = db.get(User, booking.student_id).name
+        student = db.get(User, booking.student_id) if booking.student_id is not None else None
+        payload["student_name"] = student.name if student else "예약자"
     previous = db.scalar(select(Notification).where(Notification.booking_id == (old.id if old else booking.id))
                          .order_by(Notification.id.desc()).limit(1))
     chain = previous.chain_id if previous else (old.id if old else booking.id)
