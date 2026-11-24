@@ -726,3 +726,23 @@ def test_unlinked_concurrent_direct_registration_keeps_one_seat(pg_app):
         assert db.scalar(select(func.count()).select_from(Slot)) == 1
         assert db.scalar(select(func.count()).select_from(Booking)) == 1
         assert db.scalar(select(Slot.booked_count)) == 1
+
+
+def test_nullable_booking_migration_preserves_linked_history_and_guards_downgrade(pg_app):
+    from app.models import BookingEvent
+    prof = login(pg_app, "prof@test.ac.kr")
+    student = login(pg_app, "migration-student@test.ac.kr")
+    slots = make_slots(prof)
+    original = student.post("/api/bookings", json={"slot_id": slots[0]}).json()
+    command.downgrade(_alembic(PG_URL), "0014")
+    command.upgrade(_alembic(PG_URL), "head")
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Booking, original["id"]).student_id == student.me["id"]
+        assert db.scalar(select(func.count()).select_from(BookingEvent)) == 1
+    added = prof.post("/api/bookings", json={"slot_id": slots[1], "applicant_name": "미연결"})
+    assert added.status_code == 201, added.text
+    with pytest.raises(RuntimeError, match="계정 미연결"):
+        command.downgrade(_alembic(PG_URL), "0014")
+    with pg_app.state.SessionLocal() as db:
+        assert db.get(Booking, added.json()["id"]).student_id is None
+        assert db.scalar(select(func.count()).select_from(Booking)) == 2

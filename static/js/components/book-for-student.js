@@ -6,6 +6,7 @@ import { busy, errorToast, field, h, select, toast } from "../ui.js";
 export function staffBookingForm(onSaved = () => {}, seed = null) {
   const name = h("input", {type: "text", required: true, maxlength: 100, autocomplete: "off"});
   const who = select([["", "연결하지 않음"]], "");
+  who.setAttribute("aria-label", "학생 계정 연결 (선택)");
   const hint = h("p", {class: "hint"}, "계정 미연결 예약은 학생의 내 예약에 표시되지 않아요.");
   const date = h("input", {type: "date", required: true, value: seed?.date || todayKst()});
   const start = h("input", {type: "time", required: true, value: seed?.start || "14:00"});

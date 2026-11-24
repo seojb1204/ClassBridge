@@ -192,6 +192,8 @@ def test_mobile_calendar_scroll_chains_at_vertical_edges(server, browser, width)
     p.evaluate("""() => {
         const spacer = document.createElement('div');
         spacer.style.height = '1200px'; document.body.append(spacer);
+        const topSpace = document.createElement('div');
+        topSpace.style.height = '240px'; document.querySelector('#view').prepend(topSpace);
     }""")
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorY") == "auto"
     assert grid.evaluate("e => getComputedStyle(e).overscrollBehaviorX") == "contain"

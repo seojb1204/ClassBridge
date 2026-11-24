@@ -861,7 +861,7 @@ def test_mobile_optional_sections_do_not_render_null(server, browser):
             if path == "/slots":
                 session.page.get_by_role("link", name="+ 일정 등록", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="visible")
-                session.page.locator("#mobile-tabs").get_by_role("link", name="시간표", exact=True).click()
+                session.page.get_by_role("button", name="등록 창 닫기", exact=True).click()
                 session.page.locator("#slot-create-panel").wait_for(state="hidden")
                 assert "null" not in session.page.locator("#view").inner_text().split()
             session.shot("optional_student" if path == "/booking" else "optional_professor")

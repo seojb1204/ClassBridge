@@ -28,7 +28,10 @@ def test_named_booking_without_account_is_private_and_manageable(app, clients, r
     assert staff.put(f"/api/bookings/{bid}/note", json={"note": "기록 보존"}).status_code == 200
     notes = staff.get("/api/staff/notes?q=계정 없는 학생")
     assert notes.status_code == 200 and "계정 없는 학생" in notes.text
-    assert staff.get("/api/staff/booking-events").status_code == 200
+    activity = staff.get("/api/staff/booking-events")
+    assert activity.status_code == 200 and "계정 없는 학생" in activity.text
+    inbox = staff.get("/api/inbox")
+    assert inbox.status_code == 200 and "계정 없는 학생" in inbox.text
     day = future_day().isoformat()
     export = staff.get(f"/api/exports/consultations?start={day}&end={day}&format=csv&include_contacts=true")
     assert export.status_code == 200 and "계정 없는 학생" in export.text
@@ -81,3 +84,19 @@ def test_failed_outbox_rolls_back_new_slot_and_booking(app, clients, monkeypatch
     with app.state.SessionLocal() as db:
         assert db.scalar(select(func.count()).select_from(Slot)) == 0
         assert db.scalar(select(func.count()).select_from(Booking)) == 0
+
+
+def test_lecture_conflict_and_existing_consultation_priority(app, clients):
+    staff = clients["prof"]
+    day = future_day().isoformat()
+    assert staff.post("/api/lectures", json={"title": "강의", "date": day,
+                     "start_time": "14:00", "end_time": "15:00"}).status_code == 201
+    rejected = staff.post("/api/bookings", json=payload())
+    assert rejected.status_code == 409 and rejected.json()["error"] == "lecture_overlap"
+    with app.state.SessionLocal() as db:
+        assert db.scalar(select(func.count()).select_from(Slot)) == 0
+    # Explicitly registered consultation takes precedence over a lecture (existing policy).
+    slot = make_slots(staff, start="14:00", end="14:30", location="상담실")[0]
+    accepted = staff.post("/api/bookings", json=payload())
+    assert accepted.status_code == 201, accepted.text
+    assert accepted.json()["slot"]["id"] == slot

@@ -405,8 +405,6 @@ def book(db: Session, actor: User, slot_id: int | None, student_id: int | None =
             ensure_weekday(start_at, end_at)
             if start_at.astimezone(KST).date() != end_at.astimezone(KST).date():
                 raise BadRequest("같은 날짜의 시작·종료 시각을 선택하세요")
-            if lecture_overlap(db, start_at, end_at):
-                raise Conflict("강의와 시간이 겹칩니다", code="lecture_overlap")
             overlaps = repo.overlapping_open_slots(db, start_at, end_at)
             if overlaps:
                 existing = overlaps[0]
@@ -416,6 +414,8 @@ def book(db: Session, actor: User, slot_id: int | None, student_id: int | None =
                     raise Conflict("기존 상담 장소와 다릅니다. 시간표에서 장소를 확인하세요", code="slot_location")
                 target_slot_id = existing.id
             else:
+                if lecture_overlap(db, start_at, end_at):
+                    raise Conflict("강의와 시간이 겹칩니다", code="lecture_overlap")
                 fresh = Slot(start_at=start_at, end_at=end_at, kind="individual", capacity=1,
                              location=location.strip()[:200], created_by_id=actor.id)
                 db.add(fresh)
