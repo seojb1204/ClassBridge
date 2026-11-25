@@ -830,6 +830,13 @@ tr[hidden] { display: none; }
 .schedule-fab { position: fixed; right: 20px; bottom: 24px; z-index: 20;
   min-height: 52px; padding: 12px 20px; border-radius: 999px; box-shadow: 0 4px 12px #59331730; }
 .minimal-timetable .week-wrap { padding-bottom: 76px; }
+@media (min-width: 721px) {
+  .minimal-timetable .week-nav,
+  .minimal-timetable .week-wrap {
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
 .registration-backdrop { position: fixed; inset: 0; z-index: 40; background: #29272170;
   display: flex; align-items: center; justify-content: center; padding: 24px; }
 .registration-sheet { width: min(680px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto;

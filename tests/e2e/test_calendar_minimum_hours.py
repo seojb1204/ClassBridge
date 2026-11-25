@@ -24,17 +24,27 @@ def test_minimum_axis_and_outside_events(server, browser, width):  # noqa: F811
         ]:
             page.evaluate('''async ([start,end]) => {
                 const {renderCalendar} = await import('/static/js/components/week-calendar.js');
-                const root = document.createElement('main'); root.className = 'view';
+                const root = document.createElement('main'); root.className = 'view minimal-timetable';
                 document.body.replaceChildren(root);
                 const slots = start ? [{id: 1, capacity: 1, remaining: 1, kind: 'individual',
                     status: 'open', bookable: true, start_at: `2026-11-16T${start}:00+09:00`,
                     end_at: `2026-11-16T${end}:00+09:00`}] : [];
-                root.append(renderCalendar({weekStart:'2026-11-16',slots,mobileView:'week',
+                const navigation = document.createElement('nav'); navigation.className = 'week-nav';
+                root.append(renderCalendar({navigation,weekStart:'2026-11-16',slots,mobileView:'week',
                     onSlot:()=>{},onTimeSelect:()=>{}}));
             }''', [start, end])
             hours = page.locator('.week-grid .hour').all_text_contents()
             assert hours[0] == first and hours[-1] == last
             assert '11:00' in hours and '15:00' in hours
+            wrap = page.locator('.week-wrap').bounding_box()
+            nav = page.locator('.week-nav').bounding_box()
+            if width > 720:
+                assert wrap['width'] == pytest.approx(920, abs=1)
+                assert wrap['x'] == pytest.approx((width - wrap['width']) / 2, abs=10)
+                assert nav['x'] == pytest.approx(wrap['x'], abs=1)
+                assert nav['width'] == pytest.approx(wrap['width'], abs=1)
+            else:
+                assert wrap['width'] > width * 0.85
             hour = page.locator('.week-grid .hour').first.bounding_box()
             assert hour['height'] == pytest.approx(60 if width > 720 else 96, abs=1)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
