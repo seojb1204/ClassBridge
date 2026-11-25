@@ -150,7 +150,7 @@ function renderWeekly(o, byDay) {
     (displayByDay[kstParts(slot.start_at).date] ||= []).push(slot);
   }
   const days = o.gridDays || Array.from({ length: 5 }, (_, d) => addDays(o.weekStart, d));
-  const rowPx = o.compactGrid ? 24 : 18;
+  const rowPx = o.compactGrid ? 24 : 15;
   // The pixel size of a 15-minute interval must NOT change with the
   // consultation duration or the number of slots in the displayed week.
   // Keep 11:00–16:00 visible even for an empty or sparsely populated week.
@@ -205,16 +205,21 @@ function renderWeekly(o, byDay) {
       const start = (a.hour - minH) * 60 + a.minute;
       const end = (b.hour - minH) * 60 + b.minute;
       const shortConsultation = s.event_type !== "lecture" && end - start <= 30;
+      const desktopShort = shortConsultation && !o.compactGrid;
+      const fullLabel = slotLabel(s);
+      const summary = desktopShort && s.status !== "cancelled" && s.staffBookingNames
+        ? s.staffBookingNames : fullLabel;
       const btn = h("button", { class: `${slotClass(s)}${shortConsultation ? " compact-short" : ""}${shortConsultation && end - start < 20 ? " compact-tiny" : ""}`, onclick: () => o.onSlot(s.originalSlot || s),
-        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${s.event_type === "lecture" ? "강의 · " : ""}${slotLabel(s)}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
+        ...(desktopShort ? { title: `${a.time}–${b.time} ${fullLabel}` } : {}),
+        "aria-label": `${fmtDate(a.date)} ${a.time}-${b.time} ${s.event_type === "lecture" ? "강의 · " : ""}${fullLabel}`, dataset: { slotId: s.id, eventType: s.event_type === "lecture" ? "lecture" : "consultation" } },
         h("span", { class: "slot-time" }, a.time, h("span", { class: "slot-time-end" }, `–${b.time}`)),
         h("span", { class: "slot-meta" }, o.compactGrid
           ? (s.staffBookingNames ? slotLabel(s) : s.event_type === "lecture" ? s.title : s.status === "cancelled" ? "취소"
             : s.mine ? "내 예약" : (s.reason?.includes("지난") ? "지남" : s.reason) || (s.managerState === "reserved" ? `예약 ${s.bookingCount}명`
               // Same words as the legend: staff "상담 가능", students "예약 가능".
               : s.managerState === "free" ? "상담 가능" : "예약 가능"))
-          : slotLabel(s)),
-        o.extra && !o.compactGrid ? o.extra(s) : null);
+          : summary),
+        o.extra && !o.compactGrid && !desktopShort ? o.extra(s) : null);
       // CSS grid line numbers must be integers (e.g. a 09:05 lecture).
       btn.style.gridRow = `${Math.floor(start / STEP) + 2} / ${Math.ceil(end / STEP) + 2}`;
       btn.style.marginTop = `${1 + (start % STEP) * rowPx / STEP}px`;

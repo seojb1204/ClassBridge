@@ -25,7 +25,8 @@ def test_staff_manual_lecture_same_calendar(server, browser, viewport):  # noqa:
         placement = p.locator(".slot.lecture").filter(has_text=str(viewport["width"])).evaluate(
             "el => ({row: el.style.gridRowStart, margin: el.style.marginTop})")
         assert placement["row"].isdigit(), placement
-        assert placement["margin"] == "7px", placement
+        # Five minutes at 60px/hour plus the 1px card inset.
+        assert placement["margin"] == "6px", placement
     assert p.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     staff.shot("lectures_" + str(viewport["width"]))
     p.locator(".slot.lecture").filter(has_text=str(viewport["width"])).click()

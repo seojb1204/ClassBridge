@@ -705,9 +705,11 @@ textarea { line-height: 1.75; }
 /* 2026-11-23 UX priority pass: calendar first, readable slots, one registration path. */
 .slot-meta { word-break: keep-all; overflow-wrap: anywhere; }
 @media (min-width: 721px) {
-  /* 30-minute cards are 34px tall on PC: keep time and label on one line when they fit. */
-  .week-grid .slot.compact-short { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: .35rem;
-    padding-block: .1rem; line-height: 1.15; }
+  .week-grid .slot.compact-short { flex-direction: row; flex-wrap: nowrap; align-items: center;
+    gap: .35rem; min-width: 0; min-height: 0; padding-block: 0; line-height: 1.1; white-space: nowrap; }
+  .week-grid .compact-short .slot-time { flex: none; }
+  .week-grid .compact-short .slot-time-end { display: none; }
+  .week-grid .compact-short .slot-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .available-day-buttons { grid-template-columns: repeat(auto-fill, minmax(120px, 168px)); }
 }
 .calendar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .75rem; margin: .5rem 0; }
@@ -828,6 +830,13 @@ tr[hidden] { display: none; }
 .schedule-fab { position: fixed; right: 20px; bottom: 24px; z-index: 20;
   min-height: 52px; padding: 12px 20px; border-radius: 999px; box-shadow: 0 4px 12px #59331730; }
 .minimal-timetable .week-wrap { padding-bottom: 76px; }
+@media (min-width: 721px) {
+  .minimal-timetable .week-nav,
+  .minimal-timetable .week-wrap {
+    max-width: 920px;
+    margin-inline: auto;
+  }
+}
 .registration-backdrop { position: fixed; inset: 0; z-index: 40; background: #29272170;
   display: flex; align-items: center; justify-content: center; padding: 24px; }
 .registration-sheet { width: min(680px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto;
