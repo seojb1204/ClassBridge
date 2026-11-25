@@ -18,6 +18,7 @@ def test_minimum_axis_and_outside_events(server, browser, width):  # noqa: F811
         for start, end, first, last in [
             (None, None, '11:00', '15:00'),
             ('13:00', '13:30', '11:00', '15:00'),
+            ('14:20', '14:40', '11:00', '15:00'),
             ('09:00', '09:30', '08:00', '15:00'),
             ('16:00', '17:30', '11:00', '18:00'),
         ]:
@@ -34,11 +35,19 @@ def test_minimum_axis_and_outside_events(server, browser, width):  # noqa: F811
             hours = page.locator('.week-grid .hour').all_text_contents()
             assert hours[0] == first and hours[-1] == last
             assert '11:00' in hours and '15:00' in hours
+            hour = page.locator('.week-grid .hour').first.bounding_box()
+            assert hour['height'] == pytest.approx(60 if width > 720 else 96, abs=1)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             if start:
                 card = page.locator('[data-slot-id="1"]')
                 assert card.is_visible()
                 bounds = card.bounding_box()
+                if start == '14:20' and width > 720:
+                    assert not card.locator('.slot-time-end').is_visible()
+                    assert '14:40' in card.get_attribute('aria-label')
+                    label = card.locator('.slot-meta').bounding_box()
+                    assert bounds['y'] <= label['y']
+                    assert label['y'] + label['height'] <= bounds['y'] + bounds['height']
                 grid = page.locator('.week-grid').bounding_box()
                 assert bounds['y'] >= grid['y']
                 assert bounds['y'] + bounds['height'] <= grid['y'] + grid['height'] + 1
